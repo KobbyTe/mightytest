@@ -1,12 +1,16 @@
 import Navbar from "@/components/Navbar";
-import { DesignShowcase } from "@/components/DesignShowcase";
+import Hero from "@/components/Hero";
+import Features from "@/components/Features";
+import Subjects from "@/components/Subjects";
 import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
     <div className="min-h-screen">
       <Navbar />
-      <DesignShowcase />
+      <Hero />
+      <Features />
+      <Subjects />
       <Footer />
     </div>
   );
