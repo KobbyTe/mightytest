@@ -14,16 +14,224 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      parents: {
+        Row: {
+          access_code: string
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          last_login: string | null
+          phone_number: string | null
+          relationship_to_student: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_code: string
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          last_login?: string | null
+          phone_number?: string | null
+          relationship_to_student?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_code?: string
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          last_login?: string | null
+          phone_number?: string | null
+          relationship_to_student?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      password_reset_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          account_status: string | null
+          address_city: string | null
+          address_country: string | null
+          created_at: string | null
+          date_of_birth: string
+          email: string
+          full_name: string
+          gender: string | null
+          grade: string | null
+          id: string
+          last_login: string | null
+          parent_id: string | null
+          phone_number: string | null
+          profile_picture_url: string | null
+          programming_experience: string | null
+          programming_languages: string[] | null
+          school_name: string | null
+          skill_levels: Json | null
+          stem_interests: string[] | null
+          student_school_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_status?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          created_at?: string | null
+          date_of_birth: string
+          email: string
+          full_name: string
+          gender?: string | null
+          grade?: string | null
+          id?: string
+          last_login?: string | null
+          parent_id?: string | null
+          phone_number?: string | null
+          profile_picture_url?: string | null
+          programming_experience?: string | null
+          programming_languages?: string[] | null
+          school_name?: string | null
+          skill_levels?: Json | null
+          stem_interests?: string[] | null
+          student_school_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_status?: string | null
+          address_city?: string | null
+          address_country?: string | null
+          created_at?: string | null
+          date_of_birth?: string
+          email?: string
+          full_name?: string
+          gender?: string | null
+          grade?: string | null
+          id?: string
+          last_login?: string | null
+          parent_id?: string | null
+          phone_number?: string | null
+          profile_picture_url?: string | null
+          programming_experience?: string | null
+          programming_languages?: string[] | null
+          school_name?: string | null
+          skill_levels?: Json | null
+          stem_interests?: string[] | null
+          student_school_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "parents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preferences: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          notifications_enabled: boolean | null
+          theme: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "student" | "parent" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +358,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["student", "parent", "admin"],
+    },
   },
 } as const
