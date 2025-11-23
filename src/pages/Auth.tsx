@@ -38,7 +38,7 @@ const Auth = () => {
           title: "Welcome back! 🎉",
           description: `Logged in as ${userType}`,
         });
-        navigate('/');
+        navigate('/dashboard');
       } else {
         throw new Error(data?.error || 'Login failed');
       }
