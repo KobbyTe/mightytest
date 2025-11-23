@@ -38,14 +38,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    }
-  }, [user, loading, navigate]);
-
-  useEffect(() => {
-    if (user && profile) {
+    } else if (!loading && user && profile && profile.id) {
       loadDashboardData();
     }
-  }, [user, profile]);
+  }, [user, loading, profile, navigate]);
 
   const loadDashboardData = async () => {
     try {

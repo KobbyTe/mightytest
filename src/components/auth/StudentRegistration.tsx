@@ -105,7 +105,7 @@ export const StudentRegistration = () => {
           password: formData.password
         });
 
-        navigate('/');
+        navigate('/dashboard');
       } else {
         throw new Error(data?.error || 'Registration failed');
       }

@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-stem.jpg";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Hero = () => {
+  const { user } = useAuth();
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Circuit pattern background */}
@@ -35,19 +37,30 @@ const Hero = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/auth">
-                <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
-                  Get Started
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="w-full sm:w-auto text-lg px-8 py-6 border-2 border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
-              >
-                Explore Features
-              </Button>
+              {user ? (
+                <Link to="/dashboard">
+                  <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
+                    <LayoutDashboard className="mr-2 w-5 h-5" />
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
+                      Get Started
+                      <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </Link>
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="w-full sm:w-auto text-lg px-8 py-6 border-2 border-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+                  >
+                    Explore Features
+                  </Button>
+                </>
+              )}
             </div>
             
             {/* Stats */}

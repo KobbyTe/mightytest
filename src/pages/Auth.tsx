@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Cpu, GraduationCap, Users, Shield, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StudentRegistration } from "@/components/auth/StudentRegistration";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("student");
@@ -17,31 +18,53 @@ const Auth = () => {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
 
-  const handleLogin = async (e: React.FormEvent, userType: string) => {
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, authLoading, navigate]);
+
+  const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin') => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('login', {
-        body: {
-          email: loginData.email,
-          password: loginData.password,
-          userType
-        }
+      // First, sign in with Supabase auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginData.email,
+        password: loginData.password,
       });
 
-      if (error) throw error;
-
-      if (data?.success) {
-        toast({
-          title: "Welcome back! 🎉",
-          description: `Logged in as ${userType}`,
-        });
-        navigate('/dashboard');
-      } else {
-        throw new Error(data?.error || 'Login failed');
+      if (authError || !authData.session) {
+        throw new Error('Invalid email or password');
       }
+
+      // Then verify the user has the correct role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+        .eq('role', userType)
+        .maybeSingle();
+
+      if (roleError) {
+        await supabase.auth.signOut();
+        throw roleError;
+      }
+
+      if (!roleData) {
+        await supabase.auth.signOut();
+        throw new Error(`This account is not registered as a ${userType}`);
+      }
+
+      toast({
+        title: "Welcome back! 🎉",
+        description: `Logged in as ${userType}`,
+      });
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Login error:', error);
       toast({

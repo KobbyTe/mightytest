@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Cpu } from "lucide-react";
+import { Menu, X, Cpu, LayoutDashboard } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -29,16 +31,27 @@ const Navbar = () => {
             <Link to="/#about" className="text-sm font-medium hover:text-primary transition-colors">
               About
             </Link>
-            <Link to="/auth">
-              <Button variant="outline" className="border-2 border-primary hover:bg-primary hover:text-primary-foreground transition-all">
-                Sign In
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button className="shadow-primary hover:shadow-glow transition-all">
-                Get Started
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/dashboard">
+                <Button className="shadow-primary hover:shadow-glow transition-all">
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="outline" className="border-2 border-primary hover:bg-primary hover:text-primary-foreground transition-all">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button className="shadow-primary hover:shadow-glow transition-all">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -75,16 +88,27 @@ const Navbar = () => {
               About
             </Link>
             <div className="space-y-2 pt-4">
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" className="w-full border-2 border-primary">
-                  Sign In
-                </Button>
-              </Link>
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button className="w-full shadow-primary">
-                  Get Started
-                </Button>
-              </Link>
+              {user ? (
+                <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                  <Button className="w-full shadow-primary">
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full border-2 border-primary">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/auth" onClick={() => setIsOpen(false)}>
+                    <Button className="w-full shadow-primary">
+                      Get Started
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
