@@ -6,7 +6,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+
+  const getDashboardPath = () => {
+    if (role === 'admin') return '/admin';
+    if (role === 'parent') return '/parent';
+    return '/dashboard';
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -32,7 +38,7 @@ const Navbar = () => {
               About
             </Link>
             {user ? (
-              <Link to="/dashboard">
+              <Link to={getDashboardPath()}>
                 <Button className="shadow-primary hover:shadow-glow transition-all">
                   <LayoutDashboard className="mr-2 h-4 w-4" />
                   Dashboard
@@ -89,7 +95,7 @@ const Navbar = () => {
             </Link>
             <div className="space-y-2 pt-4">
               {user ? (
-                <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                <Link to={getDashboardPath()} onClick={() => setIsOpen(false)}>
                   <Button className="w-full shadow-primary">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard

@@ -18,14 +18,20 @@ const Auth = () => {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
 
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to appropriate dashboard
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/dashboard');
+    if (!authLoading && user && role) {
+      if (role === 'admin') {
+        navigate('/admin');
+      } else if (role === 'parent') {
+        navigate('/parent');
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, role, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin') => {
     e.preventDefault();
@@ -64,7 +70,15 @@ const Auth = () => {
         title: "Welcome back! 🎉",
         description: `Logged in as ${userType}`,
       });
-      navigate('/dashboard');
+      
+      // Redirect based on role
+      if (userType === 'admin') {
+        navigate('/admin');
+      } else if (userType === 'parent') {
+        navigate('/parent');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       toast({

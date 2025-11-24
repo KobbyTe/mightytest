@@ -107,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setProfile(null);
     setPreferences(null);
-    navigate('/');
   };
 
   return (
