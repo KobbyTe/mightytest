@@ -9,61 +9,67 @@ import { Progress } from '@/components/ui/progress';
 import { BookOpen, Calendar, Clock, User, LogOut, GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Course {
+interface Exam {
   id: string;
   title: string;
   description: string;
-  instructor_name: string;
-  category: string;
-  duration_weeks: number;
-  difficulty_level: string;
+  subject: string;
+  grade_level: string;
+  duration_minutes: number;
+  total_marks: number;
+  passing_marks: number;
+  exam_date: string;
+  status: string;
 }
 
-interface Enrollment {
+interface ExamAttempt {
   id: string;
-  progress: number;
-  enrolled_at: string;
   status: string;
-  course_id: string;
-  courses: Course;
+  marks_obtained: number | null;
+  attempted_at: string;
+  completed_at: string | null;
+  exam_id: string;
+  exams: Exam;
 }
 
 export default function Dashboard() {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
+  const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
+  const [availableExams, setAvailableExams] = useState<Exam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    } else if (!loading && user && profile && profile.id) {
+    } else if (!loading && user && role && role !== 'student') {
+      navigate('/dashboard');
+    } else if (!loading && user && role === 'student' && profile?.id) {
       loadDashboardData();
     }
-  }, [user, loading, profile, navigate]);
+  }, [user, loading, role, profile, navigate]);
 
   const loadDashboardData = async () => {
     try {
-      // Load enrollments with course details
-      const { data: enrollmentData, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .select('*, courses(*)')
+      // Load exam attempts with exam details
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .from('exam_attempts')
+        .select('*, exams(*)')
         .eq('student_id', profile.id)
-        .order('enrolled_at', { ascending: false });
+        .order('attempted_at', { ascending: false });
 
-      if (enrollmentError) throw enrollmentError;
-      setEnrollments(enrollmentData || []);
+      if (attemptsError) throw attemptsError;
+      setExamAttempts(attemptsData || []);
 
-      // Load available courses
-      const { data: coursesData, error: coursesError } = await supabase
-        .from('courses')
+      // Load available exams
+      const { data: examsData, error: examsError } = await supabase
+        .from('exams')
         .select('*')
         .eq('status', 'active')
-        .order('title');
+        .order('exam_date');
 
-      if (coursesError) throw coursesError;
-      setAvailableCourses(coursesData || []);
+      if (examsError) throw examsError;
+      setAvailableExams(examsData || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
@@ -72,26 +78,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleEnroll = async (courseId: string) => {
+  const handleRegisterExam = async (examId: string) => {
     try {
       const { error } = await supabase
-        .from('enrollments')
+        .from('exam_attempts')
         .insert({
           student_id: profile.id,
-          course_id: courseId,
-          status: 'active',
-          progress: 0
+          exam_id: examId,
+          status: 'pending'
         });
 
       if (error) throw error;
-      toast.success('Successfully enrolled in course!');
+      toast.success('Successfully registered for exam!');
       loadDashboardData();
     } catch (error: any) {
-      console.error('Enrollment error:', error);
+      console.error('Registration error:', error);
       if (error.code === '23505') {
-        toast.error('You are already enrolled in this course');
+        toast.error('You are already registered for this exam');
       } else {
-        toast.error('Failed to enroll in course');
+        toast.error('Failed to register for exam');
       }
     }
   };
@@ -109,8 +114,8 @@ export default function Dashboard() {
     );
   }
 
-  const enrolledCourseIds = enrollments.map(e => e.course_id);
-  const unenrolledCourses = availableCourses.filter(c => !enrolledCourseIds.includes(c.id));
+  const registeredExamIds = examAttempts.map(e => e.exam_id);
+  const unregisteredExams = availableExams.filter(e => !registeredExamIds.includes(e.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -157,49 +162,58 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Enrolled Courses */}
+        {/* Registered Exams */}
         <div>
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
-            My Courses
+            My Exams
           </h2>
-          {enrollments.length === 0 ? (
+          {examAttempts.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
-                You haven't enrolled in any courses yet. Browse available courses below!
+                You haven't registered for any exams yet. Browse available exams below!
               </CardContent>
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {enrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="hover:shadow-lg transition-shadow">
+              {examAttempts.map((attempt) => (
+                <Card key={attempt.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <CardTitle className="text-lg">{enrollment.courses.title}</CardTitle>
+                    <CardTitle className="text-lg">{attempt.exams.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2 text-xs">
-                      <Badge variant="secondary">{enrollment.courses.category}</Badge>
-                      <Badge variant="outline">{enrollment.courses.difficulty_level}</Badge>
+                      <Badge variant="secondary">{attempt.exams.subject}</Badge>
+                      <Badge variant="outline">{attempt.exams.grade_level}</Badge>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {enrollment.courses.description}
+                      {attempt.exams.description}
                     </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Progress</span>
-                        <span className="font-medium">{enrollment.progress}%</span>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Status:</span>
+                        <Badge variant={attempt.status === 'graded' ? 'default' : 'secondary'}>
+                          {attempt.status}
+                        </Badge>
                       </div>
-                      <Progress value={enrollment.progress} />
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {enrollment.courses.instructor_name}
+                      {attempt.status === 'graded' && attempt.marks_obtained !== null && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Score:</span>
+                          <span className="font-medium">
+                            {attempt.marks_obtained}/{attempt.exams.total_marks}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Duration:</span>
+                        <span>{attempt.exams.duration_minutes} min</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {enrollment.courses.duration_weeks} weeks
-                      </div>
+                      {attempt.exams.exam_date && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Date:</span>
+                          <span>{new Date(attempt.exams.exam_date).toLocaleDateString()}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -208,42 +222,54 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Available Courses */}
-        {unenrolledCourses.length > 0 && (
+        {/* Available Exams */}
+        {unregisteredExams.length > 0 && (
           <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
               <Calendar className="h-6 w-6" />
-              Available Courses
+              Available Exams
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {unenrolledCourses.map((course) => (
-                <Card key={course.id} className="hover:shadow-lg transition-shadow">
+              {unregisteredExams.map((exam) => (
+                <Card key={exam.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
-                    <CardTitle className="text-lg">{course.title}</CardTitle>
+                    <CardTitle className="text-lg">{exam.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2 text-xs">
-                      <Badge variant="secondary">{course.category}</Badge>
-                      <Badge variant="outline">{course.difficulty_level}</Badge>
+                      <Badge variant="secondary">{exam.subject}</Badge>
+                      <Badge variant="outline">{exam.grade_level}</Badge>
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground line-clamp-3">
-                      {course.description}
+                      {exam.description}
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {course.instructor_name}
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Duration:</span>
+                        <span className="font-medium">{exam.duration_minutes} minutes</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {course.duration_weeks} weeks
+                      <div className="flex justify-between">
+                        <span>Total Marks:</span>
+                        <span className="font-medium">{exam.total_marks}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span>Passing Marks:</span>
+                        <span className="font-medium">{exam.passing_marks}</span>
+                      </div>
+                      {exam.exam_date && (
+                        <div className="flex justify-between">
+                          <span>Date:</span>
+                          <span className="font-medium">
+                            {new Date(exam.exam_date).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <Button 
-                      onClick={() => handleEnroll(course.id)} 
+                      onClick={() => handleRegisterExam(exam.id)} 
                       className="w-full"
                     >
-                      Enroll Now
+                      Register for Exam
                     </Button>
                   </CardContent>
                 </Card>

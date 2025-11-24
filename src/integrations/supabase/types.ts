@@ -14,92 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
-      courses: {
+      exam_attempts: {
         Row: {
-          category: string | null
-          created_at: string
-          description: string | null
-          difficulty_level: string | null
-          duration_weeks: number | null
-          id: string
-          instructor_name: string | null
-          status: string | null
-          thumbnail_url: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          difficulty_level?: string | null
-          duration_weeks?: number | null
-          id?: string
-          instructor_name?: string | null
-          status?: string | null
-          thumbnail_url?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          created_at?: string
-          description?: string | null
-          difficulty_level?: string | null
-          duration_weeks?: number | null
-          id?: string
-          instructor_name?: string | null
-          status?: string | null
-          thumbnail_url?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      enrollments: {
-        Row: {
+          attempted_at: string | null
           completed_at: string | null
-          course_id: string
-          enrolled_at: string
+          exam_id: string
+          feedback: string | null
+          graded_at: string | null
+          graded_by: string | null
           id: string
-          progress: number | null
+          marks_obtained: number | null
           status: string | null
           student_id: string
         }
         Insert: {
+          attempted_at?: string | null
           completed_at?: string | null
-          course_id: string
-          enrolled_at?: string
+          exam_id: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
           id?: string
-          progress?: number | null
+          marks_obtained?: number | null
           status?: string | null
           student_id: string
         }
         Update: {
+          attempted_at?: string | null
           completed_at?: string | null
-          course_id?: string
-          enrolled_at?: string
+          exam_id?: string
+          feedback?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
           id?: string
-          progress?: number | null
+          marks_obtained?: number | null
           status?: string | null
           student_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "enrollments_course_id_fkey"
-            columns: ["course_id"]
+            foreignKeyName: "exam_attempts_exam_id_fkey"
+            columns: ["exam_id"]
             isOneToOne: false
-            referencedRelation: "courses"
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "enrollments_student_id_fkey"
+            foreignKeyName: "exam_attempts_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_minutes: number | null
+          exam_date: string | null
+          grade_level: string | null
+          id: string
+          passing_marks: number
+          status: string | null
+          subject: string | null
+          title: string
+          total_marks: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          exam_date?: string | null
+          grade_level?: string | null
+          id?: string
+          passing_marks?: number
+          status?: string | null
+          subject?: string | null
+          title: string
+          total_marks?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          exam_date?: string | null
+          grade_level?: string | null
+          id?: string
+          passing_marks?: number
+          status?: string | null
+          subject?: string | null
+          title?: string
+          total_marks?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       parents: {
         Row: {

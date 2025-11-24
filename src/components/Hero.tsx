@@ -3,9 +3,24 @@ import { ArrowRight, Sparkles, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-stem.jpg";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const Hero = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user && role) {
+      if (role === 'admin') {
+        navigate('/admin');
+      } else if (role === 'parent') {
+        navigate('/parent');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [user, role, navigate]);
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
       {/* Circuit pattern background */}
@@ -38,7 +53,7 @@ const Hero = () => {
             
             <div className="flex flex-col sm:flex-row gap-4">
               {user ? (
-                <Link to="/dashboard">
+                <Link to={role === 'admin' ? '/admin' : role === 'parent' ? '/parent' : '/dashboard'}>
                   <Button size="lg" className="w-full sm:w-auto text-lg px-8 py-6 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
                     <LayoutDashboard className="mr-2 w-5 h-5" />
                     Go to Dashboard
