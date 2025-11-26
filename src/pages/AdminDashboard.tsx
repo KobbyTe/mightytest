@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { LogOut, GraduationCap, Plus, Calendar, Users, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Trash2, Edit, Eye } from 'lucide-react';
 
 interface Exam {
   id: string;
@@ -31,6 +34,7 @@ export default function AdminDashboard() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -73,17 +77,28 @@ export default function AdminDashboard() {
   const handleCreateExam = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = await supabase
-        .from('exams')
-        .insert({
-          ...formData,
-          created_by: user?.id
-        });
+      if (editingExam) {
+        const { error } = await supabase
+          .from('exams')
+          .update(formData)
+          .eq('id', editingExam.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success('Exam updated successfully!');
+      } else {
+        const { error } = await supabase
+          .from('exams')
+          .insert({
+            ...formData,
+            created_by: user?.id
+          });
+
+        if (error) throw error;
+        toast.success('Exam created successfully!');
+      }
       
-      toast.success('Exam created successfully!');
       setIsDialogOpen(false);
+      setEditingExam(null);
       setFormData({
         title: '',
         description: '',
@@ -97,8 +112,42 @@ export default function AdminDashboard() {
       });
       loadExams();
     } catch (error) {
-      console.error('Error creating exam:', error);
-      toast.error('Failed to create exam');
+      console.error('Error saving exam:', error);
+      toast.error('Failed to save exam');
+    }
+  };
+
+  const handleEditExam = (exam: Exam) => {
+    setEditingExam(exam);
+    setFormData({
+      title: exam.title,
+      description: exam.description || '',
+      subject: exam.subject || '',
+      grade_level: exam.grade_level || '',
+      duration_minutes: exam.duration_minutes || 60,
+      total_marks: exam.total_marks,
+      passing_marks: exam.passing_marks,
+      exam_date: exam.exam_date ? new Date(exam.exam_date).toISOString().slice(0, 16) : '',
+      status: exam.status || 'active'
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteExam = async (examId: string) => {
+    if (!confirm('Are you sure you want to delete this exam?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('exams')
+        .delete()
+        .eq('id', examId);
+
+      if (error) throw error;
+      toast.success('Exam deleted successfully!');
+      loadExams();
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      toast.error('Failed to delete exam');
     }
   };
 
@@ -171,7 +220,23 @@ export default function AdminDashboard() {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Manage Exams</h2>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) {
+                setEditingExam(null);
+                setFormData({
+                  title: '',
+                  description: '',
+                  subject: '',
+                  grade_level: '',
+                  duration_minutes: 60,
+                  total_marks: 100,
+                  passing_marks: 50,
+                  exam_date: '',
+                  status: 'active'
+                });
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -180,9 +245,9 @@ export default function AdminDashboard() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Create New Exam</DialogTitle>
+                  <DialogTitle>{editingExam ? 'Edit Exam' : 'Create New Exam'}</DialogTitle>
                   <DialogDescription>
-                    Fill in the details to create a new exam for students.
+                    {editingExam ? 'Update the exam details below.' : 'Fill in the details to create a new exam for students.'}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateExam} className="space-y-4">
@@ -207,19 +272,33 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="subject">Subject</Label>
-                      <Input
-                        id="subject"
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                      />
+                      <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Science">Science</SelectItem>
+                          <SelectItem value="Technology">Technology</SelectItem>
+                          <SelectItem value="Engineering">Engineering</SelectItem>
+                          <SelectItem value="Mathematics">Mathematics</SelectItem>
+                          <SelectItem value="Robotics">Robotics</SelectItem>
+                          <SelectItem value="AI">Artificial Intelligence</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label htmlFor="grade_level">Grade Level</Label>
-                      <Input
-                        id="grade_level"
-                        value={formData.grade_level}
-                        onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
-                      />
+                      <Select value={formData.grade_level} onValueChange={(value) => setFormData({ ...formData, grade_level: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select grade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Grade 1-3">Grade 1-3</SelectItem>
+                          <SelectItem value="Grade 4-6">Grade 4-6</SelectItem>
+                          <SelectItem value="Grade 7-9">Grade 7-9</SelectItem>
+                          <SelectItem value="Grade 10-12">Grade 10-12</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
@@ -260,7 +339,22 @@ export default function AdminDashboard() {
                       onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
                     />
                   </div>
-                  <Button type="submit" className="w-full">Create Exam</Button>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="status">Status</Label>
+                      <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="archived">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full">{editingExam ? 'Update Exam' : 'Create Exam'}</Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -270,8 +364,18 @@ export default function AdminDashboard() {
             {exams.map((exam) => (
               <Card key={exam.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="text-lg">{exam.title}</CardTitle>
-                  <CardDescription className="flex items-center gap-2 text-xs">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="text-lg flex-1">{exam.title}</CardTitle>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEditExam(exam)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(exam.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <CardDescription className="flex items-center gap-2 text-xs flex-wrap">
                     <Badge variant="secondary">{exam.subject}</Badge>
                     <Badge variant="outline">{exam.grade_level}</Badge>
                     <Badge variant={exam.status === 'active' ? 'default' : 'secondary'}>
