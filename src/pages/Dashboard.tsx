@@ -80,17 +80,23 @@ export default function Dashboard() {
 
   const handleRegisterExam = async (examId: string) => {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('exam_attempts')
         .insert({
           student_id: profile.id,
           exam_id: examId,
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
       toast.success('Successfully registered for exam!');
-      loadDashboardData();
+      
+      // Navigate to exam taking page
+      if (data?.id) {
+        navigate(`/exam/take?attempt=${data.id}`);
+      }
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error.code === '23505') {
@@ -99,6 +105,10 @@ export default function Dashboard() {
         toast.error('Failed to register for exam');
       }
     }
+  };
+
+  const handleTakeExam = (attemptId: string) => {
+    navigate(`/exam/take?attempt=${attemptId}`);
   };
 
   const handleSignOut = async () => {
@@ -185,7 +195,7 @@ export default function Dashboard() {
                       <Badge variant="outline">{attempt.exams.grade_level}</Badge>
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                   <CardContent className="space-y-3">
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {attempt.exams.description}
                     </p>
@@ -215,6 +225,11 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
+                    {attempt.status === 'pending' && (
+                      <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="w-full">
+                        Take Exam
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))}

@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      exam_answers: {
+        Row: {
+          answer_text: string | null
+          attempt_id: string
+          created_at: string | null
+          id: string
+          is_correct: boolean | null
+          marks_awarded: number | null
+          question_id: string
+        }
+        Insert: {
+          answer_text?: string | null
+          attempt_id: string
+          created_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id: string
+        }
+        Update: {
+          answer_text?: string | null
+          attempt_id?: string
+          created_at?: string | null
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number | null
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exam_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "exam_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_attempts: {
         Row: {
           attempted_at: string | null
@@ -64,6 +109,53 @@ export type Database = {
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exam_questions: {
+        Row: {
+          correct_answer: string | null
+          created_at: string | null
+          exam_id: string
+          id: string
+          marks: number
+          options: Json | null
+          order_number: number
+          question_text: string
+          question_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          correct_answer?: string | null
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          marks?: number
+          options?: Json | null
+          order_number?: number
+          question_text: string
+          question_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          correct_answer?: string | null
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          marks?: number
+          options?: Json | null
+          order_number?: number
+          question_text?: string
+          question_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_questions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
             referencedColumns: ["id"]
           },
         ]
