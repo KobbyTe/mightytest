@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSetup from "./pages/AdminSetup";
 import ParentDashboard from "./pages/ParentDashboard";
+import ExamTaking from "./pages/ExamTaking";
+import ExamQuestions from "./pages/ExamQuestions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,10 +26,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin-setup" element={<AdminSetup />} />
-        <Route path="/parent" element={<ParentDashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin-setup" element={<AdminSetup />} />
+            <Route path="/admin/exam/:examId/questions" element={<ExamQuestions />} />
+            <Route path="/exam/take" element={<ExamTaking />} />
+            <Route path="/parent" element={<ParentDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

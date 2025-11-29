@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Edit, Eye } from 'lucide-react';
+import { Trash2, Edit, Eye, FileQuestion } from 'lucide-react';
 
 interface Exam {
   id: string;
@@ -367,6 +367,14 @@ export default function AdminDashboard() {
                   <div className="flex justify-between items-start">
                     <CardTitle className="text-lg flex-1">{exam.title}</CardTitle>
                     <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => navigate(`/admin/exam/${exam.id}/questions`)}
+                        title="Manage Questions"
+                      >
+                        <FileQuestion className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleEditExam(exam)}>
                         <Edit className="h-4 w-4" />
                       </Button>
