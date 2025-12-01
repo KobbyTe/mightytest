@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,6 +31,8 @@ export default function ExamQuestions() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [formData, setFormData] = useState({
     question_text: '',
@@ -166,6 +168,51 @@ export default function ExamQuestions() {
     setFormData({ ...formData, options: newOptions });
   };
 
+  const handlePdfUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('pdf-file') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      toast.error('Please select a PDF file');
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      // Read file as base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64Content = event.target?.result as string;
+        
+        // Call edge function to process PDF
+        const { data, error } = await supabase.functions.invoke('process-exam-pdf', {
+          body: { 
+            examId,
+            pdfContent: base64Content.split(',')[1] // Remove data:application/pdf;base64, prefix
+          }
+        });
+
+        if (error) throw error;
+
+        toast.success(`Successfully created ${data.questionsCreated} questions from PDF!`);
+        setIsPdfDialogOpen(false);
+        loadData();
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      toast.error('Failed to process PDF. Please ensure it contains questions and answers.');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
@@ -191,27 +238,61 @@ export default function ExamQuestions() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-xl font-bold">Questions ({questions.length})</h2>
             <p className="text-sm text-muted-foreground">
               Total Marks: {questions.reduce((sum, q) => sum + q.marks, 0)}
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) {
-              setEditingQuestion(null);
-              resetForm();
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Question
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="flex gap-2 flex-wrap">
+            <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload PDF
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload Exam PDF</DialogTitle>
+                  <DialogDescription>
+                    Upload a PDF containing questions and answers. The system will automatically extract and create questions.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handlePdfUpload} className="space-y-4">
+                  <div>
+                    <Label htmlFor="pdf-file">PDF File</Label>
+                    <Input
+                      id="pdf-file"
+                      type="file"
+                      accept="application/pdf"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Format: Questions should be numbered (Q1, Q2, etc.) followed by options (A, B, C, D) and correct answers marked clearly.
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={uploadingPdf}>
+                    {uploadingPdf ? 'Processing...' : 'Upload and Process'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) {
+                setEditingQuestion(null);
+                resetForm();
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Question
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingQuestion ? 'Edit Question' : 'Add New Question'}</DialogTitle>
                 <DialogDescription>
@@ -315,7 +396,8 @@ export default function ExamQuestions() {
                 </Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <div className="space-y-4">
