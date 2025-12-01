@@ -13,7 +13,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Edit, Eye, FileQuestion } from 'lucide-react';
+import { Trash2, Edit, Eye, FileQuestion, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Exam {
   id: string;
@@ -28,10 +29,30 @@ interface Exam {
   status: string;
 }
 
+interface ExamAttempt {
+  id: string;
+  exam_id: string;
+  student_id: string;
+  attempted_at: string;
+  completed_at: string | null;
+  status: string;
+  marks_obtained: number | null;
+  student: {
+    full_name: string;
+    email: string;
+    grade: string;
+  };
+  exam: {
+    title: string;
+    total_marks: number;
+  };
+}
+
 export default function AdminDashboard() {
   const { user, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
+  const [attempts, setAttempts] = useState<ExamAttempt[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
@@ -66,6 +87,19 @@ export default function AdminDashboard() {
 
       if (error) throw error;
       setExams(data || []);
+      
+      // Load exam attempts with student details
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .from('exam_attempts')
+        .select(`
+          *,
+          student:students(full_name, email, grade),
+          exam:exams(title, total_marks)
+        `)
+        .order('attempted_at', { ascending: false });
+
+      if (attemptsError) throw attemptsError;
+      setAttempts(attemptsData || []);
     } catch (error) {
       console.error('Error loading exams:', error);
       toast.error('Failed to load exams');
@@ -181,8 +215,15 @@ export default function AdminDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-3 gap-4">
+        <Tabs defaultValue="exams" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+            <TabsTrigger value="exams">Exams</TabsTrigger>
+            <TabsTrigger value="attempts">Student Attempts</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="exams" className="space-y-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Exams</CardTitle>
@@ -214,10 +255,10 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
+            </div>
 
-        {/* Exams Management */}
-        <div>
+            {/* Exams Management */}
+            <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Manage Exams</h2>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -358,9 +399,9 @@ export default function AdminDashboard() {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
+              </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {exams.map((exam) => (
               <Card key={exam.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -415,9 +456,92 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="attempts" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Student Exam Attempts</CardTitle>
+                <CardDescription>View and manage all student exam submissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Student</TableHead>
+                        <TableHead className="min-w-[200px]">Exam</TableHead>
+                        <TableHead className="min-w-[100px]">Grade</TableHead>
+                        <TableHead className="min-w-[120px]">Status</TableHead>
+                        <TableHead className="min-w-[100px]">Score</TableHead>
+                        <TableHead className="min-w-[150px]">Submitted</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {attempts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            No exam attempts yet
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        attempts.map((attempt) => (
+                          <TableRow key={attempt.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{attempt.student.full_name}</p>
+                                <p className="text-xs text-muted-foreground">{attempt.student.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium">{attempt.exam.title}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{attempt.student.grade || 'N/A'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {attempt.status === 'completed' && (
+                                <Badge variant="default" className="gap-1">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Completed
+                                </Badge>
+                              )}
+                              {attempt.status === 'pending' && (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Pending
+                                </Badge>
+                              )}
+                              {attempt.status === 'grading' && (
+                                <Badge variant="secondary" className="gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Grading
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {attempt.marks_obtained !== null ? (
+                                <span className="font-semibold">
+                                  {attempt.marks_obtained}/{attempt.exam.total_marks}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">Not graded</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(attempt.attempted_at).toLocaleDateString()} {new Date(attempt.attempted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

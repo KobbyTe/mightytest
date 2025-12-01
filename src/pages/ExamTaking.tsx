@@ -17,6 +17,7 @@ interface Question {
   question_text: string;
   question_type: string;
   options: any;
+  correct_answer: string | null;
   marks: number;
   order_number: number;
 }
@@ -135,25 +136,46 @@ export default function ExamTaking() {
       // Delete existing answers first
       await supabase.from('exam_answers').delete().eq('attempt_id', attemptId);
 
-      // Insert new answers
-      if (answersToSave.length > 0) {
+      // Auto-grade multiple choice and true/false questions
+      let totalMarks = 0;
+      const gradedAnswers = [];
+      
+      for (const answer of answersToSave) {
+        const question = questions.find(q => q.id === answer.question_id);
+        if (question && (question.question_type === 'multiple_choice' || question.question_type === 'true_false')) {
+          const isCorrect = answer.answer_text === question.correct_answer;
+          const marksAwarded = isCorrect ? question.marks : 0;
+          totalMarks += marksAwarded;
+          gradedAnswers.push({
+            ...answer,
+            is_correct: isCorrect,
+            marks_awarded: marksAwarded
+          });
+        } else {
+          gradedAnswers.push(answer);
+        }
+      }
+
+      // Insert answers with grading
+      if (gradedAnswers.length > 0) {
         const { error: answersError } = await supabase
           .from('exam_answers')
-          .insert(answersToSave);
+          .insert(gradedAnswers);
 
         if (answersError) throw answersError;
       }
 
-      // Update attempt status
-      const { error: updateError } = await supabase
+      // Submit exam with calculated marks
+      const { error: submitError } = await supabase
         .from('exam_attempts')
-        .update({
+        .update({ 
           status: 'completed',
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
+          marks_obtained: totalMarks
         })
         .eq('id', attemptId);
 
-      if (updateError) throw updateError;
+      if (submitError) throw submitError;
 
       toast.success('Exam submitted successfully!');
       navigate('/dashboard');
