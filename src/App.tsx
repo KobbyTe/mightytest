@@ -12,6 +12,8 @@ import AdminSetup from "./pages/AdminSetup";
 import ParentDashboard from "./pages/ParentDashboard";
 import ExamTaking from "./pages/ExamTaking";
 import ExamQuestions from "./pages/ExamQuestions";
+import ExamGrading from "./pages/ExamGrading";
+import ExamAnalytics from "./pages/ExamAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,8 @@ const App = () => (
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin-setup" element={<AdminSetup />} />
             <Route path="/admin/exam/:examId/questions" element={<ExamQuestions />} />
+            <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
+            <Route path="/admin/analytics" element={<ExamAnalytics />} />
             <Route path="/exam/take" element={<ExamTaking />} />
             <Route path="/parent" element={<ParentDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

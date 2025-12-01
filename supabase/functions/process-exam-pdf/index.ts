@@ -26,9 +26,19 @@ serve(async (req) => {
 
     // Decode base64 PDF content
     const pdfBytes = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
-    const pdfText = new TextDecoder().decode(pdfBytes);
+    
+    // Convert PDF to text - note this is simplified
+    // For production, use proper PDF parsing library
+    let pdfText = '';
+    try {
+      pdfText = new TextDecoder('utf-8', { fatal: false }).decode(pdfBytes);
+    } catch {
+      // Fallback to latin1 if UTF-8 fails
+      pdfText = new TextDecoder('iso-8859-1').decode(pdfBytes);
+    }
 
     console.log('Processing PDF for exam:', examId);
+    console.log('PDF text length:', pdfText.length);
 
     // Simple pattern matching for questions and answers
     // Format expected: Q1. question text\nA) option1\nB) option2\nC) option3\nD) option4\nAnswer: A
