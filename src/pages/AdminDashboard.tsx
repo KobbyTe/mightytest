@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, Plus, Calendar, Users, FileText } from 'lucide-react';
+import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -207,10 +207,16 @@ export default function AdminDashboard() {
             <GraduationCap className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
           </div>
-          <Button variant="ghost" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Analytics
+            </Button>
+            <Button variant="ghost" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -478,12 +484,13 @@ export default function AdminDashboard() {
                         <TableHead className="min-w-[120px]">Status</TableHead>
                         <TableHead className="min-w-[100px]">Score</TableHead>
                         <TableHead className="min-w-[150px]">Submitted</TableHead>
+                        <TableHead className="min-w-[100px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attempts.length === 0 ? (
+                       {attempts.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                             No exam attempts yet
                           </TableCell>
                         </TableRow>
@@ -531,6 +538,16 @@ export default function AdminDashboard() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {new Date(attempt.attempted_at).toLocaleDateString()} {new Date(attempt.attempted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => navigate(`/admin/exam/grade/${attempt.id}`)}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                {attempt.status === 'completed' ? 'Grade' : 'View'}
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
