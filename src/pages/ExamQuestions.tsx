@@ -184,31 +184,98 @@ export default function ExamQuestions() {
     }
 
     setUploadingPdf(true);
+    
     try {
       // Read file as base64
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const base64Content = event.target?.result as string;
-        
-        // Call edge function to process PDF
-        const { data, error } = await supabase.functions.invoke('process-exam-pdf', {
-          body: { 
-            examId,
-            pdfContent: base64Content.split(',')[1] // Remove data:application/pdf;base64, prefix
+        try {
+          const base64Content = event.target?.result as string;
+          
+          console.log('Uploading PDF...');
+          
+          // Call edge function to process PDF
+          const { data, error } = await supabase.functions.invoke('process-exam-pdf', {
+            body: { 
+              examId,
+              pdfContent: base64Content.split(',')[1] // Remove data:application/pdf;base64, prefix
+            }
+          });
+
+          if (error) {
+            console.error('Edge function error:', error);
+            throw error;
           }
-        });
 
-        if (error) throw error;
+          console.log('PDF processing result:', data);
 
-        toast.success(`Successfully created ${data.questionsCreated} questions from PDF!`);
-        setIsPdfDialogOpen(false);
-        loadData();
+          if (!data.success) {
+            // Show detailed error with suggestions
+            const errorMsg = data.error || 'Failed to process PDF';
+            const suggestions = data.suggestions || [];
+            
+            toast.error(
+              <div className="space-y-2">
+                <div className="font-semibold">{errorMsg}</div>
+                {suggestions.length > 0 && (
+                  <div className="text-sm space-y-1">
+                    <div className="font-medium">Suggestions:</div>
+                    <ul className="list-disc list-inside">
+                      {suggestions.map((s: string, i: number) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>,
+              { duration: 8000 }
+            );
+            return;
+          }
+
+          // Success!
+          if (data.questionsCreated > 0) {
+            toast.success(
+              <div className="space-y-1">
+                <div className="font-semibold">✅ Success!</div>
+                <div>Created {data.questionsCreated} questions from PDF</div>
+              </div>,
+              { duration: 5000 }
+            );
+            
+            setIsPdfDialogOpen(false);
+            await loadData();
+          } else {
+            toast.error('No questions were created. Please check the PDF format.');
+          }
+          
+        } catch (innerError) {
+          console.error('Error in PDF processing:', innerError);
+          toast.error(
+            <div className="space-y-2">
+              <div className="font-semibold">Failed to process PDF</div>
+              <div className="text-sm">
+                {innerError instanceof Error ? innerError.message : 'Unknown error occurred'}
+              </div>
+              <div className="text-xs">Check console for details</div>
+            </div>,
+            { duration: 6000 }
+          );
+        } finally {
+          setUploadingPdf(false);
+        }
       };
+      
+      reader.onerror = () => {
+        toast.error('Failed to read PDF file');
+        setUploadingPdf(false);
+      };
+      
       reader.readAsDataURL(file);
+      
     } catch (error) {
-      console.error('Error processing PDF:', error);
-      toast.error('Failed to process PDF. Please ensure it contains questions and answers.');
-    } finally {
+      console.error('Error uploading PDF:', error);
+      toast.error('Failed to upload PDF file');
       setUploadingPdf(false);
     }
   };
