@@ -27,40 +27,43 @@ serve(async (req) => {
     // Decode base64 PDF content
     const pdfBytes = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
     
-    // Convert PDF to text - note this is simplified
-    // For production, use proper PDF parsing library
+    // Convert PDF to text with multiple encoding attempts
     let pdfText = '';
     try {
       pdfText = new TextDecoder('utf-8', { fatal: false }).decode(pdfBytes);
     } catch {
-      // Fallback to latin1 if UTF-8 fails
-      pdfText = new TextDecoder('iso-8859-1').decode(pdfBytes);
+      try {
+        pdfText = new TextDecoder('iso-8859-1').decode(pdfBytes);
+      } catch {
+        pdfText = new TextDecoder('windows-1252').decode(pdfBytes);
+      }
     }
 
     console.log('Processing PDF for exam:', examId);
     console.log('PDF text length:', pdfText.length);
+    console.log('First 500 chars:', pdfText.substring(0, 500));
 
-    // Simple pattern matching for questions and answers
-    // Format expected: Q1. question text\nA) option1\nB) option2\nC) option3\nD) option4\nAnswer: A
-    const questionPattern = /Q(\d+)[.:\s]+(.*?)(?=Q\d+|Answer:|$)/gs;
-    const optionsPattern = /([A-D])[).\s]+(.*?)(?=[A-D][).\s]|Answer:|Q\d+|$)/g;
-    const answerPattern = /Answer:\s*([A-D])/gi;
+    // Extract readable text from PDF (filter out binary data)
+    const cleanText = pdfText.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]/g, '');
+    const lines = cleanText.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.length > 0);
+    
+    console.log('Total lines:', lines.length);
+    console.log('First 10 lines:', lines.slice(0, 10));
 
     const questions = [];
-    let match;
     let orderNumber = 1;
-
-    // Extract text content (simplified - in production, use a PDF parsing library)
-    const lines = pdfText.split('\n').filter(line => line.trim());
     let currentQuestion: any = null;
     let currentOptions: string[] = [];
     let correctAnswer = '';
+    let collectingOptions = false;
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       
-      // Check if it's a question
-      if (/^Q?\d+[.:\s]/.test(trimmedLine)) {
+      // More flexible question pattern - matches Q1, 1., 1), Question 1, etc.
+      const questionMatch = line.match(/^(?:Q(?:uestion)?\s*)?(\d+)[.:\s)]+(.+)/i);
+      
+      if (questionMatch) {
         // Save previous question if exists
         if (currentQuestion && currentOptions.length > 0) {
           questions.push({
@@ -75,23 +78,44 @@ serve(async (req) => {
         }
         
         // Start new question
-        currentQuestion = trimmedLine.replace(/^Q?\d+[.:\s]+/, '');
+        currentQuestion = questionMatch[2].trim();
         currentOptions = [];
         correctAnswer = '';
+        collectingOptions = true;
+        console.log(`Found question ${orderNumber}: ${currentQuestion.substring(0, 50)}...`);
+        continue;
       }
-      // Check if it's an option
-      else if (/^[A-D][).\s]/.test(trimmedLine)) {
-        const option = trimmedLine.replace(/^[A-D][).\s]+/, '');
-        currentOptions.push(option);
+      
+      // More flexible option pattern - matches A), A., (A), a), etc.
+      const optionMatch = line.match(/^(?:\()?([A-Da-d])[).:\s]+(.+)/);
+      
+      if (optionMatch && collectingOptions) {
+        const optionLetter = optionMatch[1].toUpperCase();
+        const optionText = optionMatch[2].trim();
+        currentOptions.push(optionText);
+        console.log(`Found option ${optionLetter}: ${optionText.substring(0, 40)}...`);
+        continue;
       }
-      // Check if it's an answer
-      else if (/^Answer:/i.test(trimmedLine)) {
-        const answerMatch = trimmedLine.match(/Answer:\s*([A-D])/i);
-        if (answerMatch && currentOptions.length > 0) {
-          const answerIndex = answerMatch[1].toUpperCase().charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
-          if (answerIndex >= 0 && answerIndex < currentOptions.length) {
-            correctAnswer = currentOptions[answerIndex];
-          }
+      
+      // More flexible answer pattern - matches "Answer: A", "Ans: A", "Correct: A", etc.
+      const answerMatch = line.match(/^(?:Answer|Ans|Correct(?:\s+Answer)?)[:\s]+([A-Da-d])/i);
+      
+      if (answerMatch && currentOptions.length > 0) {
+        const answerLetter = answerMatch[1].toUpperCase();
+        const answerIndex = answerLetter.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+        if (answerIndex >= 0 && answerIndex < currentOptions.length) {
+          correctAnswer = currentOptions[answerIndex];
+          collectingOptions = false;
+          console.log(`Found answer: ${answerLetter} = ${correctAnswer.substring(0, 40)}...`);
+        }
+        continue;
+      }
+      
+      // If we're collecting a question and hit a non-option line, append to question text
+      if (currentQuestion && collectingOptions && !optionMatch && !answerMatch && line.length > 0) {
+        // Don't append if it looks like the start of a new question
+        if (!line.match(/^(?:Q(?:uestion)?\s*)?\d+[.:\s)]/i)) {
+          currentQuestion += ' ' + line;
         }
       }
     }
