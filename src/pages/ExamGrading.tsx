@@ -148,7 +148,18 @@ export default function ExamGrading() {
 
       if (attemptError) throw attemptError;
 
-      toast.success('Grading saved successfully!');
+      // Send email notification to student
+      try {
+        await supabase.functions.invoke('send-grade-notification', {
+          body: { attemptId }
+        });
+        console.log('Grade notification email sent');
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+        // Don't fail the grading if email fails
+      }
+
+      toast.success('Grading saved successfully and student notified!');
       navigate('/admin');
     } catch (error) {
       console.error('Error saving grading:', error);

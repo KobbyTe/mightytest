@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Calendar, Clock, User, LogOut, GraduationCap } from 'lucide-react';
+import { BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ExamCertificate } from '@/components/ExamCertificate';
 
 interface Exam {
   id: string;
@@ -28,6 +30,7 @@ interface ExamAttempt {
   marks_obtained: number | null;
   attempted_at: string;
   completed_at: string | null;
+  graded_at: string | null;
   exam_id: string;
   exams: Exam;
 }
@@ -225,11 +228,36 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-                    {attempt.status === 'pending' && (
-                      <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="w-full">
-                        Take Exam
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {attempt.status === 'graded' && 
+                       (attempt.marks_obtained || 0) >= attempt.exams.passing_marks && (
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="flex-1">
+                              <Download className="mr-2 h-4 w-4" />
+                              Certificate
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-[900px]">
+                            <DialogHeader>
+                              <DialogTitle>Your Achievement Certificate</DialogTitle>
+                            </DialogHeader>
+                            <ExamCertificate
+                              studentName={profile?.full_name || ''}
+                              examTitle={attempt.exams.title}
+                              score={attempt.marks_obtained || 0}
+                              totalMarks={attempt.exams.total_marks}
+                              date={attempt.graded_at || attempt.completed_at || ''}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                      {attempt.status === 'pending' && (
+                        <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="flex-1">
+                          Take Exam
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
