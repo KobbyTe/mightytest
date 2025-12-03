@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.create-admin]
 verify_jwt = false
+
+[functions.process-exam-pdf]
+verify_jwt = false
