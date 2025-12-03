@@ -1,355 +1,114 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import pako from "https://esm.sh/pako@2.1.0";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const corsHeaders = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 
-interface ParsedQuestion {
-  exam_id: string;
-  question_text: string;
-  question_type: string;
-  options: string[];
-  correct_answer: string;
-  marks: number;
-  order_number: number;
+interface ParsedQuestion { exam_id: string; question_text: string; question_type: string; options: string[]; correct_answer: string; marks: number; order_number: number; }
+
+function decompress(data: Uint8Array): Uint8Array | null {
+  try { return pako.inflate(data); } catch { try { return pako.inflateRaw(data); } catch { return null; } }
 }
 
-// Extract text content from PDF using stream extraction
-function extractTextFromPDF(pdfBytes: Uint8Array): string {
-  const pdfString = new TextDecoder('latin1').decode(pdfBytes);
-  
-  console.log('=== PDF EXTRACTION DEBUG ===');
-  console.log('PDF size:', pdfBytes.length);
-  
-  // Extract text content from PDF streams
-  const textContents: string[] = [];
-  
-  // Pattern to find text streams in PDF
-  const streamPattern = /stream\s*([\s\S]*?)\s*endstream/gi;
-  let match;
-  
-  while ((match = streamPattern.exec(pdfString)) !== null) {
-    const streamData = match[1];
-    
-    // Try to extract readable text from stream
-    // Look for text between parentheses or brackets
-    const textPattern = /\(((?:[^()\\]|\\.)*)\)|<([\da-fA-F]+)>/g;
-    let textMatch;
-    
-    while ((textMatch = textPattern.exec(streamData)) !== null) {
-      if (textMatch[1]) {
-        // Text in parentheses
-        let text = textMatch[1]
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '\r')
-          .replace(/\\t/g, '\t')
-          .replace(/\\(.)/g, '$1');
-        textContents.push(text);
-      } else if (textMatch[2]) {
-        // Hex encoded text
-        try {
-          const hexText = textMatch[2];
-          let decoded = '';
-          for (let i = 0; i < hexText.length; i += 2) {
-            decoded += String.fromCharCode(parseInt(hexText.substr(i, 2), 16));
-          }
-          textContents.push(decoded);
-        } catch (e) {
-          // Skip invalid hex
-        }
-      }
+function decode(str: string): string {
+  return str.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\\(/g, '(').replace(/\\\)/g, ')').replace(/\\\\/g, '\\').replace(/\\(\d{1,3})/g, (_, o) => String.fromCharCode(parseInt(o, 8)));
+}
+
+function extractText(pdfBytes: Uint8Array): string {
+  const pdf = new TextDecoder('latin1').decode(pdfBytes);
+  const texts: string[] = [];
+  const re = /<<([^>]*)>>\s*stream\s*([\s\S]*?)\s*endstream/gi;
+  let m;
+  while ((m = re.exec(pdf)) !== null) {
+    const isFlate = /\/Filter\s*\/FlateDecode/i.test(m[1]);
+    let content = m[2];
+    if (isFlate) {
+      const bytes = new Uint8Array(content.length);
+      for (let i = 0; i < content.length; i++) bytes[i] = content.charCodeAt(i) & 0xFF;
+      const d = decompress(bytes);
+      if (d) content = new TextDecoder('latin1').decode(d);
+    }
+    const tj = /\(((?:[^()\\]|\\.)*)\)\s*Tj/g;
+    let t;
+    while ((t = tj.exec(content)) !== null) { const x = decode(t[1]); if (x.trim() && /[a-zA-Z]{2,}/.test(x)) texts.push(x); }
+    const tja = /\[((?:\([^)]*\)|[^\]])*)\]\s*TJ/gi;
+    while ((t = tja.exec(content)) !== null) {
+      const sp = /\(((?:[^()\\]|\\.)*)\)/g;
+      let s;
+      while ((s = sp.exec(t[1])) !== null) { const x = decode(s[1]); if (x.trim() && /[a-zA-Z]{2,}/.test(x)) texts.push(x); }
     }
   }
-  
-  const extractedText = textContents.join(' ');
-  console.log('Extracted text length:', extractedText.length);
-  console.log('First 1000 chars:', extractedText.substring(0, 1000));
-  console.log('===========================');
-  
-  return extractedText;
+  if (texts.length === 0) {
+    const fp = /\(((?:[^()\\]|\\.){3,})\)/g;
+    let f;
+    while ((f = fp.exec(pdf)) !== null) { const x = decode(f[1]); if (/[a-zA-Z]{2,}/.test(x) && x.length > 2) texts.push(x); }
+  }
+  const result = [...new Set(texts)].join(' ').replace(/\s+/g, ' ').trim();
+  console.log('Extracted:', result.length, 'chars. Sample:', result.substring(0, 300));
+  return result;
 }
 
-// Parse questions from extracted text with multiple format support
+function detectType(q: string, a: string): string {
+  const lq = q.toLowerCase(), la = a.toLowerCase();
+  if (lq.includes('true or false') || la === 'true' || la === 'false') return 'true_false';
+  if (/[A-D]\)/.test(q) || lq.includes('choose')) return 'multiple_choice';
+  return 'short_answer';
+}
+
 function parseQuestions(text: string, examId: string): ParsedQuestion[] {
   const questions: ParsedQuestion[] = [];
+  const clean = text.replace(/\s+/g, ' ').trim();
+  console.log('Parsing text length:', clean.length);
   
-  console.log('=== QUESTION PARSING DEBUG ===');
-  console.log('Input text length:', text.length);
-  
-  // Normalize text
-  text = text
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/['']/g, "'")
-    .replace(/[""]/g, '"')
-    .replace(/[–—]/g, '-')
-    .replace(/\u00A0/g, ' ');
-  
-  // Split into lines for easier processing
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  console.log('Total lines:', lines.length);
-  console.log('Sample lines:', lines.slice(0, 20));
-  
-  // Strategy 1: Find answer key section first
-  const answerMap = new Map<number, string>();
-  const answerKeyPattern = /(?:Answer\s*Key|Answers)[:\s]*([\s\S]*?)(?=\n\n|$)/i;
-  const answerKeyMatch = text.match(answerKeyPattern);
-  
-  if (answerKeyMatch) {
-    console.log('Found answer key section');
-    const answerSection = answerKeyMatch[1];
-    const answerPattern = /(\d+)[.\s)]+([A-Da-d]|True|False)/gi;
-    let aMatch;
-    while ((aMatch = answerPattern.exec(answerSection)) !== null) {
-      const qNum = parseInt(aMatch[1]);
-      const answer = aMatch[2].toUpperCase();
-      answerMap.set(qNum, answer);
-      console.log(`Answer ${qNum}: ${answer}`);
-    }
+  // Pattern 1: Question: ... Answer: ...
+  const p1 = /Question\s*:?\s*(.+?)\s*Answer\s*:?\s*(.+?)(?=Question\s*:?|$)/gis;
+  const m1 = Array.from(clean.matchAll(p1));
+  if (m1.length > 0) {
+    console.log('Pattern 1 found:', m1.length);
+    m1.forEach((x, i) => questions.push({ exam_id: examId, question_text: x[1].trim(), question_type: detectType(x[1], x[2]), options: [], correct_answer: x[2].trim(), marks: 1, order_number: i + 1 }));
+    return questions;
   }
   
-  // Strategy 2: Parse questions with various formats
-  let questionNumber = 1;
-  let i = 0;
-  
-  while (i < lines.length) {
-    const line = lines[i];
-    
-    // Check if this line starts a question
-    const questionPattern = /^(?:Q(?:uestion)?[\s.]?)?(\d+)[.\s:)]+(.+)/i;
-    const qMatch = line.match(questionPattern);
-    
-    if (qMatch) {
-      const qNum = parseInt(qMatch[1]);
-      let questionText = qMatch[2].trim();
-      const options: string[] = [];
-      let correctAnswer = '';
-      
-      console.log(`\nProcessing Q${qNum}: ${questionText.substring(0, 60)}...`);
-      
-      // Collect continuation of question text and options
-      i++;
-      while (i < lines.length) {
-        const nextLine = lines[i];
-        
-        // Check for option (A), B), C), D), etc.
-        const optionPattern = /^([A-Da-d])[.\s:)]+(.+)/;
-        const oMatch = nextLine.match(optionPattern);
-        
-        if (oMatch) {
-          const optionLetter = oMatch[1].toUpperCase();
-          let optionText = oMatch[2].trim();
-          
-          // Check for inline [CORRECT] marker
-          if (optionText.includes('[CORRECT]') || optionText.includes('(CORRECT)')) {
-            correctAnswer = optionText.replace(/\[CORRECT\]|\(CORRECT\)/gi, '').trim();
-            optionText = correctAnswer;
-          } else {
-            // Check if answer is from answer key
-            if (answerMap.has(qNum)) {
-              const answerLetter = answerMap.get(qNum)!;
-              if (optionLetter === answerLetter) {
-                correctAnswer = optionText;
-              }
-            }
-          }
-          
-          options.push(optionText);
-          console.log(`  Option ${optionLetter}: ${optionText.substring(0, 50)}...`);
-          i++;
-        }
-        // Check for True/False format
-        else if (nextLine.match(/^\(?(True|False)\)?$/i)) {
-          const tfMatch = nextLine.match(/\(?(True|False)\)?/i);
-          if (tfMatch) {
-            options.push('True', 'False');
-            correctAnswer = tfMatch[1];
-            i++;
-          }
-          break;
-        }
-        // Check if next question starts
-        else if (nextLine.match(/^(?:Q(?:uestion)?[\s.]?)?\d+[.\s:)]/i)) {
-          break;
-        }
-        // Check for answer line
-        else if (nextLine.match(/^(?:Answer|Ans|Correct)[:\s]+([A-Da-d]|True|False)/i)) {
-          const ansMatch = nextLine.match(/^(?:Answer|Ans|Correct)[:\s]+([A-Da-d]|True|False)/i);
-          if (ansMatch && !correctAnswer) {
-            const answerLetter = ansMatch[1].toUpperCase();
-            const answerIndex = answerLetter.charCodeAt(0) - 65;
-            if (answerIndex >= 0 && answerIndex < options.length) {
-              correctAnswer = options[answerIndex];
-            }
-          }
-          i++;
-          break;
-        }
-        // Continuation of question text
-        else if (options.length === 0 && !nextLine.match(/^(?:Q|Answer)/i)) {
-          questionText += ' ' + nextLine;
-          i++;
-        }
-        else {
-          i++;
-        }
-      }
-      
-      // Validate and add question
-      if (options.length >= 2) {
-        // If no correct answer found yet, try answer key
-        if (!correctAnswer && answerMap.has(qNum)) {
-          const answerLetter = answerMap.get(qNum)!;
-          const answerIndex = answerLetter.charCodeAt(0) - 65;
-          if (answerIndex >= 0 && answerIndex < options.length) {
-            correctAnswer = options[answerIndex];
-          } else if (answerLetter === 'TRUE' || answerLetter === 'FALSE') {
-            correctAnswer = answerLetter.charAt(0) + answerLetter.slice(1).toLowerCase();
-          }
-        }
-        
-        console.log(`  ✓ Valid question with ${options.length} options, answer: ${correctAnswer || 'NONE'}`);
-        
-        questions.push({
-          exam_id: examId,
-          question_text: questionText,
-          question_type: options.length === 2 && options.includes('True') ? 'true_false' : 'multiple_choice',
-          options,
-          correct_answer: correctAnswer || options[0], // Default to first option if no answer found
-          marks: 1,
-          order_number: questionNumber++
-        });
-      } else {
-        console.log(`  ✗ Skipped (insufficient options: ${options.length})`);
-      }
-    } else {
-      i++;
-    }
+  // Pattern 2: Q1. ... A1. ...
+  const p2 = /(?:Q|Question)?\s*(\d+)[\.\)]\s*(.+?)\s*(?:A|Answer)\s*\1?[\.\)]\s*(.+?)(?=(?:Q|Question)?\s*\d+[\.\)]|$)/gis;
+  const m2 = Array.from(clean.matchAll(p2));
+  if (m2.length > 0) {
+    console.log('Pattern 2 found:', m2.length);
+    m2.forEach((x, i) => questions.push({ exam_id: examId, question_text: x[2].trim(), question_type: detectType(x[2], x[3]), options: [], correct_answer: x[3].trim(), marks: 1, order_number: i + 1 }));
+    return questions;
   }
   
-  console.log(`\nTotal questions parsed: ${questions.length}`);
-  console.log('==============================');
-  
+  console.log('No patterns matched');
   return questions;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   try {
     const { examId, pdfContent } = await req.json();
-
-    if (!examId || !pdfContent) {
-      throw new Error('Missing required fields: examId and pdfContent');
-    }
-
-    console.log('Processing PDF for exam:', examId);
-
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Decode base64 PDF content
+    if (!examId || !pdfContent) throw new Error('Missing examId or pdfContent');
+    console.log('Processing exam:', examId);
+    
+    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const pdfBytes = Uint8Array.from(atob(pdfContent), c => c.charCodeAt(0));
+    const text = extractText(pdfBytes);
     
-    // Extract text from PDF
-    const extractedText = extractTextFromPDF(pdfBytes);
-    
-    if (!extractedText || extractedText.length < 20) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          questionsCreated: 0,
-          error: 'Failed to extract text from PDF',
-          suggestions: [
-            'Ensure the PDF contains readable text (not scanned images)',
-            'Try converting the PDF to a text-based format',
-            'Check if the PDF is password protected'
-          ]
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      );
+    if (!text || text.length < 20) {
+      return new Response(JSON.stringify({ success: false, questionsCreated: 0, error: 'Failed to extract text from PDF. The PDF may be scanned/image-based or password protected.', suggestions: ['Use a text-based PDF', 'Try OCR software first'] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
     }
     
-    // Parse questions from extracted text
-    const questions = parseQuestions(extractedText, examId);
-    
+    const questions = parseQuestions(text, examId);
     if (questions.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          questionsCreated: 0,
-          error: 'No valid questions found in PDF',
-          suggestions: [
-            'Ensure questions are numbered (1., 2., Q1, Q2, etc.)',
-            'Use standard format: A) B) C) D) for options',
-            'Include an answer key section or mark correct answers with [CORRECT]',
-            'Make sure each question has at least 2 options'
-          ],
-          debug: {
-            textLength: extractedText.length,
-            sampleText: extractedText.substring(0, 500)
-          }
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400 
-        }
-      );
+      return new Response(JSON.stringify({ success: false, questionsCreated: 0, error: 'No questions found in PDF', suggestions: ['Use format: Question: ... Answer: ...', 'Or: Q1. ... A1. ...'], debug: { textLength: text.length, sample: text.substring(0, 500) } }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
     }
-
-    // Insert questions into database
-    const { error } = await supabaseClient
-      .from('exam_questions')
-      .insert(questions);
-
-    if (error) {
-      console.error('Database error:', error);
-      throw new Error(`Failed to save questions: ${error.message}`);
-    }
-
-    console.log(`✓ Successfully created ${questions.length} questions`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        questionsCreated: questions.length,
-        questions: questions.map(q => ({
-          questionNumber: q.order_number,
-          questionText: q.question_text.substring(0, 100) + '...',
-          optionCount: q.options.length,
-          hasAnswer: !!q.correct_answer
-        })),
-        message: `Successfully created ${questions.length} questions from PDF`
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
-      }
-    );
-
+    
+    const { error } = await supabase.from('exam_questions').insert(questions);
+    if (error) throw new Error('Database error: ' + error.message);
+    
+    console.log('Created', questions.length, 'questions');
+    return new Response(JSON.stringify({ success: true, questionsCreated: questions.length, message: 'Successfully created ' + questions.length + ' questions' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
   } catch (error) {
-    console.error('Error processing PDF:', error);
-    return new Response(
-      JSON.stringify({ 
-        success: false,
-        questionsCreated: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        details: error instanceof Error ? error.stack : undefined
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    );
+    console.error('Error:', error);
+    return new Response(JSON.stringify({ success: false, questionsCreated: 0, error: error instanceof Error ? error.message : 'Unknown error' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
   }
 });
