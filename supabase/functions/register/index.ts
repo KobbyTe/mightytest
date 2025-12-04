@@ -180,74 +180,80 @@ serve(async (req) => {
     console.log('Successfully created student and parent accounts');
 
     // Send email to parent with login credentials
+    let emailSent = false;
+    let emailError = null;
     try {
-      const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      console.log('Resend API Key configured:', !!resendApiKey);
       
-      await resend.emails.send({
-        from: "STEM Learning Platform <onboarding@resend.dev>",
-        to: [parentEmail],
-        subject: "Your Child's STEM Learning Account - Parent Access",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h1 style="color: #2563eb; margin-bottom: 20px;">Welcome to STEM Learning Platform!</h1>
-            
-            <p style="font-size: 16px; line-height: 1.5; color: #333;">
-              Hello ${parentFullName},
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.5; color: #333;">
-              Your child <strong>${fullName}</strong> has successfully registered on our STEM Learning Platform. 
-              We've created a parent account for you to monitor their progress and achievements.
-            </p>
-            
-            <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
-              <h2 style="color: #1f2937; margin-top: 0; font-size: 18px;">Your Parent Login Credentials:</h2>
-              <p style="margin: 10px 0;"><strong>Email:</strong> ${parentEmail}</p>
-              <p style="margin: 10px 0;"><strong>Password:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${parentPassword}</code></p>
-              <p style="margin: 10px 0;"><strong>Access Code:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${accessCode}</code></p>
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        
+        const emailResult = await resend.emails.send({
+          from: "STEM Learning Platform <onboarding@resend.dev>",
+          to: [parentEmail],
+          subject: "Your Child's STEM Learning Account - Parent Access",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #2563eb; margin-bottom: 20px;">Welcome to STEM Learning Platform!</h1>
+              
+              <p style="font-size: 16px; line-height: 1.5; color: #333;">
+                Hello ${parentFullName},
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.5; color: #333;">
+                Your child <strong>${fullName}</strong> has successfully registered on our STEM Learning Platform. 
+                We've created a parent account for you to monitor their progress and achievements.
+              </p>
+              
+              <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
+                <h2 style="color: #1f2937; margin-top: 0; font-size: 18px;">Your Parent Login Credentials:</h2>
+                <p style="margin: 10px 0;"><strong>Email:</strong> ${parentEmail}</p>
+                <p style="margin: 10px 0;"><strong>Password:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${parentPassword}</code></p>
+                <p style="margin: 10px 0;"><strong>Access Code:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${accessCode}</code></p>
+              </div>
+              
+              <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
+                <strong>Important:</strong> Please keep these credentials safe. We recommend changing your password after your first login.
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.5; color: #333; margin-top: 30px;">
+                From your parent dashboard, you can:
+              </p>
+              <ul style="font-size: 16px; line-height: 1.8; color: #333;">
+                <li>Monitor your child's exam progress and scores</li>
+                <li>View detailed performance analytics</li>
+                <li>Track learning achievements and milestones</li>
+                <li>Receive insights about strengths and areas for improvement</li>
+              </ul>
             </div>
-            
-            <div style="margin: 30px 0;">
-              <a href="${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app') || 'https://your-app.lovable.app'}/auth" 
-                 style="display: inline-block; background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                Login to Parent Dashboard
-              </a>
-            </div>
-            
-            <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
-              <strong>Important:</strong> Please keep these credentials safe. We recommend changing your password after your first login.
-            </p>
-            
-            <p style="font-size: 16px; line-height: 1.5; color: #333; margin-top: 30px;">
-              From your parent dashboard, you can:
-            </p>
-            <ul style="font-size: 16px; line-height: 1.8; color: #333;">
-              <li>Monitor your child's exam progress and scores</li>
-              <li>View detailed performance analytics</li>
-              <li>Track learning achievements and milestones</li>
-              <li>Receive insights about strengths and areas for improvement</li>
-            </ul>
-            
-            <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-              If you have any questions or need assistance, please don't hesitate to contact our support team.
-            </p>
-          </div>
-        `,
-      });
-      
-      console.log('Parent credentials email sent successfully');
-    } catch (emailError) {
-      console.error('Failed to send parent email:', emailError);
-      // Don't fail the registration if email fails
+          `,
+        });
+        
+        console.log('Resend email result:', JSON.stringify(emailResult));
+        emailSent = !emailResult.error;
+        if (emailResult.error) {
+          emailError = emailResult.error;
+          console.error('Resend error:', emailResult.error);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send parent email:', err);
+      emailError = err instanceof Error ? err.message : 'Unknown email error';
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Registration successful. Parent login details sent to email.',
+        message: emailSent 
+          ? 'Registration successful. Parent login details sent to email.'
+          : 'Registration successful. Email could not be sent - please share credentials manually.',
         studentId: authData.user.id,
         parentAccessCode: accessCode,
-        parentEmail: parentEmail
+        parentEmail: parentEmail,
+        parentPassword: parentPassword, // Include password so it can be displayed on dashboard
+        emailSent: emailSent,
+        emailError: emailError
       }),
       {
         status: 200,
