@@ -52,7 +52,7 @@ function detectType(q: string, a: string): string {
   const lq = q.toLowerCase(), la = a.toLowerCase();
   if (lq.includes('true or false') || la === 'true' || la === 'false') return 'true_false';
   if (/[A-D]\)/.test(q) || lq.includes('choose')) return 'multiple_choice';
-  return 'short_answer';
+  return 'essay';
 }
 
 function parseQuestions(text: string, examId: string): ParsedQuestion[] {
