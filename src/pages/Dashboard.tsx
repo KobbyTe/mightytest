@@ -38,6 +38,7 @@ interface ExamAttempt {
 interface ParentInfo {
   email: string;
   accessCode: string;
+  password?: string;
   name: string;
 }
 
@@ -261,31 +262,59 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <div className="p-4 bg-background rounded-lg border">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <Key className="h-4 w-4" />
-                  Access Code
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="p-4 bg-background rounded-lg border">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                    <Key className="h-4 w-4" />
+                    Access Code
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-lg font-mono font-bold tracking-wider text-primary">
+                      {parentInfo.accessCode}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => copyToClipboard(parentInfo.accessCode, 'accessCode')}
+                    >
+                      {copiedField === 'accessCode' ? (
+                        <Check className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="text-lg font-mono font-bold tracking-wider text-primary">
-                    {parentInfo.accessCode}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0"
-                    onClick={() => copyToClipboard(parentInfo.accessCode, 'accessCode')}
-                  >
-                    {copiedField === 'accessCode' ? (
-                      <Check className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
+                {parentInfo.password && (
+                  <div className="p-4 bg-background rounded-lg border">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                      <Key className="h-4 w-4" />
+                      Temporary Password
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <code className="text-lg font-mono font-bold tracking-wider text-primary">
+                        {parentInfo.password}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => copyToClipboard(parentInfo.password!, 'password')}
+                      >
+                        {copiedField === 'password' ? (
+                          <Check className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <Copy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                💡 Tip: The password has been sent to your parent's email. They can use it along with the email above to log in.
+                💡 Tip: Share these credentials with your parent/guardian so they can log in to monitor your progress.
+                {!parentInfo.password && ' The password was sent to their email.'}
               </p>
             </CardContent>
           </Card>

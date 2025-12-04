@@ -98,12 +98,15 @@ export const StudentRegistration = () => {
         sessionStorage.setItem('parentCredentials', JSON.stringify({
           email: data.parentEmail,
           accessCode: data.parentAccessCode,
+          password: data.parentPassword,
           name: formData.parentFullName
         }));
 
         toast({
           title: "Registration successful! 🎉",
-          description: `Parent credentials sent to ${formData.parentEmail}`,
+          description: data.emailSent 
+            ? `Parent credentials sent to ${formData.parentEmail}`
+            : `Parent credentials shown on dashboard (email not sent)`,
         });
 
         // Auto-login the student
