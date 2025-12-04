@@ -94,6 +94,13 @@ export const StudentRegistration = () => {
       if (error) throw error;
 
       if (data?.success) {
+        // Store parent credentials temporarily to display on dashboard
+        sessionStorage.setItem('parentCredentials', JSON.stringify({
+          email: data.parentEmail,
+          accessCode: data.parentAccessCode,
+          name: formData.parentFullName
+        }));
+
         toast({
           title: "Registration successful! 🎉",
           description: `Parent credentials sent to ${formData.parentEmail}`,

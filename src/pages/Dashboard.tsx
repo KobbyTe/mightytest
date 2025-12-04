@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download } from 'lucide-react';
+import { BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, Users, Mail, Key, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ExamCertificate } from '@/components/ExamCertificate';
@@ -35,12 +35,20 @@ interface ExamAttempt {
   exams: Exam;
 }
 
+interface ParentInfo {
+  email: string;
+  accessCode: string;
+  name: string;
+}
+
 export default function Dashboard() {
   const { user, profile, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
   const [availableExams, setAvailableExams] = useState<Exam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [parentInfo, setParentInfo] = useState<ParentInfo | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -49,8 +57,42 @@ export default function Dashboard() {
       navigate('/dashboard');
     } else if (!loading && user && role === 'student' && profile?.id) {
       loadDashboardData();
+      loadParentInfo();
     }
   }, [user, loading, role, profile, navigate]);
+
+  const loadParentInfo = async () => {
+    // First check sessionStorage for newly registered parent credentials
+    const storedCredentials = sessionStorage.getItem('parentCredentials');
+    if (storedCredentials) {
+      setParentInfo(JSON.parse(storedCredentials));
+      return;
+    }
+
+    // Otherwise load from database
+    if (profile?.parent_id) {
+      const { data: parentData } = await supabase
+        .from('parents')
+        .select('email, access_code, full_name')
+        .eq('id', profile.parent_id)
+        .single();
+
+      if (parentData) {
+        setParentInfo({
+          email: parentData.email,
+          accessCode: parentData.access_code,
+          name: parentData.full_name
+        });
+      }
+    }
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    toast.success('Copied to clipboard!');
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -175,7 +217,79 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Registered Exams */}
+        {/* Parent/Guardian Information */}
+        {parentInfo && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Parent/Guardian Login Details
+              </CardTitle>
+              <CardDescription>
+                Share these credentials with your parent/guardian so they can monitor your progress.
+                An email has been sent to them with these details.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    Parent Name
+                  </div>
+                  <p className="font-medium">{parentInfo.name}</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{parentInfo.email}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => copyToClipboard(parentInfo.email, 'email')}
+                    >
+                      {copiedField === 'email' ? (
+                        <Check className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 bg-background rounded-lg border">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                  <Key className="h-4 w-4" />
+                  Access Code
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-lg font-mono font-bold tracking-wider text-primary">
+                    {parentInfo.accessCode}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={() => copyToClipboard(parentInfo.accessCode, 'accessCode')}
+                  >
+                    {copiedField === 'accessCode' ? (
+                      <Check className="h-3 w-3 text-green-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                💡 Tip: The password has been sent to your parent's email. They can use it along with the email above to log in.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <div>
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
             <BookOpen className="h-6 w-6" />
