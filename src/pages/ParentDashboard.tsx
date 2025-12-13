@@ -5,7 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, User, Calendar, TrendingUp } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { 
+  LogOut, GraduationCap, User, Calendar, TrendingUp, 
+  BookOpen, Trophy, Star, Target, Sparkles, ChevronRight,
+  CheckCircle, XCircle, Clock, Award
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Student {
@@ -45,7 +50,11 @@ export default function ParentDashboard() {
     if (!loading && !user) {
       navigate('/auth');
     } else if (!loading && user && role !== 'parent') {
-      navigate('/dashboard');
+      if (role === 'student') {
+        navigate('/dashboard');
+      } else if (role === 'admin') {
+        navigate('/admin');
+      }
     } else if (!loading && user && role === 'parent' && profile?.id) {
       loadDashboardData();
     }
@@ -53,7 +62,6 @@ export default function ParentDashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Load children
       const { data: childrenData, error: childrenError } = await supabase
         .from('students')
         .select('*')
@@ -62,7 +70,6 @@ export default function ParentDashboard() {
       if (childrenError) throw childrenError;
       setChildren(childrenData || []);
 
-      // Load exam attempts for all children
       if (childrenData && childrenData.length > 0) {
         const childIds = childrenData.map(c => c.id);
         const { data: attemptsData, error: attemptsError } = await supabase
@@ -89,26 +96,61 @@ export default function ParentDashboard() {
 
   if (loading || loadingData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="animate-pulse text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-accent/30 rounded-full animate-spin border-t-accent" />
+            <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-accent animate-pulse" />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground animate-pulse">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
-  const getAttemptsByChild = (childId: string) => {
-    return examAttempts.filter(a => a.student_id === childId);
+  const getSubjectIcon = (subject: string) => {
+    const icons: Record<string, string> = {
+      'Science': '🔬',
+      'Technology': '💻',
+      'Engineering': '⚙️',
+      'Mathematics': '📐',
+      'Robotics': '🤖',
+      'AI': '🧠',
+    };
+    return icons[subject] || '📚';
   };
 
+  // Overall stats across all children
+  const totalAttempts = examAttempts.length;
+  const completedAttempts = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed').length;
+  const passedAttempts = examAttempts.filter(a => 
+    a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks
+  ).length;
+  const avgScore = examAttempts.filter(a => a.marks_obtained !== null).length > 0
+    ? Math.round(
+        examAttempts.filter(a => a.marks_obtained !== null).reduce((sum, a) => sum + (a.marks_obtained || 0), 0) / 
+        examAttempts.filter(a => a.marks_obtained !== null).length
+      )
+    : 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Parent Dashboard</h1>
+            <div className="relative">
+              <GraduationCap className="h-10 w-10 text-accent" />
+              <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-primary animate-pulse" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">
+                Parent Dashboard
+              </h1>
+              <p className="text-sm text-muted-foreground">Monitor your child's learning journey</p>
+            </div>
           </div>
-          <Button variant="ghost" onClick={handleSignOut}>
+          <Button variant="outline" onClick={handleSignOut} className="hover-lift">
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>
@@ -116,37 +158,87 @@ export default function ParentDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Profile Section */}
-        <Card>
+        {/* Profile Card */}
+        <Card className="hover-lift overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-accent via-primary to-secondary" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Profile Information
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center">
+                <User className="h-5 w-5 text-accent-foreground" />
+              </div>
+              Welcome, {profile?.full_name}
             </CardTitle>
+            <CardDescription>{profile?.email}</CardDescription>
           </CardHeader>
-          <CardContent className="grid md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Full Name</p>
-              <p className="font-medium">{profile?.full_name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{profile?.email}</p>
-            </div>
-          </CardContent>
         </Card>
+
+        {/* Overall Stats */}
+        {children.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="hover-lift bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-accent/20 flex items-center justify-center">
+                  <BookOpen className="h-6 w-6 text-accent" />
+                </div>
+                <p className="text-3xl font-bold text-accent">{totalAttempts}</p>
+                <p className="text-sm text-muted-foreground">Total Exams</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--success))]/10 to-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(var(--success))]/20 flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-[hsl(var(--success))]" />
+                </div>
+                <p className="text-3xl font-bold text-[hsl(var(--success))]">{passedAttempts}</p>
+                <p className="text-sm text-muted-foreground">Passed</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--purple))]/10 to-[hsl(var(--purple))]/5 border-[hsl(var(--purple))]/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(var(--purple))]/20 flex items-center justify-center">
+                  <Star className="h-6 w-6 text-[hsl(var(--purple))]" />
+                </div>
+                <p className="text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}</p>
+                <p className="text-sm text-muted-foreground">Avg Score</p>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Target className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-3xl font-bold text-primary">{children.length}</p>
+                <p className="text-sm text-muted-foreground">Children</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Children Overview */}
         <div>
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Calendar className="h-6 w-6" />
-            Children's Progress
-          </h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center shadow-lg">
+              <GraduationCap className="h-6 w-6 text-accent-foreground" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Children's Progress</h2>
+              <p className="text-muted-foreground">Track academic performance and achievements</p>
+            </div>
+          </div>
 
           {children.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No children linked to your account yet.
+            <Card className="hover-lift">
+              <CardContent className="py-12 text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <User className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No Children Linked</h3>
+                <p className="text-muted-foreground">
+                  No children are linked to your account yet. Your child will be linked when they register with your details.
+                </p>
               </CardContent>
             </Card>
           ) : (
@@ -154,65 +246,126 @@ export default function ParentDashboard() {
               {children.map((child) => {
                 const childAttempts = examAttempts.filter(a => a.student_id === child.id);
                 const gradedAttempts = childAttempts.filter(a => a.status === 'graded');
-                const avgScore = gradedAttempts.length > 0
-                  ? (gradedAttempts.reduce((sum, a) => sum + (a.marks_obtained || 0), 0) / gradedAttempts.length).toFixed(1)
-                  : 'N/A';
+                const passedCount = gradedAttempts.filter(a => a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks).length;
+                const childAvgScore = gradedAttempts.filter(a => a.marks_obtained !== null).length > 0
+                  ? Math.round(gradedAttempts.filter(a => a.marks_obtained !== null).reduce((sum, a) => sum + (a.marks_obtained || 0), 0) / gradedAttempts.filter(a => a.marks_obtained !== null).length)
+                  : 0;
+                const passRate = gradedAttempts.length > 0 ? Math.round((passedCount / gradedAttempts.length) * 100) : 0;
 
                 return (
-                  <Card key={child.id}>
+                  <Card key={child.id} className="hover-lift overflow-hidden">
+                    <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
                     <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>{child.full_name}</span>
-                        <Badge variant="outline">{child.grade}</Badge>
-                      </CardTitle>
-                      <CardDescription>{child.school_name}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid md:grid-cols-3 gap-4">
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold">{childAttempts.length}</div>
-                          <div className="text-sm text-muted-foreground">Total Attempts</div>
-                        </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold">{gradedAttempts.length}</div>
-                          <div className="text-sm text-muted-foreground">Graded</div>
-                        </div>
-                        <div className="text-center p-4 border rounded-lg">
-                          <div className="text-2xl font-bold flex items-center justify-center gap-1">
-                            <TrendingUp className="h-5 w-5 text-primary" />
-                            {avgScore}
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold text-primary-foreground">
+                            {child.full_name.charAt(0)}
                           </div>
-                          <div className="text-sm text-muted-foreground">Average Score</div>
+                          <div>
+                            <CardTitle className="text-xl">{child.full_name}</CardTitle>
+                            <div className="flex gap-2 mt-1">
+                              <Badge variant="secondary">{child.grade || 'Grade N/A'}</Badge>
+                              <Badge variant="outline">{child.school_name || 'School N/A'}</Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {passRate >= 80 && <Badge className="bg-[hsl(var(--success))]"><Award className="h-3 w-3 mr-1" /> High Achiever</Badge>}
+                          {childAttempts.length >= 5 && <Badge className="bg-[hsl(var(--purple))]"><Star className="h-3 w-3 mr-1" /> Active Learner</Badge>}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-4 rounded-xl bg-muted/50 text-center">
+                          <BookOpen className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-2xl font-bold">{childAttempts.length}</p>
+                          <p className="text-xs text-muted-foreground">Total Attempts</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-[hsl(var(--success))]/10 text-center">
+                          <Trophy className="h-5 w-5 mx-auto mb-2 text-[hsl(var(--success))]" />
+                          <p className="text-2xl font-bold text-[hsl(var(--success))]">{passedCount}</p>
+                          <p className="text-xs text-muted-foreground">Passed</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-[hsl(var(--purple))]/10 text-center">
+                          <TrendingUp className="h-5 w-5 mx-auto mb-2 text-[hsl(var(--purple))]" />
+                          <p className="text-2xl font-bold text-[hsl(var(--purple))]">{childAvgScore}</p>
+                          <p className="text-xs text-muted-foreground">Avg Score</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-primary/10 text-center">
+                          <Target className="h-5 w-5 mx-auto mb-2 text-primary" />
+                          <p className="text-2xl font-bold text-primary">{passRate}%</p>
+                          <p className="text-xs text-muted-foreground">Pass Rate</p>
                         </div>
                       </div>
 
+                      {/* Recent Exams */}
                       {childAttempts.length > 0 && (
                         <div>
-                          <h4 className="font-semibold mb-2">Recent Exam Attempts</h4>
-                          <div className="space-y-2">
-                            {childAttempts.slice(0, 5).map((attempt) => (
-                              <div key={attempt.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex-1">
-                                  <p className="font-medium">{attempt.exams.title}</p>
-                                  <p className="text-sm text-muted-foreground">{attempt.exams.subject}</p>
-                                </div>
-                                <div className="text-right">
-                                  {attempt.status === 'graded' && attempt.marks_obtained !== null ? (
-                                    <div>
-                                      <Badge variant={attempt.marks_obtained >= attempt.exams.passing_marks ? 'default' : 'destructive'}>
-                                        {attempt.marks_obtained}/{attempt.exams.total_marks}
-                                      </Badge>
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        {new Date(attempt.graded_at!).toLocaleDateString()}
-                                      </p>
+                          <h4 className="font-semibold mb-3 flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            Recent Exam Results
+                          </h4>
+                          <div className="space-y-3">
+                            {childAttempts.slice(0, 5).map((attempt) => {
+                              const isPassed = attempt.status === 'graded' && attempt.marks_obtained !== null && attempt.marks_obtained >= attempt.exams.passing_marks;
+                              const scorePercent = attempt.marks_obtained !== null ? (attempt.marks_obtained / attempt.exams.total_marks) * 100 : 0;
+
+                              return (
+                                <div key={attempt.id} className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                                  <div className="text-2xl">{getSubjectIcon(attempt.exams.subject)}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-medium truncate">{attempt.exams.title}</p>
+                                      <Badge variant="outline" className="text-xs shrink-0">{attempt.exams.subject}</Badge>
                                     </div>
-                                  ) : (
-                                    <Badge variant="secondary">{attempt.status}</Badge>
-                                  )}
+                                    {attempt.status === 'graded' && attempt.marks_obtained !== null && (
+                                      <div className="mt-2">
+                                        <div className="flex items-center justify-between text-sm mb-1">
+                                          <span className="text-muted-foreground">Score</span>
+                                          <span className="font-medium">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
+                                        </div>
+                                        <Progress value={scorePercent} className="h-2" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    {attempt.status === 'graded' ? (
+                                      isPassed ? (
+                                        <div className="flex items-center gap-1 text-[hsl(var(--success))]">
+                                          <CheckCircle className="h-5 w-5" />
+                                          <span className="font-medium">Passed</span>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1 text-destructive">
+                                          <XCircle className="h-5 w-5" />
+                                          <span className="font-medium">Failed</span>
+                                        </div>
+                                      )
+                                    ) : (
+                                      <Badge variant="secondary" className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {attempt.status}
+                                      </Badge>
+                                    )}
+                                    {attempt.graded_at && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {new Date(attempt.graded_at).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
+                        </div>
+                      )}
+
+                      {childAttempts.length === 0 && (
+                        <div className="text-center py-6 text-muted-foreground">
+                          <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p>No exam attempts yet. Encourage your child to take some exams!</p>
                         </div>
                       )}
                     </CardContent>
