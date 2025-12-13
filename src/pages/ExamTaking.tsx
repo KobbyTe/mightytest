@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 
@@ -66,7 +66,6 @@ export default function ExamTaking() {
 
   const loadExamData = async () => {
     try {
-      // Get attempt details
       const { data: attemptData, error: attemptError } = await supabase
         .from('exam_attempts')
         .select('*, exams(*)')
@@ -75,8 +74,7 @@ export default function ExamTaking() {
 
       if (attemptError) throw attemptError;
 
-      // Check if already completed
-      if (attemptData.status === 'completed') {
+      if (attemptData.status === 'completed' || attemptData.status === 'graded') {
         toast.error('This exam has already been completed');
         navigate('/dashboard');
         return;
@@ -85,7 +83,6 @@ export default function ExamTaking() {
       setExam(attemptData.exams);
       setTimeRemaining((attemptData.exams.duration_minutes || 60) * 60);
 
-      // Get questions
       const { data: questionsData, error: questionsError } = await supabase
         .from('exam_questions')
         .select('*')
@@ -95,7 +92,6 @@ export default function ExamTaking() {
       if (questionsError) throw questionsError;
       setQuestions(questionsData || []);
 
-      // Load existing answers if any
       const { data: existingAnswers } = await supabase
         .from('exam_answers')
         .select('*')
@@ -104,7 +100,7 @@ export default function ExamTaking() {
       if (existingAnswers) {
         const answersMap: Record<string, string> = {};
         existingAnswers.forEach(ans => {
-          answersMap[ans.question_id] = ans.answer_text;
+          answersMap[ans.question_id] = ans.answer_text || '';
         });
         setAnswers(answersMap);
       }
@@ -126,37 +122,50 @@ export default function ExamTaking() {
     setSubmitting(true);
 
     try {
-      // Save all answers
+      // Prepare answers to save
       const answersToSave = Object.entries(answers).map(([question_id, answer_text]) => ({
         attempt_id: attemptId,
         question_id,
         answer_text
       }));
 
-      // Delete existing answers first
+      // Delete existing answers first (for re-attempts or partial saves)
       await supabase.from('exam_answers').delete().eq('attempt_id', attemptId);
 
       // Auto-grade multiple choice and true/false questions
-      let totalMarks = 0;
+      let totalAutoGradedMarks = 0;
+      let hasEssayQuestions = false;
       const gradedAnswers = [];
       
       for (const answer of answersToSave) {
         const question = questions.find(q => q.id === answer.question_id);
-        if (question && (question.question_type === 'multiple_choice' || question.question_type === 'true_false')) {
-          const isCorrect = answer.answer_text === question.correct_answer;
+        if (!question) continue;
+
+        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+          // Auto-grade: compare answer with correct_answer
+          const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
           const marksAwarded = isCorrect ? question.marks : 0;
-          totalMarks += marksAwarded;
+          totalAutoGradedMarks += marksAwarded;
+          
           gradedAnswers.push({
             ...answer,
             is_correct: isCorrect,
             marks_awarded: marksAwarded
+          });
+        } else if (question.question_type === 'essay') {
+          hasEssayQuestions = true;
+          // Essay questions need manual grading - set marks to null
+          gradedAnswers.push({
+            ...answer,
+            is_correct: null,
+            marks_awarded: null
           });
         } else {
           gradedAnswers.push(answer);
         }
       }
 
-      // Insert answers with grading
+      // Insert graded answers
       if (gradedAnswers.length > 0) {
         const { error: answersError } = await supabase
           .from('exam_answers')
@@ -165,19 +174,36 @@ export default function ExamTaking() {
         if (answersError) throw answersError;
       }
 
-      // Submit exam with calculated marks
+      // Determine final status and marks
+      // If all questions are auto-gradable, mark as graded
+      // If there are essay questions, mark as completed (pending manual grading)
+      const finalStatus = hasEssayQuestions ? 'completed' : 'graded';
+      const finalMarks = hasEssayQuestions ? null : totalAutoGradedMarks;
+
+      // Update attempt with calculated marks
+      const updateData: any = { 
+        status: finalStatus,
+        completed_at: new Date().toISOString(),
+      };
+
+      if (!hasEssayQuestions) {
+        updateData.marks_obtained = totalAutoGradedMarks;
+        updateData.graded_at = new Date().toISOString();
+      }
+
       const { error: submitError } = await supabase
         .from('exam_attempts')
-        .update({ 
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          marks_obtained: totalMarks
-        })
+        .update(updateData)
         .eq('id', attemptId);
 
       if (submitError) throw submitError;
 
-      toast.success('Exam submitted successfully!');
+      if (hasEssayQuestions) {
+        toast.success('Exam submitted! Your score will be available after manual grading of essay questions.');
+      } else {
+        toast.success(`Exam submitted and graded! You scored ${totalAutoGradedMarks} marks.`);
+      }
+      
       navigate('/dashboard');
     } catch (error) {
       console.error('Error submitting exam:', error);
@@ -194,14 +220,20 @@ export default function ExamTaking() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const answeredCount = Object.keys(answers).length;
+  const answeredCount = Object.keys(answers).filter(k => answers[k]?.trim()).length;
   const totalQuestions = questions.length;
   const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0;
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="animate-pulse text-lg">Loading exam...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-primary/30 rounded-full animate-spin border-t-primary" />
+            <Brain className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-primary animate-pulse" />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground animate-pulse">Loading your exam...</p>
+        </div>
       </div>
     );
   }
@@ -209,108 +241,214 @@ export default function ExamTaking() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Fixed Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-xl font-bold">{exam?.title}</h1>
-              <p className="text-sm text-muted-foreground">
-                {answeredCount} of {totalQuestions} answered
-              </p>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <Brain className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">{exam?.title}</h1>
+                <p className="text-sm text-muted-foreground">
+                  <span className="text-primary font-medium">{answeredCount}</span> of {totalQuestions} answered
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${timeRemaining < 300 ? 'bg-destructive/10 text-destructive' : 'bg-primary/10'}`}>
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-xl font-mono ${
+                timeRemaining < 300 
+                  ? 'bg-destructive/10 text-destructive border border-destructive/30 animate-pulse' 
+                  : timeRemaining < 600
+                  ? 'bg-secondary/10 text-secondary border border-secondary/30'
+                  : 'bg-primary/10 text-primary border border-primary/30'
+              }`}>
                 <Clock className="h-5 w-5" />
-                <span className="font-mono font-bold text-lg">{formatTime(timeRemaining)}</span>
+                <span className="font-bold text-lg">{formatTime(timeRemaining)}</span>
               </div>
               <Button 
                 onClick={handleSubmitExam} 
                 disabled={submitting}
                 size="lg"
+                className="bg-gradient-to-r from-[hsl(var(--success))] to-[hsl(var(--fun-teal))] hover:opacity-90 shadow-success"
               >
-                {submitting ? 'Submitting...' : 'Submit Exam'}
+                {submitting ? (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Submit Exam
+                  </>
+                )}
               </Button>
             </div>
           </div>
-          <Progress value={progress} className="mt-3" />
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <span className="text-muted-foreground">Progress</span>
+              <span className="font-medium">{Math.round(progress)}%</span>
+            </div>
+            <Progress value={progress} className="h-3" />
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-6">
-          {questions.map((question, index) => (
-            <Card key={question.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">
-                      Question {index + 1}
-                      {answers[question.id] && (
-                        <CheckCircle className="inline-block ml-2 h-5 w-5 text-green-500" />
-                      )}
-                    </CardTitle>
-                    <CardDescription className="mt-2 text-base">
-                      {question.question_text}
-                    </CardDescription>
+          {questions.map((question, index) => {
+            const isAnswered = !!answers[question.id]?.trim();
+            
+            return (
+              <Card key={question.id} className={`hover-lift overflow-hidden transition-all ${isAnswered ? 'border-[hsl(var(--success))]/50 bg-[hsl(var(--success))]/5' : ''}`}>
+                <div className={`h-1 ${isAnswered ? 'bg-[hsl(var(--success))]' : 'bg-muted'}`} />
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+                        isAnswered 
+                          ? 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]' 
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {isAnswered ? <CheckCircle className="h-5 w-5" /> : index + 1}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg leading-relaxed">
+                          {question.question_text}
+                        </CardTitle>
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            {question.question_type === 'multiple_choice' ? 'Multiple Choice' : 
+                             question.question_type === 'true_false' ? 'True/False' : 'Essay'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      <Trophy className="h-3 w-3 mr-1" />
+                      {question.marks} {question.marks === 1 ? 'mark' : 'marks'}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary">{question.marks} marks</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {question.question_type === 'multiple_choice' && question.options && (
-                  <RadioGroup
-                    value={answers[question.id] || ''}
-                    onValueChange={(value) => handleAnswerChange(question.id, value)}
-                  >
-                    {question.options.map((option, optIndex) => (
-                      <div key={optIndex} className="flex items-center space-x-2 p-3 rounded-lg hover:bg-accent">
-                        <RadioGroupItem value={option} id={`${question.id}-${optIndex}`} />
-                        <Label htmlFor={`${question.id}-${optIndex}`} className="flex-1 cursor-pointer">
-                          {option}
+                </CardHeader>
+                <CardContent>
+                  {question.question_type === 'multiple_choice' && question.options && (
+                    <RadioGroup
+                      value={answers[question.id] || ''}
+                      onValueChange={(value) => handleAnswerChange(question.id, value)}
+                      className="space-y-2"
+                    >
+                      {(Array.isArray(question.options) ? question.options : []).map((option: string, optIndex: number) => (
+                        <div 
+                          key={optIndex} 
+                          className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                            answers[question.id] === option 
+                              ? 'border-primary bg-primary/10' 
+                              : 'border-transparent bg-muted/50 hover:bg-muted'
+                          }`}
+                        >
+                          <RadioGroupItem value={option} id={`${question.id}-${optIndex}`} />
+                          <Label htmlFor={`${question.id}-${optIndex}`} className="flex-1 cursor-pointer text-base">
+                            {option}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  )}
+
+                  {question.question_type === 'true_false' && (
+                    <RadioGroup
+                      value={answers[question.id] || ''}
+                      onValueChange={(value) => handleAnswerChange(question.id, value)}
+                      className="grid grid-cols-2 gap-4"
+                    >
+                      <div 
+                        className={`flex items-center justify-center space-x-3 p-6 rounded-xl border-2 transition-all cursor-pointer ${
+                          answers[question.id] === 'True' 
+                            ? 'border-[hsl(var(--success))] bg-[hsl(var(--success))]/10' 
+                            : 'border-transparent bg-muted/50 hover:bg-muted'
+                        }`}
+                      >
+                        <RadioGroupItem value="True" id={`${question.id}-true`} />
+                        <Label htmlFor={`${question.id}-true`} className="cursor-pointer text-lg font-medium">
+                          ✓ True
                         </Label>
                       </div>
-                    ))}
-                  </RadioGroup>
-                )}
+                      <div 
+                        className={`flex items-center justify-center space-x-3 p-6 rounded-xl border-2 transition-all cursor-pointer ${
+                          answers[question.id] === 'False' 
+                            ? 'border-destructive bg-destructive/10' 
+                            : 'border-transparent bg-muted/50 hover:bg-muted'
+                        }`}
+                      >
+                        <RadioGroupItem value="False" id={`${question.id}-false`} />
+                        <Label htmlFor={`${question.id}-false`} className="cursor-pointer text-lg font-medium">
+                          ✗ False
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  )}
 
-                {question.question_type === 'true_false' && (
-                  <RadioGroup
-                    value={answers[question.id] || ''}
-                    onValueChange={(value) => handleAnswerChange(question.id, value)}
-                  >
-                    <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-accent">
-                      <RadioGroupItem value="True" id={`${question.id}-true`} />
-                      <Label htmlFor={`${question.id}-true`} className="flex-1 cursor-pointer">
-                        True
-                      </Label>
+                  {question.question_type === 'essay' && (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={answers[question.id] || ''}
+                        onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                        placeholder="Write your detailed answer here..."
+                        rows={8}
+                        className="text-base resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        💡 Essay questions will be manually graded by your instructor
+                      </p>
                     </div>
-                    <div className="flex items-center space-x-2 p-3 rounded-lg hover:bg-accent">
-                      <RadioGroupItem value="False" id={`${question.id}-false`} />
-                      <Label htmlFor={`${question.id}-false`} className="flex-1 cursor-pointer">
-                        False
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                )}
-
-                {question.question_type === 'essay' && (
-                  <Textarea
-                    value={answers[question.id] || ''}
-                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Type your answer here..."
-                    rows={6}
-                    className="mt-2"
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
 
           {questions.length === 0 && (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">No questions available for this exam.</p>
+            <Card className="hover-lift">
+              <CardContent className="py-16 text-center">
+                <AlertCircle className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-semibold mb-2">No Questions Available</h3>
+                <p className="text-muted-foreground">
+                  This exam doesn't have any questions yet. Please contact your instructor.
+                </p>
+                <Button variant="outline" onClick={() => navigate('/dashboard')} className="mt-4">
+                  Back to Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Submit Button at Bottom */}
+          {questions.length > 0 && (
+            <Card className="bg-gradient-to-r from-[hsl(var(--success))]/10 to-[hsl(var(--fun-teal))]/10 border-[hsl(var(--success))]/30">
+              <CardContent className="py-6 text-center">
+                <p className="text-muted-foreground mb-4">
+                  You've answered <span className="font-bold text-[hsl(var(--success))]">{answeredCount}</span> out of <span className="font-bold">{totalQuestions}</span> questions
+                </p>
+                <Button 
+                  onClick={handleSubmitExam} 
+                  disabled={submitting}
+                  size="lg"
+                  className="bg-gradient-to-r from-[hsl(var(--success))] to-[hsl(var(--fun-teal))] hover:opacity-90 shadow-success px-8"
+                >
+                  {submitting ? (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-5 w-5" />
+                      Submit Exam
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           )}
