@@ -198,6 +198,17 @@ export default function ExamTaking() {
 
       if (submitError) throw submitError;
 
+      // Send notification to student and parent
+      try {
+        await supabase.functions.invoke('send-grade-notification', {
+          body: { attemptId, notifyParent: true }
+        });
+        console.log('Grade notification sent');
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+        // Don't fail the submission if notification fails
+      }
+
       if (hasEssayQuestions) {
         toast.success('Exam submitted! Your score will be available after manual grading of essay questions.');
       } else {
