@@ -41,11 +41,11 @@ interface ExamAttempt {
     full_name: string;
     email: string;
     grade: string;
-  };
+  } | null;
   exam: {
     title: string;
     total_marks: number;
-  };
+  } | null;
 }
 
 export default function AdminDashboard() {
@@ -499,15 +499,21 @@ export default function AdminDashboard() {
                           <TableRow key={attempt.id}>
                             <TableCell>
                               <div>
-                                <p className="font-medium">{attempt.student.full_name}</p>
-                                <p className="text-xs text-muted-foreground">{attempt.student.email}</p>
+                                <p className="font-medium">{attempt.student?.full_name || 'Unknown Student'}</p>
+                                <p className="text-xs text-muted-foreground">{attempt.student?.email || 'No email'}</p>
                               </div>
                             </TableCell>
-                            <TableCell className="font-medium">{attempt.exam.title}</TableCell>
+                            <TableCell className="font-medium">{attempt.exam?.title || 'Unknown Exam'}</TableCell>
                             <TableCell>
-                              <Badge variant="outline">{attempt.student.grade || 'N/A'}</Badge>
+                              <Badge variant="outline">{attempt.student?.grade || 'N/A'}</Badge>
                             </TableCell>
                             <TableCell>
+                              {attempt.status === 'graded' && (
+                                <Badge variant="default" className="gap-1 bg-green-600">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Graded
+                                </Badge>
+                              )}
                               {attempt.status === 'completed' && (
                                 <Badge variant="default" className="gap-1">
                                   <CheckCircle className="h-3 w-3" />
@@ -517,20 +523,20 @@ export default function AdminDashboard() {
                               {attempt.status === 'pending' && (
                                 <Badge variant="secondary" className="gap-1">
                                   <Clock className="h-3 w-3" />
-                                  Pending
+                                  In Progress
                                 </Badge>
                               )}
                               {attempt.status === 'grading' && (
                                 <Badge variant="secondary" className="gap-1">
                                   <Clock className="h-3 w-3" />
-                                  Grading
+                                  Awaiting Grading
                                 </Badge>
                               )}
                             </TableCell>
                             <TableCell>
                               {attempt.marks_obtained !== null ? (
                                 <span className="font-semibold">
-                                  {attempt.marks_obtained}/{attempt.exam.total_marks}
+                                  {attempt.marks_obtained}/{attempt.exam?.total_marks || 0}
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">Not graded</span>
@@ -546,7 +552,7 @@ export default function AdminDashboard() {
                                 onClick={() => navigate(`/admin/exam/grade/${attempt.id}`)}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
-                                {attempt.status === 'completed' ? 'Grade' : 'View'}
+                                {attempt.status === 'graded' ? 'View' : 'Grade'}
                               </Button>
                             </TableCell>
                           </TableRow>
