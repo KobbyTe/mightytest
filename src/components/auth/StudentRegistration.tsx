@@ -1,15 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2, GraduationCap } from "lucide-react";
+
+interface School {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface ClassItem {
+  id: string;
+  school_id: string;
+  name: string;
+  grade_level: string | null;
+}
 
 export const StudentRegistration = () => {
   const [loading, setLoading] = useState(false);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [filteredClasses, setFilteredClasses] = useState<ClassItem[]>([]);
+  
   const [formData, setFormData] = useState({
     fullName: "",
     dateOfBirth: "",
@@ -18,6 +42,8 @@ export const StudentRegistration = () => {
     phoneNumber: "",
     addressCity: "",
     addressCountry: "",
+    schoolId: "",
+    classId: "",
     grade: "",
     schoolName: "",
     studentSchoolId: "",
@@ -35,8 +61,53 @@ export const StudentRegistration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  useEffect(() => {
+    loadSchoolsAndClasses();
+  }, []);
+
+  useEffect(() => {
+    if (formData.schoolId) {
+      const filtered = classes.filter(c => c.school_id === formData.schoolId);
+      setFilteredClasses(filtered);
+      // Reset class selection when school changes
+      if (!filtered.find(c => c.id === formData.classId)) {
+        setFormData(prev => ({ ...prev, classId: '' }));
+      }
+    } else {
+      setFilteredClasses([]);
+    }
+  }, [formData.schoolId, classes]);
+
+  const loadSchoolsAndClasses = async () => {
+    try {
+      const [schoolsRes, classesRes] = await Promise.all([
+        supabase.from('schools').select('id, name, code').eq('status', 'active').order('name'),
+        supabase.from('classes').select('id, school_id, name, grade_level').eq('status', 'active').order('name')
+      ]);
+
+      if (schoolsRes.data) setSchools(schoolsRes.data);
+      if (classesRes.data) setClasses(classesRes.data);
+    } catch (error) {
+      console.error('Error loading schools:', error);
+    }
+  };
+
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-populate school name and grade when selecting from dropdowns
+    if (field === 'schoolId') {
+      const school = schools.find(s => s.id === value);
+      if (school) {
+        setFormData(prev => ({ ...prev, schoolId: value, schoolName: school.name }));
+      }
+    }
+    if (field === 'classId') {
+      const cls = classes.find(c => c.id === value);
+      if (cls) {
+        setFormData(prev => ({ ...prev, classId: value, grade: cls.grade_level || cls.name }));
+      }
+    }
   };
 
   const validateForm = () => {
@@ -44,6 +115,15 @@ export const StudentRegistration = () => {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (!formData.schoolId || !formData.classId) {
+      toast({
+        title: "School & Class Required",
+        description: "Please select your school and class to continue",
         variant: "destructive"
       });
       return false;
@@ -223,24 +303,67 @@ export const StudentRegistration = () => {
             </div>
           </div>
 
-          {/* School Info */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="grade">Grade/Class</Label>
-              <Input
-                id="grade"
-                value={formData.grade}
-                onChange={(e) => handleChange('grade', e.target.value)}
-                placeholder="Grade 10"
-              />
+          {/* School & Class Selection - NEW */}
+          <div className="pt-4 border-t">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              School & Class Information *
+            </h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="schoolId">Select School *</Label>
+                <Select
+                  value={formData.schoolId}
+                  onValueChange={(value) => handleChange('schoolId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose your school" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schools.map(school => (
+                      <SelectItem key={school.id} value={school.id}>
+                        {school.name} ({school.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {schools.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No schools available. Contact admin.</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="classId">Select Class *</Label>
+                <Select
+                  value={formData.classId}
+                  onValueChange={(value) => handleChange('classId', value)}
+                  disabled={!formData.schoolId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.schoolId ? "Choose your class" : "Select school first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredClasses.map(cls => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name} {cls.grade_level && `(${cls.grade_level})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.schoolId && filteredClasses.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No classes in this school yet.</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="schoolName">School Name</Label>
+
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="studentSchoolId">Student ID (Optional)</Label>
               <Input
-                id="schoolName"
-                value={formData.schoolName}
-                onChange={(e) => handleChange('schoolName', e.target.value)}
-                placeholder="Your school"
+                id="studentSchoolId"
+                value={formData.studentSchoolId}
+                onChange={(e) => handleChange('studentSchoolId', e.target.value)}
+                placeholder="Your school-issued student ID"
               />
             </div>
           </div>

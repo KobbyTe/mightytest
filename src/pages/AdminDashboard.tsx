@@ -8,13 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3 } from 'lucide-react';
+import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trash2, Edit, Eye, FileQuestion, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import SchoolManagement from '@/components/admin/SchoolManagement';
+import ExamAssignment from '@/components/admin/ExamAssignment';
 
 interface Exam {
   id: string;
@@ -222,9 +224,11 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
             <TabsTrigger value="exams">Exams</TabsTrigger>
-            <TabsTrigger value="attempts">Student Attempts</TabsTrigger>
+            <TabsTrigger value="schools">Schools</TabsTrigger>
+            <TabsTrigger value="assignments">Assignments</TabsTrigger>
+            <TabsTrigger value="attempts">Attempts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="exams" className="space-y-8">

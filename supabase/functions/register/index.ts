@@ -22,6 +22,8 @@ serve(async (req) => {
       phoneNumber,
       addressCity,
       addressCountry,
+      schoolId,
+      classId,
       grade,
       schoolName,
       studentSchoolId,
@@ -135,7 +137,7 @@ serve(async (req) => {
       );
     }
 
-    // Create student profile
+    // Create student profile with school_id and class_id
     const { error: studentProfileError } = await supabaseAdmin
       .from('students')
       .insert({
@@ -149,6 +151,8 @@ serve(async (req) => {
         address_country: addressCountry,
         grade,
         school_name: schoolName,
+        school_id: schoolId || null,
+        class_id: classId || null,
         student_school_id: studentSchoolId,
         parent_id: parentProfile.id,
         stem_interests: stemInterests || [],
@@ -176,6 +180,38 @@ serve(async (req) => {
     await supabaseAdmin
       .from('user_roles')
       .insert({ user_id: parentAuthData.user.id, role: 'parent' });
+
+    // Auto-enroll student in exams assigned to their class
+    if (classId) {
+      const { data: classExams } = await supabaseAdmin
+        .from('exam_class_assignments')
+        .select('exam_id')
+        .eq('class_id', classId)
+        .eq('is_active', true);
+
+      if (classExams && classExams.length > 0) {
+        // Get student ID
+        const { data: studentData } = await supabaseAdmin
+          .from('students')
+          .select('id')
+          .eq('user_id', authData.user.id)
+          .single();
+
+        if (studentData) {
+          const examAttempts = classExams.map(ea => ({
+            student_id: studentData.id,
+            exam_id: ea.exam_id,
+            status: 'pending'
+          }));
+
+          await supabaseAdmin
+            .from('exam_attempts')
+            .insert(examAttempts);
+          
+          console.log(`Auto-enrolled student in ${classExams.length} exam(s)`);
+        }
+      }
+    }
 
     console.log('Successfully created student and parent accounts');
 
