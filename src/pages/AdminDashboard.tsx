@@ -82,26 +82,27 @@ export default function AdminDashboard() {
 
   const loadExams = async () => {
     try {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Parallel queries for faster loading
+      const [examsRes, attemptsRes] = await Promise.all([
+        supabase
+          .from('exams')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('exam_attempts')
+          .select(`
+            *,
+            student:students(full_name, email, grade),
+            exam:exams(title, total_marks)
+          `)
+          .order('attempted_at', { ascending: false })
+      ]);
 
-      if (error) throw error;
-      setExams(data || []);
-      
-      // Load exam attempts with student details
-      const { data: attemptsData, error: attemptsError } = await supabase
-        .from('exam_attempts')
-        .select(`
-          *,
-          student:students(full_name, email, grade),
-          exam:exams(title, total_marks)
-        `)
-        .order('attempted_at', { ascending: false });
+      if (examsRes.error) throw examsRes.error;
+      if (attemptsRes.error) throw attemptsRes.error;
 
-      if (attemptsError) throw attemptsError;
-      setAttempts(attemptsData || []);
+      setExams(examsRes.data || []);
+      setAttempts(attemptsRes.data || []);
     } catch (error) {
       console.error('Error loading exams:', error);
       toast.error('Failed to load exams');

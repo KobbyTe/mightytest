@@ -59,42 +59,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserData = async (userId: string) => {
     try {
-      // Get user role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .single();
+      // Load role, student profile, parent profile, and preferences in parallel
+      const [roleRes, studentRes, parentRes, prefsRes] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', userId).single(),
+        supabase.from('students').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('parents').select('*').eq('user_id', userId).maybeSingle(),
+        supabase.from('user_preferences').select('*').eq('user_id', userId).maybeSingle()
+      ]);
 
-      if (roleData) {
-        setRole(roleData.role);
+      if (roleRes.data) {
+        setRole(roleRes.data.role);
 
-        // Get profile based on role
-        if (roleData.role === 'student') {
-          const { data } = await supabase
-            .from('students')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-          setProfile(data);
-        } else if (roleData.role === 'parent') {
-          const { data } = await supabase
-            .from('parents')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-          setProfile(data);
+        // Set profile based on role
+        if (roleRes.data.role === 'student' && studentRes.data) {
+          setProfile(studentRes.data);
+        } else if (roleRes.data.role === 'parent' && parentRes.data) {
+          setProfile(parentRes.data);
         }
       }
 
-      // Get preferences
-      const { data: prefsData } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      setPreferences(prefsData);
+      setPreferences(prefsRes.data);
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
