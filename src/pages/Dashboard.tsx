@@ -58,15 +58,21 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    } else if (!loading && user && role && role !== 'student') {
+      return;
+    }
+    if (!loading && user && role && role !== 'student') {
       if (role === 'parent') {
         navigate('/parent');
       } else if (role === 'admin') {
         navigate('/admin');
       }
-    } else if (!loading && user && role === 'student' && profile?.id) {
-      loadDashboardData();
-      loadParentInfo();
+      return;
+    }
+    if (!loading && user && role === 'student' && profile?.id) {
+      // Load data in parallel for faster loading
+      Promise.all([loadDashboardData(), loadParentInfo()]).finally(() => {
+        setLoadingData(false);
+      });
     }
   }, [user, loading, role, profile, navigate]);
 
@@ -103,28 +109,28 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const { data: attemptsData, error: attemptsError } = await supabase
-        .from('exam_attempts')
-        .select('*, exams(*)')
-        .eq('student_id', profile.id)
-        .order('attempted_at', { ascending: false });
+      // Parallel queries for faster loading
+      const [attemptsRes, examsRes] = await Promise.all([
+        supabase
+          .from('exam_attempts')
+          .select('*, exams(*)')
+          .eq('student_id', profile.id)
+          .order('attempted_at', { ascending: false }),
+        supabase
+          .from('exams')
+          .select('*')
+          .eq('status', 'active')
+          .order('exam_date')
+      ]);
 
-      if (attemptsError) throw attemptsError;
-      setExamAttempts(attemptsData || []);
+      if (attemptsRes.error) throw attemptsRes.error;
+      if (examsRes.error) throw examsRes.error;
 
-      const { data: examsData, error: examsError } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('status', 'active')
-        .order('exam_date');
-
-      if (examsError) throw examsError;
-      setAvailableExams(examsData || []);
+      setExamAttempts(attemptsRes.data || []);
+      setAvailableExams(examsRes.data || []);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
-    } finally {
-      setLoadingData(false);
     }
   };
 

@@ -97,14 +97,23 @@ export default function SchoolManagement() {
         supabase.from('classes').select('*, school:schools(*)').order('name')
       ]);
 
-      if (schoolsRes.error) throw schoolsRes.error;
-      if (classesRes.error) throw classesRes.error;
+      console.log('Schools response:', schoolsRes);
+      console.log('Classes response:', classesRes);
+
+      if (schoolsRes.error) {
+        console.error('Schools error:', schoolsRes.error);
+        throw schoolsRes.error;
+      }
+      if (classesRes.error) {
+        console.error('Classes error:', classesRes.error);
+        throw classesRes.error;
+      }
 
       setSchools(schoolsRes.data || []);
       setClasses(classesRes.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading data:', error);
-      toast.error('Failed to load schools and classes');
+      toast.error(error.message || 'Failed to load schools and classes');
     } finally {
       setLoading(false);
     }
@@ -403,8 +412,22 @@ export default function SchoolManagement() {
               ))}
               {schools.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    No schools registered yet. Add your first school above.
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Building2 className="h-8 w-8 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-lg">No Schools Registered</p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          Get started by adding your first school to enable student registration.
+                        </p>
+                      </div>
+                      <Button onClick={() => setShowSchoolDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First School
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -563,10 +586,28 @@ export default function SchoolManagement() {
               ))}
               {filteredClasses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {schools.length === 0 
-                      ? 'Add a school first before creating classes.'
-                      : 'No classes found. Add your first class above.'}
+                  <TableCell colSpan={5} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <GraduationCap className="h-8 w-8 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-lg">
+                          {schools.length === 0 ? 'No Schools Yet' : 'No Classes Found'}
+                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          {schools.length === 0 
+                            ? 'Create a school first, then add classes to it.'
+                            : 'Add your first class to enable student enrollment.'}
+                        </p>
+                      </div>
+                      {schools.length > 0 && (
+                        <Button onClick={() => setShowClassDialog(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add First Class
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
