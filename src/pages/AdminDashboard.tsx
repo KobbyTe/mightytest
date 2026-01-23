@@ -472,6 +472,14 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
+            <TabsContent value="schools" className="space-y-6">
+              <SchoolManagement />
+            </TabsContent>
+
+            <TabsContent value="assignments" className="space-y-6">
+              <ExamAssignment />
+            </TabsContent>
+
           <TabsContent value="attempts" className="space-y-4">
             <Card>
               <CardHeader>
