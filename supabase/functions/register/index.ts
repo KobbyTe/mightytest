@@ -1,6 +1,57 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { Resend } from "https://esm.sh/resend@3.0.0";
+
+type ResendSendResult = { id?: string };
+
+async function sendParentCredentialsEmail(params: {
+  apiKey: string;
+  to: string;
+  parentFullName: string;
+  studentFullName: string;
+  parentPassword: string;
+  accessCode: string;
+}): Promise<ResendSendResult> {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #2563eb; margin-bottom: 20px;">Welcome to STEM Learning Platform!</h1>
+      <p style="font-size: 16px; line-height: 1.5; color: #333;">Hello ${params.parentFullName},</p>
+      <p style="font-size: 16px; line-height: 1.5; color: #333;">
+        Your child <strong>${params.studentFullName}</strong> has successfully registered on our STEM Learning Platform.
+        We've created a parent account for you to monitor their progress and achievements.
+      </p>
+      <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
+        <h2 style="color: #1f2937; margin-top: 0; font-size: 18px;">Your Parent Login Credentials:</h2>
+        <p style="margin: 10px 0;"><strong>Email:</strong> ${params.to}</p>
+        <p style="margin: 10px 0;"><strong>Password:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${params.parentPassword}</code></p>
+        <p style="margin: 10px 0;"><strong>Access Code:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${params.accessCode}</code></p>
+      </div>
+      <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
+        <strong>Important:</strong> Please keep these credentials safe. We recommend changing your password after your first login.
+      </p>
+    </div>
+  `;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${params.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'STEM Learning Platform <onboarding@resend.dev>',
+      to: [params.to],
+      subject: "Your Child's STEM Learning Account - Parent Access",
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Email API failed (${res.status}): ${text}`);
+  }
+
+  return await res.json();
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -223,55 +274,17 @@ serve(async (req) => {
       console.log('Resend API Key configured:', !!resendApiKey);
       
       if (resendApiKey) {
-        const resend = new Resend(resendApiKey);
-        
-        const emailResult = await resend.emails.send({
-          from: "STEM Learning Platform <onboarding@resend.dev>",
-          to: [parentEmail],
-          subject: "Your Child's STEM Learning Account - Parent Access",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #2563eb; margin-bottom: 20px;">Welcome to STEM Learning Platform!</h1>
-              
-              <p style="font-size: 16px; line-height: 1.5; color: #333;">
-                Hello ${parentFullName},
-              </p>
-              
-              <p style="font-size: 16px; line-height: 1.5; color: #333;">
-                Your child <strong>${fullName}</strong> has successfully registered on our STEM Learning Platform. 
-                We've created a parent account for you to monitor their progress and achievements.
-              </p>
-              
-              <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 30px 0;">
-                <h2 style="color: #1f2937; margin-top: 0; font-size: 18px;">Your Parent Login Credentials:</h2>
-                <p style="margin: 10px 0;"><strong>Email:</strong> ${parentEmail}</p>
-                <p style="margin: 10px 0;"><strong>Password:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${parentPassword}</code></p>
-                <p style="margin: 10px 0;"><strong>Access Code:</strong> <code style="background-color: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${accessCode}</code></p>
-              </div>
-              
-              <p style="font-size: 14px; line-height: 1.5; color: #6b7280; margin-top: 30px;">
-                <strong>Important:</strong> Please keep these credentials safe. We recommend changing your password after your first login.
-              </p>
-              
-              <p style="font-size: 16px; line-height: 1.5; color: #333; margin-top: 30px;">
-                From your parent dashboard, you can:
-              </p>
-              <ul style="font-size: 16px; line-height: 1.8; color: #333;">
-                <li>Monitor your child's exam progress and scores</li>
-                <li>View detailed performance analytics</li>
-                <li>Track learning achievements and milestones</li>
-                <li>Receive insights about strengths and areas for improvement</li>
-              </ul>
-            </div>
-          `,
+        const emailResult = await sendParentCredentialsEmail({
+          apiKey: resendApiKey,
+          to: parentEmail,
+          parentFullName,
+          studentFullName: fullName,
+          parentPassword,
+          accessCode,
         });
-        
-        console.log('Resend email result:', JSON.stringify(emailResult));
-        emailSent = !emailResult.error;
-        if (emailResult.error) {
-          emailError = emailResult.error;
-          console.error('Resend error:', emailResult.error);
-        }
+
+        console.log('Email API result:', JSON.stringify(emailResult));
+        emailSent = true;
       }
     } catch (err) {
       console.error('Failed to send parent email:', err);
