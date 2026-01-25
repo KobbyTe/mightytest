@@ -71,31 +71,31 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    
+    if (!user) {
       navigate('/auth');
-    } else if (!loading && user && role !== 'admin') {
+    } else if (role !== 'admin') {
       navigate('/dashboard');
-    } else if (!loading && user && role === 'admin') {
+    } else {
       loadExams();
     }
   }, [user, loading, role, navigate]);
 
   const loadExams = async () => {
     try {
-      // Parallel queries for faster loading
+      // Optimized parallel queries with field selection and limits
       const [examsRes, attemptsRes] = await Promise.all([
         supabase
           .from('exams')
-          .select('*')
-          .order('created_at', { ascending: false }),
+          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
+          .order('created_at', { ascending: false })
+          .limit(100),
         supabase
           .from('exam_attempts')
-          .select(`
-            *,
-            student:students(full_name, email, grade),
-            exam:exams(title, total_marks)
-          `)
+          .select('id,exam_id,student_id,attempted_at,completed_at,status,marks_obtained,student:students(full_name,email,grade),exam:exams(title,total_marks)')
           .order('attempted_at', { ascending: false })
+          .limit(200)
       ]);
 
       if (examsRes.error) throw examsRes.error;
