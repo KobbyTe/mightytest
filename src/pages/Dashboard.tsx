@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { 
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
-  Sparkles, Award, TrendingUp, Play, Brain
+  Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -65,6 +65,7 @@ export default function Dashboard() {
   const [parentInfo, setParentInfo] = useState<ParentInfo | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [resendingCredentials, setResendingCredentials] = useState(false);
 
   // Redirect logic - separate from data loading
   useEffect(() => {
@@ -122,30 +123,74 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
+      const studentClassId = profile?.class_id;
+      
       // Optimized parallel queries with minimal field selection
-      const [attemptsRes, examsRes] = await Promise.all([
+      const [attemptsRes, assignmentsRes] = await Promise.all([
         supabase
           .from('exam_attempts')
           .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
           .eq('student_id', profile.id)
           .order('attempted_at', { ascending: false })
           .limit(50),
-        supabase
-          .from('exams')
-          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
-          .eq('status', 'active')
-          .order('exam_date')
-          .limit(20)
+        // Only get exams assigned to the student's class
+        studentClassId 
+          ? supabase
+              .from('exam_class_assignments')
+              .select('exam_id,exams(id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status)')
+              .eq('class_id', studentClassId)
+              .eq('is_active', true)
+              .limit(20)
+          : Promise.resolve({ data: [], error: null })
       ]);
 
       if (attemptsRes.error) throw attemptsRes.error;
-      if (examsRes.error) throw examsRes.error;
+      if (assignmentsRes.error) throw assignmentsRes.error;
 
       setExamAttempts(attemptsRes.data || []);
-      setAvailableExams(examsRes.data || []);
+      
+      // Extract exams from assignments and filter for active ones
+      const assignedExams = (assignmentsRes.data || [])
+        .map((a: any) => a.exams)
+        .filter((exam: any) => exam && exam.status === 'active');
+      
+      setAvailableExams(assignedExams);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       toast.error('Failed to load dashboard data');
+    }
+  };
+
+  const resendParentCredentials = async () => {
+    if (!parentInfo?.email || !profile?.id) return;
+    
+    setResendingCredentials(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-parent-credentials', {
+        body: {
+          parentEmail: parentInfo.email,
+          studentId: profile.id
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success('New login credentials sent to parent\'s email!');
+        // Update session storage with new password if returned
+        if (data.newPassword) {
+          const updatedInfo = { ...parentInfo, password: data.newPassword };
+          setParentInfo(updatedInfo);
+          sessionStorage.setItem('parentCredentials', JSON.stringify(updatedInfo));
+        }
+      } else {
+        throw new Error(data?.error || 'Failed to resend credentials');
+      }
+    } catch (error: any) {
+      console.error('Error resending credentials:', error);
+      toast.error(error.message || 'Failed to resend parent credentials');
+    } finally {
+      setResendingCredentials(false);
     }
   };
 
@@ -387,7 +432,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  {parentInfo.password && (
+                  {parentInfo.password ? (
                     <div className="p-4 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                         <Key className="h-3 w-3" />
@@ -401,6 +446,28 @@ export default function Dashboard() {
                           {copiedField === 'password' ? <Check className="h-3 w-3 text-[hsl(var(--success))]" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-muted">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                        <Key className="h-3 w-3" />
+                        Password
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">Password not available</p>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={resendParentCredentials}
+                        disabled={resendingCredentials}
+                        className="w-full"
+                      >
+                        {resendingCredentials ? (
+                          <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Send className="mr-2 h-3 w-3" />
+                        )}
+                        {resendingCredentials ? 'Sending...' : 'Resend Credentials'}
+                      </Button>
                     </div>
                   )}
                 </div>
