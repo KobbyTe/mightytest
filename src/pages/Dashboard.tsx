@@ -18,14 +18,14 @@ import { ExamCertificate } from '@/components/ExamCertificate';
 interface Exam {
   id: string;
   title: string;
-  description: string;
-  subject: string;
-  grade_level: string;
-  duration_minutes: number;
+  description?: string;
+  subject?: string;
+  grade_level?: string;
+  duration_minutes?: number;
   total_marks: number;
   passing_marks: number;
-  exam_date: string;
-  status: string;
+  exam_date?: string;
+  status?: string;
 }
 
 interface ExamAttempt {
@@ -36,7 +36,17 @@ interface ExamAttempt {
   completed_at: string | null;
   graded_at: string | null;
   exam_id: string;
-  exams: Exam;
+  exams: {
+    id: string;
+    title: string;
+    subject?: string;
+    grade_level?: string;
+    description?: string;
+    duration_minutes?: number;
+    total_marks: number;
+    passing_marks: number;
+    exam_date?: string;
+  };
 }
 
 interface ParentInfo {
@@ -54,27 +64,30 @@ export default function Dashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [parentInfo, setParentInfo] = useState<ParentInfo | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Redirect logic - separate from data loading
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    
+    if (!user) {
       navigate('/auth');
-      return;
+    } else if (role === 'parent') {
+      navigate('/parent');
+    } else if (role === 'admin') {
+      navigate('/admin');
     }
-    if (!loading && user && role && role !== 'student') {
-      if (role === 'parent') {
-        navigate('/parent');
-      } else if (role === 'admin') {
-        navigate('/admin');
-      }
-      return;
-    }
-    if (!loading && user && role === 'student' && profile?.id) {
-      // Load data in parallel for faster loading
+  }, [user, loading, role, navigate]);
+
+  // Data loading - only runs once when profile is ready
+  useEffect(() => {
+    if (!loading && user && role === 'student' && profile?.id && !dataLoaded) {
+      setDataLoaded(true);
       Promise.all([loadDashboardData(), loadParentInfo()]).finally(() => {
         setLoadingData(false);
       });
     }
-  }, [user, loading, role, profile, navigate]);
+  }, [user, loading, role, profile, dataLoaded]);
 
   const loadParentInfo = async () => {
     const storedCredentials = sessionStorage.getItem('parentCredentials');
@@ -109,18 +122,20 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Parallel queries for faster loading
+      // Optimized parallel queries with minimal field selection
       const [attemptsRes, examsRes] = await Promise.all([
         supabase
           .from('exam_attempts')
-          .select('*, exams(*)')
+          .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
           .eq('student_id', profile.id)
-          .order('attempted_at', { ascending: false }),
+          .order('attempted_at', { ascending: false })
+          .limit(50),
         supabase
           .from('exams')
-          .select('*')
+          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
           .eq('status', 'active')
           .order('exam_date')
+          .limit(20)
       ]);
 
       if (attemptsRes.error) throw attemptsRes.error;

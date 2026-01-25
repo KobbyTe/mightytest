@@ -47,24 +47,25 @@ export default function ParentDashboard() {
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    
+    if (!user) {
       navigate('/auth');
-    } else if (!loading && user && role !== 'parent') {
-      if (role === 'student') {
-        navigate('/dashboard');
-      } else if (role === 'admin') {
-        navigate('/admin');
-      }
-    } else if (!loading && user && role === 'parent' && profile?.id) {
+    } else if (role === 'student') {
+      navigate('/dashboard');
+    } else if (role === 'admin') {
+      navigate('/admin');
+    } else if (role === 'parent' && profile?.id) {
       loadDashboardData();
     }
   }, [user, loading, role, profile, navigate]);
 
   const loadDashboardData = async () => {
     try {
+      // Optimized query with minimal fields
       const { data: childrenData, error: childrenError } = await supabase
         .from('students')
-        .select('*')
+        .select('id,full_name,email,grade,school_name')
         .eq('parent_id', profile.id);
 
       if (childrenError) throw childrenError;
@@ -74,9 +75,10 @@ export default function ParentDashboard() {
         const childIds = childrenData.map(c => c.id);
         const { data: attemptsData, error: attemptsError } = await supabase
           .from('exam_attempts')
-          .select('*, exams(*)')
+          .select('id,student_id,status,marks_obtained,attempted_at,completed_at,graded_at,feedback,exams(id,title,subject,total_marks,passing_marks)')
           .in('student_id', childIds)
-          .order('attempted_at', { ascending: false });
+          .order('attempted_at', { ascending: false })
+          .limit(100);
 
         if (attemptsError) throw attemptsError;
         setExamAttempts(attemptsData || []);
