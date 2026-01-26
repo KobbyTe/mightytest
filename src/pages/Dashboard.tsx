@@ -125,34 +125,48 @@ export default function Dashboard() {
     try {
       const studentClassId = profile?.class_id;
       
-      // Optimized parallel queries with minimal field selection
-      const [attemptsRes, assignmentsRes] = await Promise.all([
-        supabase
-          .from('exam_attempts')
-          .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
-          .eq('student_id', profile.id)
-          .order('attempted_at', { ascending: false })
-          .limit(50),
-        // Only get exams assigned to the student's class
-        studentClassId 
-          ? supabase
-              .from('exam_class_assignments')
-              .select('exam_id,exams(id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status)')
-              .eq('class_id', studentClassId)
-              .eq('is_active', true)
-              .limit(20)
-          : Promise.resolve({ data: [], error: null })
-      ]);
+      // Fetch exam attempts for this student
+      const attemptsRes = await supabase
+        .from('exam_attempts')
+        .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
+        .eq('student_id', profile.id)
+        .order('attempted_at', { ascending: false })
+        .limit(50);
 
       if (attemptsRes.error) throw attemptsRes.error;
-      if (assignmentsRes.error) throw assignmentsRes.error;
-
       setExamAttempts(attemptsRes.data || []);
+
+      // Try to get class-assigned exams first
+      let assignedExams: Exam[] = [];
       
-      // Extract exams from assignments and filter for active ones
-      const assignedExams = (assignmentsRes.data || [])
-        .map((a: any) => a.exams)
-        .filter((exam: any) => exam && exam.status === 'active');
+      if (studentClassId) {
+        const assignmentsRes = await supabase
+          .from('exam_class_assignments')
+          .select('exam_id,exams(id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status)')
+          .eq('class_id', studentClassId)
+          .eq('is_active', true)
+          .limit(20);
+
+        if (!assignmentsRes.error && assignmentsRes.data && assignmentsRes.data.length > 0) {
+          assignedExams = assignmentsRes.data
+            .map((a: any) => a.exams)
+            .filter((exam: any) => exam && exam.status === 'active');
+        }
+      }
+
+      // Fallback: If no class assignments or no class_id, show all active exams
+      // This ensures students can still access exams even without class assignment
+      if (assignedExams.length === 0) {
+        const examsRes = await supabase
+          .from('exams')
+          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
+          .eq('status', 'active')
+          .limit(20);
+
+        if (!examsRes.error && examsRes.data) {
+          assignedExams = examsRes.data;
+        }
+      }
       
       setAvailableExams(assignedExams);
     } catch (error) {
@@ -612,18 +626,33 @@ export default function Dashboard() {
         </div>
 
         {/* Available Exams Section */}
-        {unregisteredExams.length > 0 && (
-          <div>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
-                <Zap className="h-6 w-6 text-secondary-foreground" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">Available Exams</h2>
-                <p className="text-muted-foreground">New challenges await! Pick an exam to start</p>
-              </div>
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
+              <Zap className="h-6 w-6 text-secondary-foreground" />
             </div>
+            <div>
+              <h2 className="text-2xl font-bold">Available Exams</h2>
+              <p className="text-muted-foreground">New challenges await! Pick an exam to start</p>
+            </div>
+          </div>
 
+          {unregisteredExams.length === 0 ? (
+            <Card className="hover-lift">
+              <CardContent className="py-12 text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <Zap className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">No Exams Available</h3>
+                <p className="text-muted-foreground mb-4">
+                  {profile?.class_id 
+                    ? "No new exams are assigned to your class yet. Check back later! 📚"
+                    : "You haven't been assigned to a class yet. Contact your school administrator. 🏫"
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {unregisteredExams.map((exam) => (
                 <Card key={exam.id} className="hover-lift overflow-hidden group border-dashed border-2 hover:border-solid hover:border-primary/50 transition-all">
@@ -679,8 +708,8 @@ export default function Dashboard() {
                 </Card>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
     </div>
   );
