@@ -30,8 +30,9 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Building2, Plus, Edit2, Trash2, Users, GraduationCap, Search, Filter } from 'lucide-react';
+import { Building2, Plus, Edit2, Trash2, Users, GraduationCap, Search, Filter, Eye } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
+import ClassPerformancePortal from './ClassPerformancePortal';
 
 interface School {
   id: string;
@@ -68,6 +69,20 @@ export default function SchoolManagement() {
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // Class Performance Portal state
+  const [showClassPortal, setShowClassPortal] = useState(false);
+  const [selectedClassForPortal, setSelectedClassForPortal] = useState<Class | null>(null);
+
+  const openClassPortal = (cls: Class) => {
+    setSelectedClassForPortal(cls);
+    setShowClassPortal(true);
+  };
+
+  const closeClassPortal = () => {
+    setShowClassPortal(false);
+    setSelectedClassForPortal(null);
+  };
 
   const [schoolForm, setSchoolForm] = useState({
     name: '',
@@ -563,7 +578,11 @@ export default function SchoolManagement() {
             </TableHeader>
             <TableBody>
               {filteredClasses.map(cls => (
-                <TableRow key={cls.id}>
+                <TableRow 
+                  key={cls.id} 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => openClassPortal(cls)}
+                >
                   <TableCell className="font-medium">{cls.name}</TableCell>
                   <TableCell>{(cls.school as any)?.name || '-'}</TableCell>
                   <TableCell>
@@ -575,10 +594,26 @@ export default function SchoolManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => openEditClass(cls)}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.stopPropagation(); openClassPortal(cls); }}
+                      title="View Class Performance"
+                    >
+                      <Eye className="h-4 w-4 text-primary" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.stopPropagation(); openEditClass(cls); }}
+                    >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClass(cls)}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteClass(cls); }}
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
@@ -615,6 +650,18 @@ export default function SchoolManagement() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Class Performance Portal */}
+      {selectedClassForPortal && (
+        <ClassPerformancePortal
+          classId={selectedClassForPortal.id}
+          className={selectedClassForPortal.name}
+          schoolName={(selectedClassForPortal.school as any)?.name || 'Unknown School'}
+          gradeLevel={selectedClassForPortal.grade_level}
+          open={showClassPortal}
+          onClose={closeClassPortal}
+        />
+      )}
     </div>
   );
 }
