@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Cpu, LayoutDashboard } from "lucide-react";
+import { Menu, X, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/mighty-test-logo.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,10 +21,7 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="p-2 rounded-lg bg-primary/10 border-2 border-primary group-hover:bg-primary transition-all duration-300">
-              <Cpu className="w-6 h-6 text-primary group-hover:text-primary-foreground transition-colors" />
-            </div>
-            <span className="text-2xl font-bold text-gradient-primary">Nsɔhwɛ</span>
+            <img src={logo} alt="Mighty Test" className="h-10 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}

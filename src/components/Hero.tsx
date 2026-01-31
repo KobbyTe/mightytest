@@ -39,7 +39,7 @@ const Hero = () => {
             </div>
             
             <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
-              <span className="text-gradient-primary">Nsɔhwɛ</span>
+              <span className="text-gradient-primary">Mighty Test</span>
               <br />
               <span className="text-foreground">STEM Excellence</span>
               <br />

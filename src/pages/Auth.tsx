@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cpu, GraduationCap, Users, Shield, Loader2 } from "lucide-react";
+import { GraduationCap, Users, Shield, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StudentRegistration } from "@/components/auth/StudentRegistration";
 import { useAuth } from "@/contexts/AuthContext";
+import logo from "@/assets/mighty-test-logo.png";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("student");
@@ -99,10 +100,7 @@ const Auth = () => {
         
         <div className="relative z-10 flex flex-col justify-center items-center text-primary-foreground p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <div className="p-3 rounded-xl bg-secondary/20 backdrop-blur-sm border-2 border-secondary-foreground/20">
-              <Cpu className="w-10 h-10" />
-            </div>
-            <span className="text-4xl font-bold">Nsɔhwɛ</span>
+            <img src={logo} alt="Mighty Test" className="h-16 w-auto" />
           </Link>
           
           <div className="space-y-6 text-center max-w-md">
@@ -130,10 +128,7 @@ const Auth = () => {
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           <div className="text-center lg:hidden mb-8">
             <Link to="/" className="inline-flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10 border-2 border-primary">
-                <Cpu className="w-6 h-6 text-primary" />
-              </div>
-              <span className="text-2xl font-bold text-gradient-primary">Nsɔhwɛ</span>
+              <img src={logo} alt="Mighty Test" className="h-10 w-auto" />
             </Link>
           </div>
 
@@ -289,7 +284,7 @@ const Auth = () => {
                       <Input
                         id="admin-email"
                         type="email"
-                        placeholder="admin@nsohwe.com"
+                        placeholder="admin@mightytest.com"
                         value={loginData.email}
                         onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                         required
