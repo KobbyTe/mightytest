@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Cpu, Mail, MapPin, Phone } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
+import logo from "@/assets/mighty-test-logo.png";
 
 const Footer = () => {
   return (
@@ -9,10 +10,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20 border-2 border-primary">
-                <Cpu className="w-6 h-6 text-primary" />
-              </div>
-              <span className="text-2xl font-bold text-gradient-primary">Nsɔhwɛ</span>
+              <img src={logo} alt="Mighty Test" className="h-10 w-auto" />
             </div>
             <p className="text-secondary-foreground/70">
               Empowering future innovators through intelligent STEM assessment and learning.
@@ -60,7 +58,7 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-secondary-foreground/70">
                 <Mail className="w-4 h-4 text-primary" />
-                <span className="text-sm">info@nsohwe.com</span>
+                <span className="text-sm">info@mightytest.com</span>
               </li>
               <li className="flex items-center gap-2 text-secondary-foreground/70">
                 <Phone className="w-4 h-4 text-primary" />
@@ -75,7 +73,7 @@ const Footer = () => {
         </div>
 
         <div className="pt-8 border-t border-secondary-foreground/20 text-center text-secondary-foreground/70 text-sm">
-          <p>© 2024 Nsɔhwɛ. All rights reserved. Empowering STEM education worldwide.</p>
+          <p>© 2024 Mighty Test. All rights reserved. Empowering STEM education worldwide.</p>
         </div>
       </div>
     </footer>

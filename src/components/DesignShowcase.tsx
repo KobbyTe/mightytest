@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AnimatedBadge } from "@/components/ui/animated-badge";
 import { PlayfulCard, PlayfulCardContent, PlayfulCardDescription, PlayfulCardHeader, PlayfulCardTitle } from "@/components/ui/playful-card";
 import { MascotWave } from "./MascotWave";
+import logo from "@/assets/mighty-test-logo.png";
 
 export const DesignShowcase = () => {
   return (
@@ -11,10 +12,10 @@ export const DesignShowcase = () => {
       <div className="max-w-7xl mx-auto space-y-12">
         <div className="text-center space-y-6 animate-fade-in-up">
           <div className="flex justify-center">
-            <MascotWave />
+            <img src={logo} alt="Mighty Test" className="h-20 w-auto" />
           </div>
           <h1 className="font-heading text-6xl font-bold text-gradient-primary">
-            Nsɔhwɛ Design System
+            Mighty Test Design System
           </h1>
           <p className="text-xl text-muted-foreground font-rounded max-w-2xl mx-auto">
             Learn, Play, Succeed - STEM Made Fun! 🚀
@@ -200,7 +201,7 @@ export const DesignShowcase = () => {
         {/* Footer */}
         <div className="text-center py-12 space-y-4">
           <p className="text-muted-foreground">
-            Design system ready for Nsɔhwɛ platform 🎨
+            Design system ready for Mighty Test platform 🎨
           </p>
           <Button variant="glow" size="xl" className="font-heading">
             <Rocket className="w-6 h-6" />
