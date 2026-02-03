@@ -210,29 +210,51 @@ export default function Dashboard() {
 
   const handleRegisterExam = async (examId: string) => {
     try {
+      // First verify student profile exists
+      if (!profile?.id) {
+        toast.error('Student profile not found. Please refresh the page.');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('exam_attempts')
         .insert({
           student_id: profile.id,
           exam_id: examId,
-          status: 'pending'
+          status: 'pending',
+          attempted_at: new Date().toISOString()
         })
-        .select()
+        .select('id')
         .single();
 
-      if (error) throw error;
-      toast.success('Successfully registered for exam!');
-      
-      if (data?.id) {
-        navigate(`/exam/take?attempt=${data.id}`);
+      if (error) {
+        console.error('Registration error:', error);
+        if (error.code === '23505') {
+          // Duplicate - check if there's an existing pending attempt
+          const { data: existingAttempt } = await supabase
+            .from('exam_attempts')
+            .select('id, status')
+            .eq('student_id', profile.id)
+            .eq('exam_id', examId)
+            .single();
+          
+          if (existingAttempt && (existingAttempt.status === 'pending' || existingAttempt.status === 'in_progress')) {
+            toast.info('Continuing your existing exam attempt');
+            navigate(`/exam/take?attempt=${existingAttempt.id}`);
+            return;
+          }
+          toast.error('You are already registered for this exam');
+        } else {
+          toast.error('Failed to register for exam. Please try again.');
+        }
+        return;
       }
+
+      toast.success('Successfully registered for exam!');
+      navigate(`/exam/take?attempt=${data.id}`);
     } catch (error: any) {
       console.error('Registration error:', error);
-      if (error.code === '23505') {
-        toast.error('You are already registered for this exam');
-      } else {
-        toast.error('Failed to register for exam');
-      }
+      toast.error('An unexpected error occurred. Please try again.');
     }
   };
 

@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.process-exam-pdf]
 verify_jwt = false
+
+[functions.resend-parent-credentials]
+verify_jwt = false
+
+[functions.send-grade-notification]
+verify_jwt = false

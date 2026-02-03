@@ -49,6 +49,10 @@ const Auth = () => {
         throw new Error('Invalid email or password');
       }
 
+      // Wait briefly for session to propagate to RLS context
+      // This is critical for Vercel deployments where there's network latency
+      await new Promise(resolve => setTimeout(resolve, 150));
+
       // Then verify the user has the correct role
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
@@ -58,8 +62,9 @@ const Auth = () => {
         .maybeSingle();
 
       if (roleError) {
+        console.error('Role check error:', roleError);
         await supabase.auth.signOut();
-        throw roleError;
+        throw new Error('Unable to verify account role. Please try again.');
       }
 
       if (!roleData) {

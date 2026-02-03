@@ -81,25 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let initialSessionHandled = false;
 
-    // Get initial session immediately
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        loadUserData(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
+    // IMPORTANT: Set up auth listener FIRST to catch all auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return;
       
+      initialSessionHandled = true;
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -108,6 +96,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         clearUserState();
         setLoading(false);
+      }
+    });
+
+    // THEN get initial session (listener above will handle it, but this ensures we don't miss it)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
+      // Only handle if the auth state change hasn't already fired
+      if (!initialSessionHandled) {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          loadUserData(session.user.id);
+        } else {
+          setLoading(false);
+        }
       }
     });
 
