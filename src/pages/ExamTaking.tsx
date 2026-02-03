@@ -268,13 +268,34 @@ export default function ExamTaking() {
 
   const loadExamData = async () => {
     try {
-      const { data: attemptData, error: attemptError } = await supabase
-        .from('exam_attempts')
-        .select('*, exams(*)')
-        .eq('id', attemptId)
-        .single();
+      // Add retry logic for transient issues (especially on Vercel deployments)
+      let attemptData = null;
+      let retryCount = 0;
+      const maxRetries = 3;
 
-      if (attemptError) throw attemptError;
+      while (!attemptData && retryCount < maxRetries) {
+        const { data, error: attemptError } = await supabase
+          .from('exam_attempts')
+          .select('*, exams(*)')
+          .eq('id', attemptId)
+          .single();
+
+        if (attemptError) {
+          retryCount++;
+          console.error(`Attempt load error (retry ${retryCount}/${maxRetries}):`, attemptError);
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
+          }
+          throw new Error('Unable to load exam. Please try again.');
+        }
+
+        attemptData = data;
+      }
+
+      if (!attemptData) {
+        throw new Error('Exam attempt not found');
+      }
 
       if (attemptData.status === 'completed' || attemptData.status === 'graded') {
         toast.error('This exam has already been completed');
@@ -292,13 +313,18 @@ export default function ExamTaking() {
         .order('order_number');
 
       if (questionsError) throw questionsError;
-      setQuestions(questionsData || []);
+      
+      if (!questionsData || questionsData.length === 0) {
+        toast.error('No questions found for this exam');
+        navigate('/dashboard');
+        return;
+      }
+      
+      setQuestions(questionsData);
 
       // Initialize question timer
-      if (questionsData && questionsData.length > 0) {
-        const tpq = Math.floor(((attemptData.exams.duration_minutes || 60) * 60) / questionsData.length);
-        setQuestionTimeRemaining(tpq);
-      }
+      const tpq = Math.floor(((attemptData.exams.duration_minutes || 60) * 60) / questionsData.length);
+      setQuestionTimeRemaining(tpq);
 
       // Restore previous progress if any
       const { data: existingAnswers } = await supabase
@@ -326,9 +352,9 @@ export default function ExamTaking() {
         .eq('id', attemptId);
 
       setExamStarted(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading exam:', error);
-      toast.error('Failed to load exam');
+      toast.error(error.message || 'Failed to load exam');
       navigate('/dashboard');
     } finally {
       setLoading(false);
