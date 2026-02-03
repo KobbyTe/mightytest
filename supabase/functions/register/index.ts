@@ -141,7 +141,13 @@ serve(async (req) => {
     // Generate parent password
     const parentPassword = Math.random().toString(36).substring(2, 14) + 'A1!';
 
-    // Create parent auth user
+    // Create (or reuse) parent auth user + profile.
+    // IMPORTANT: Parent email can be reused across siblings; if it already exists,
+    // we reset the password and reuse the existing parent profile.
+    let parentUserId: string | null = null;
+    let parentProfile: any = null;
+    let finalAccessCode = accessCode;
+
     const { data: parentAuthData, error: parentAuthError } = await supabaseAdmin.auth.admin.createUser({
       email: parentEmail,
       password: parentPassword,
@@ -149,43 +155,100 @@ serve(async (req) => {
       user_metadata: {
         full_name: parentFullName,
         role: 'parent',
-        access_code: accessCode
-      }
+        access_code: accessCode,
+      },
     });
 
-    if (parentAuthError || !parentAuthData.user) {
+    if (parentAuthError?.code === 'email_exists') {
+      // Parent already exists: fetch their profile and reset their password.
+      const { data: existingParent, error: existingParentError } = await supabaseAdmin
+        .from('parents')
+        .select('id,user_id,access_code,full_name,email')
+        .eq('email', parentEmail)
+        .maybeSingle();
+
+      if (existingParentError || !existingParent) {
+        console.error('Parent exists in auth but no parent profile found:', existingParentError);
+        // Clean up student user since we cannot safely link the student to a parent
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        return new Response(
+          JSON.stringify({ error: 'Parent email already exists. Please use a different parent email or contact support.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      parentUserId = existingParent.user_id;
+      parentProfile = existingParent;
+      finalAccessCode = existingParent.access_code || accessCode;
+
+      const existingParentUserId = existingParent.user_id;
+      const { error: resetParentError } = await supabaseAdmin.auth.admin.updateUserById(existingParentUserId, {
+        password: parentPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: parentFullName,
+          role: 'parent',
+          access_code: finalAccessCode,
+        },
+      });
+
+      if (resetParentError) {
+        console.error('Parent password reset error:', resetParentError);
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update existing parent account' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Keep parent profile updated with latest details
+      await supabaseAdmin
+        .from('parents')
+        .update({
+          full_name: parentFullName,
+          phone_number: parentPhone,
+          relationship_to_student: parentRelationship || 'guardian',
+          access_code: finalAccessCode,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', parentProfile.id);
+    } else if (parentAuthError || !parentAuthData.user) {
       console.error('Parent auth creation error:', parentAuthError);
       // Clean up student user if parent creation fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return new Response(
-        JSON.stringify({ error: 'Failed to create parent account' }),
+        JSON.stringify({ error: parentAuthError?.message || 'Failed to create parent account' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    }
+    } else {
+      parentUserId = parentAuthData.user.id;
 
-    // Create parent profile
-    const { data: parentProfile, error: parentProfileError } = await supabaseAdmin
-      .from('parents')
-      .insert({
-        user_id: parentAuthData.user.id,
-        full_name: parentFullName,
-        email: parentEmail,
-        phone_number: parentPhone,
-        relationship_to_student: parentRelationship || 'guardian',
-        access_code: accessCode
-      })
-      .select()
-      .single();
+      // Create parent profile
+      const { data: createdParentProfile, error: parentProfileError } = await supabaseAdmin
+        .from('parents')
+        .insert({
+          user_id: parentUserId,
+          full_name: parentFullName,
+          email: parentEmail,
+          phone_number: parentPhone,
+          relationship_to_student: parentRelationship || 'guardian',
+          access_code: accessCode,
+        })
+        .select()
+        .single();
 
-    if (parentProfileError) {
-      console.error('Parent profile creation error:', parentProfileError);
-      // Clean up both users
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      await supabaseAdmin.auth.admin.deleteUser(parentAuthData.user.id);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create parent profile' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (parentProfileError) {
+        console.error('Parent profile creation error:', parentProfileError);
+        // Clean up both users
+        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+        await supabaseAdmin.auth.admin.deleteUser(parentUserId);
+        return new Response(
+          JSON.stringify({ error: 'Failed to create parent profile' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      parentProfile = createdParentProfile;
     }
 
     // Create student profile with school_id and class_id
@@ -215,22 +278,20 @@ serve(async (req) => {
       console.error('Student profile creation error:', studentProfileError);
       // Clean up all created data
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      await supabaseAdmin.auth.admin.deleteUser(parentAuthData.user.id);
+      if (parentUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(parentUserId);
+      }
       return new Response(
         JSON.stringify({ error: 'Failed to create student profile' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Assign student role
-    await supabaseAdmin
-      .from('user_roles')
-      .insert({ user_id: authData.user.id, role: 'student' });
-
-    // Assign parent role
-    await supabaseAdmin
-      .from('user_roles')
-      .insert({ user_id: parentAuthData.user.id, role: 'parent' });
+    // Assign roles (idempotent)
+    await supabaseAdmin.from('user_roles').insert({ user_id: authData.user.id, role: 'student' });
+    if (parentUserId) {
+      await supabaseAdmin.from('user_roles').insert({ user_id: parentUserId, role: 'parent' });
+    }
 
     // Auto-enroll student in exams assigned to their class
     if (classId) {
@@ -279,8 +340,8 @@ serve(async (req) => {
           to: parentEmail,
           parentFullName,
           studentFullName: fullName,
-          parentPassword,
-          accessCode,
+        parentPassword,
+        accessCode: finalAccessCode,
         });
 
         console.log('Email API result:', JSON.stringify(emailResult));
@@ -298,7 +359,7 @@ serve(async (req) => {
           ? 'Registration successful. Parent login details sent to email.'
           : 'Registration successful. Email could not be sent - please share credentials manually.',
         studentId: authData.user.id,
-        parentAccessCode: accessCode,
+         parentAccessCode: finalAccessCode,
         parentEmail: parentEmail,
         parentPassword: parentPassword, // Include password so it can be displayed on dashboard
         emailSent: emailSent,
