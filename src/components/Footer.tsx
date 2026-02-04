@@ -10,7 +10,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <img src={logo} alt="Mighty Test" className="h-10 w-auto" />
+              <img src={logo} alt="Mighty Test" className="h-10 w-auto rounded-lg" />
             </div>
             <p className="text-secondary-foreground/70">
               Empowering future innovators through intelligent STEM assessment and learning.
