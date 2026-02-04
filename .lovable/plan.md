@@ -1,63 +1,67 @@
 
 
-## Fix Plan: Vercel 404 Error on Page Refresh
+## Update Platform Logo
 
-### The Problem
+### Overview
 
-When you deploy a Single Page Application (SPA) to Vercel and refresh any page (like `/auth`, `/dashboard`, `/admin`), Vercel returns a 404 error. This happens because:
-
-1. Your app uses client-side routing (React Router)
-2. Vercel looks for actual files at those paths (e.g., `/auth/index.html`)
-3. Those files don't exist - there's only one `index.html` at the root
-4. Result: 404 NOT_FOUND
-
-### The Solution
-
-Create a `vercel.json` configuration file that tells Vercel to redirect all requests to `index.html`, allowing React Router to handle the routing.
+Replace the current Mighty Test logo with the newly uploaded golden shield logo across all platform locations.
 
 ---
 
-### Implementation
+### Files to Update
 
-**Create new file: `vercel.json`** (in project root)
+The logo is currently used in **4 React components** and there are **favicon/meta assets** in the public folder:
 
-```json
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
+| Location | File | Usage |
+|----------|------|-------|
+| Navbar | `src/components/Navbar.tsx` | Header logo (h-10) |
+| Footer | `src/components/Footer.tsx` | Footer logo (h-10) |
+| Auth Page | `src/pages/Auth.tsx` | Login/signup page logo (h-16 and h-10) |
+| Design Showcase | `src/components/DesignShowcase.tsx` | Component showcase |
+| Favicon | `public/favicon.png` | Browser tab icon |
+| OG/Meta | `index.html` | Social media sharing preview |
+
+---
+
+### Implementation Steps
+
+**Step 1: Copy the new logo to src/assets**
+
+Copy the uploaded image to replace the existing logo:
+- Source: `user-uploads://ChatGPT_Image_Jan_31_2026_03_33_07_PM.png`
+- Destination: `src/assets/mighty-test-logo.png`
+
+Since all 4 component files already import from `@/assets/mighty-test-logo.png`, replacing this file will automatically update all component usages.
+
+**Step 2: Copy the new logo to public folder for favicon/meta**
+
+Copy to public folder for browser tab and social sharing:
+- Source: `user-uploads://ChatGPT_Image_Jan_31_2026_03_33_07_PM.png`
+- Destination: `public/favicon.png`
+
+This updates:
+- Browser tab favicon
+- OpenGraph image for social sharing
+- Twitter card image
+
+---
+
+### Technical Details
+
+The new logo has a **black background** with a **gold shield** design. The existing components render it as:
+
+```tsx
+// Navbar & Footer
+<img src={logo} alt="Mighty Test" className="h-10 w-auto" />
+
+// Auth page (large)
+<img src={logo} alt="Mighty Test" className="h-16 w-auto" />
+
+// Auth page (mobile)
+<img src={logo} alt="Mighty Test" className="h-10 w-auto" />
 ```
 
-This single configuration tells Vercel:
-- For ANY route requested (e.g., `/auth`, `/dashboard`, `/admin/exam/123/questions`)
-- Serve the `index.html` file
-- Let React Router handle the actual routing on the client side
-
----
-
-### How It Works
-
-```text
-User visits: https://your-app.vercel.app/dashboard
-
-WITHOUT vercel.json:
-  Vercel → looks for /dashboard/index.html → NOT FOUND → 404 error
-
-WITH vercel.json:
-  Vercel → rewrites to /index.html → React loads → Router sees /dashboard → Dashboard component renders
-```
-
----
-
-### After Deployment
-
-Once the `vercel.json` file is added and deployed:
-
-1. All routes will work on refresh (`/auth`, `/dashboard`, `/admin`, `/exam/take`, etc.)
-2. Deep linking will work (sharing URLs directly)
-3. Browser back/forward buttons will work correctly
-4. The 404 page defined in your app (`<Route path="*" element={<NotFound />} />`) will handle truly invalid routes
+These dimensions should work well with the new horizontal logo format.
 
 ---
 
@@ -65,7 +69,8 @@ Once the `vercel.json` file is added and deployed:
 
 | Action | File |
 |--------|------|
-| Create | `vercel.json` with rewrites configuration |
+| Replace | `src/assets/mighty-test-logo.png` |
+| Replace | `public/favicon.png` |
 
-This is a one-file fix that will resolve the 404 error completely.
+No code changes needed - just replacing the image files will update the logo everywhere automatically.
 
