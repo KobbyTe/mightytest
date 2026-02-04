@@ -105,7 +105,7 @@ const Auth = () => {
         
         <div className="relative z-10 flex flex-col justify-center items-center text-primary-foreground p-12">
           <Link to="/" className="flex items-center gap-3 mb-8">
-            <img src={logo} alt="Mighty Test" className="h-16 w-auto" />
+            <img src={logo} alt="Mighty Test" className="h-16 w-auto rounded-xl" />
           </Link>
           
           <div className="space-y-6 text-center max-w-md">
@@ -133,7 +133,7 @@ const Auth = () => {
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           <div className="text-center lg:hidden mb-8">
             <Link to="/" className="inline-flex items-center gap-2">
-              <img src={logo} alt="Mighty Test" className="h-10 w-auto" />
+              <img src={logo} alt="Mighty Test" className="h-10 w-auto rounded-lg" />
             </Link>
           </div>
 
