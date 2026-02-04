@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,19 +132,9 @@ export default function ExamTaking() {
     }
   }, [attemptId, currentQuestionIndex, navigate]);
 
-  // Route blocking
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) => 
-      examStarted && 
-      !isSubmittingRef.current && 
-      currentLocation.pathname !== nextLocation.pathname
-  );
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      autoSubmitExam('route_change');
-    }
-  }, [blocker.state, autoSubmitExam]);
+  // NOTE: `useBlocker` requires a Data Router (createBrowserRouter).
+  // This app uses <BrowserRouter>, so attempting to call `useBlocker` throws at runtime.
+  // We keep the existing tab-switch + beforeunload protections which are router-agnostic.
 
   // Tab visibility detection
   useEffect(() => {
