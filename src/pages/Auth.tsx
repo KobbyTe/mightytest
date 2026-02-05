@@ -46,25 +46,47 @@ const Auth = () => {
       });
 
       if (authError || !authData.session) {
-        throw new Error('Invalid email or password');
+        // Check for specific auth errors
+        if (authError?.message?.includes('refresh_token') || 
+            authError?.message?.includes('Invalid Refresh Token')) {
+          // Clear stale session and retry
+          localStorage.removeItem('sb-kzxqhtdxjyuktrghzmsp-auth-token');
+          sessionStorage.removeItem('sb-kzxqhtdxjyuktrghzmsp-auth-token');
+          throw new Error('Session expired. Please try again.');
+        }
+        throw new Error(authError?.message || 'Invalid email or password');
       }
 
-      // Wait briefly for session to propagate to RLS context
-      // This is critical for Vercel deployments where there's network latency
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Retry role verification with exponential backoff
+      // This handles Vercel's network latency for RLS context propagation
+      let roleData = null;
+      let lastError = null;
+      const maxAttempts = 3;
+      
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        // Wait with exponential backoff: 200ms, 400ms, 600ms
+        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+        
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', authData.user.id)
+          .eq('role', userType)
+          .maybeSingle();
+        
+        if (!error && data) {
+          roleData = data;
+          break;
+        }
+        
+        lastError = error;
+        console.log(`Role verification attempt ${attempt + 1}/${maxAttempts} failed:`, error?.message);
+      }
 
-      // Then verify the user has the correct role
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .eq('role', userType)
-        .maybeSingle();
-
-      if (roleError) {
-        console.error('Role check error:', roleError);
+      if (!roleData && lastError) {
+        console.error('Role check failed after retries:', lastError);
         await supabase.auth.signOut();
-        throw new Error('Unable to verify account role. Please try again.');
+        throw new Error('Unable to verify account role. Please try again in a moment.');
       }
 
       if (!roleData) {

@@ -2,6 +2,9 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+// Storage key for Supabase auth - must match the project ID
+const SUPABASE_AUTH_KEY = 'sb-kzxqhtdxjyuktrghzmsp-auth-token';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -17,6 +20,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Cache for user data to avoid refetching on navigation
 const userDataCache = new Map<string, { role: string; profile: any; preferences: any; timestamp: number }>();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Helper function to clear stale auth data
+const clearStaleAuthData = () => {
+  try {
+    localStorage.removeItem(SUPABASE_AUTH_KEY);
+    sessionStorage.removeItem(SUPABASE_AUTH_KEY);
+  } catch (e) {
+    console.warn('Failed to clear auth storage:', e);
+  }
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -84,8 +97,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let initialSessionHandled = false;
 
     // IMPORTANT: Set up auth listener FIRST to catch all auth events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      
+      // Handle token refresh failures - clear stale session data
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        console.warn('Token refresh failed, clearing stale session data');
+        clearStaleAuthData();
+        setUser(null);
+        setSession(null);
+        clearUserState();
+        setLoading(false);
+        return;
+      }
+      
+      // Handle sign out event
+      if (event === 'SIGNED_OUT') {
+        clearStaleAuthData();
+        setUser(null);
+        setSession(null);
+        clearUserState();
+        setLoading(false);
+        return;
+      }
       
       initialSessionHandled = true;
       setSession(session);
@@ -100,8 +134,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // THEN get initial session (listener above will handle it, but this ensures we don't miss it)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (!mounted) return;
+      
+      // Handle refresh token errors during initial session retrieval
+      if (error) {
+        console.warn('Session retrieval error:', error.message);
+        // Check for specific refresh token errors
+        if (error.message?.includes('refresh_token') || 
+            error.message?.includes('Refresh Token Not Found') ||
+            error.message?.includes('Invalid Refresh Token')) {
+          console.warn('Clearing stale session due to refresh token error');
+          clearStaleAuthData();
+          supabase.auth.signOut().catch(() => {}); // Best effort sign out
+        }
+        setLoading(false);
+        return;
+      }
       
       // Only handle if the auth state change hasn't already fired
       if (!initialSessionHandled) {
@@ -127,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user?.id) {
       userDataCache.delete(user.id);
     }
+    clearStaleAuthData();
     await supabase.auth.signOut();
     clearUserState();
   }, [user?.id, clearUserState]);

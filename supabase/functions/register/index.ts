@@ -117,7 +117,11 @@ serve(async (req) => {
     }
 
     // Create student auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+   let authData: any = null;
+   let authError: any = null;
+ 
+   // First attempt to create student auth user
+   const createResult = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -126,6 +130,54 @@ serve(async (req) => {
         role: 'student'
       }
     });
+ 
+   authData = createResult.data;
+   authError = createResult.error;
+ 
+   // Handle case where student email exists in auth but not in students table (orphan auth user)
+   if (authError?.code === 'email_exists') {
+     console.log('Student email exists in auth, checking for orphan user...');
+     
+     // Find the existing auth user by email
+     const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+     const orphanUser = usersData?.users?.find(u => u.email === email);
+     
+     if (orphanUser) {
+       // Check if there's a corresponding student profile
+       const { data: existingProfile } = await supabaseAdmin
+         .from('students')
+         .select('id')
+         .eq('user_id', orphanUser.id)
+         .maybeSingle();
+       
+       if (!existingProfile) {
+         // This is an orphan auth user (exists in auth but no student profile)
+         // Delete it and retry creation
+         console.log('Found orphan auth user, deleting and retrying...');
+         await supabaseAdmin.auth.admin.deleteUser(orphanUser.id);
+         
+         // Retry creation
+         const retryResult = await supabaseAdmin.auth.admin.createUser({
+           email,
+           password,
+           email_confirm: true,
+           user_metadata: {
+             full_name: fullName,
+             role: 'student'
+           }
+         });
+         
+         authData = retryResult.data;
+         authError = retryResult.error;
+       } else {
+         // Student profile exists - this is a genuine duplicate
+         return new Response(
+           JSON.stringify({ error: 'A student with this email address is already registered' }),
+           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         );
+       }
+     }
+   }
 
     if (authError || !authData.user) {
       console.error('Student auth creation error:', authError);
