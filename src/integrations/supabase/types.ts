@@ -524,6 +524,7 @@ export type Database = {
           id: string
           language: string | null
           notifications_enabled: boolean | null
+          onboarding_completed: boolean | null
           theme: string | null
           updated_at: string | null
           user_id: string
@@ -534,6 +535,7 @@ export type Database = {
           id?: string
           language?: string | null
           notifications_enabled?: boolean | null
+          onboarding_completed?: boolean | null
           theme?: string | null
           updated_at?: string | null
           user_id: string
@@ -544,6 +546,7 @@ export type Database = {
           id?: string
           language?: string | null
           notifications_enabled?: boolean | null
+          onboarding_completed?: boolean | null
           theme?: string | null
           updated_at?: string | null
           user_id?: string
