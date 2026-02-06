@@ -9,11 +9,12 @@ import { Progress } from '@/components/ui/progress';
 import { 
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
-  Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send
+  Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ExamCertificate } from '@/components/ExamCertificate';
+import { OnboardingTour } from '@/components/OnboardingTour';
 
 interface Exam {
   id: string;
@@ -66,29 +67,56 @@ export default function Dashboard() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [resendingCredentials, setResendingCredentials] = useState(false);
+  const [showTour, setShowTour] = useState(false);
 
-  // Redirect logic - separate from data loading
+  // Redirect logic
   useEffect(() => {
     if (loading) return;
-    
-    if (!user) {
-      navigate('/auth');
-    } else if (role === 'parent') {
-      navigate('/parent');
-    } else if (role === 'admin') {
-      navigate('/admin');
-    }
+    if (!user) navigate('/auth');
+    else if (role === 'parent') navigate('/parent');
+    else if (role === 'admin') navigate('/admin');
   }, [user, loading, role, navigate]);
 
-  // Data loading - only runs once when profile is ready
+  // Data loading
   useEffect(() => {
     if (!loading && user && role === 'student' && profile?.id && !dataLoaded) {
       setDataLoaded(true);
-      Promise.all([loadDashboardData(), loadParentInfo()]).finally(() => {
+      Promise.all([loadDashboardData(), loadParentInfo(), checkOnboarding()]).finally(() => {
         setLoadingData(false);
       });
     }
   }, [user, loading, role, profile, dataLoaded]);
+
+  const checkOnboarding = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('onboarding_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data && !data.onboarding_completed) {
+        // Small delay so dashboard renders first
+        setTimeout(() => setShowTour(true), 800);
+      }
+    } catch (e) {
+      console.error('Error checking onboarding:', e);
+    }
+  };
+
+  const completeTour = async () => {
+    setShowTour(false);
+    if (!user) return;
+    try {
+      await supabase
+        .from('user_preferences')
+        .update({ onboarding_completed: true })
+        .eq('user_id', user.id);
+    } catch (e) {
+      console.error('Error saving onboarding status:', e);
+    }
+  };
 
   const loadParentInfo = async () => {
     const storedCredentials = sessionStorage.getItem('parentCredentials');
@@ -125,7 +153,6 @@ export default function Dashboard() {
     try {
       const studentClassId = profile?.class_id;
       
-      // Fetch exam attempts for this student
       const attemptsRes = await supabase
         .from('exam_attempts')
         .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
@@ -136,7 +163,6 @@ export default function Dashboard() {
       if (attemptsRes.error) throw attemptsRes.error;
       setExamAttempts(attemptsRes.data || []);
 
-      // Try to get class-assigned exams first
       let assignedExams: Exam[] = [];
       
       if (studentClassId) {
@@ -154,8 +180,6 @@ export default function Dashboard() {
         }
       }
 
-      // Fallback: If no class assignments or no class_id, show all active exams
-      // This ensures students can still access exams even without class assignment
       if (assignedExams.length === 0) {
         const examsRes = await supabase
           .from('exams')
@@ -191,7 +215,6 @@ export default function Dashboard() {
       
       if (data?.success) {
         toast.success('New login credentials sent to parent\'s email!');
-        // Update session storage with new password if returned
         if (data.newPassword) {
           const updatedInfo = { ...parentInfo, password: data.newPassword };
           setParentInfo(updatedInfo);
@@ -210,7 +233,6 @@ export default function Dashboard() {
 
   const handleRegisterExam = async (examId: string) => {
     try {
-      // First verify student profile exists
       if (!profile?.id) {
         toast.error('Student profile not found. Please refresh the page.');
         return;
@@ -230,7 +252,6 @@ export default function Dashboard() {
       if (error) {
         console.error('Registration error:', error);
         if (error.code === '23505') {
-          // Duplicate - check if there's an existing pending attempt
           const { data: existingAttempt } = await supabase
             .from('exam_attempts')
             .select('id, status')
@@ -284,7 +305,6 @@ export default function Dashboard() {
   const registeredExamIds = examAttempts.map(e => e.exam_id);
   const unregisteredExams = availableExams.filter(e => !registeredExamIds.includes(e.id));
 
-  // Stats calculations
   const completedExams = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed');
   const passedExams = examAttempts.filter(a => a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks);
   const avgScore = completedExams.length > 0
@@ -292,33 +312,26 @@ export default function Dashboard() {
     : 0;
 
   const getSubjectIcon = (subject: string) => {
-    const icons: Record<string, string> = {
-      'Science': '🔬',
-      'Technology': '💻',
-      'Engineering': '⚙️',
-      'Mathematics': '📐',
-      'Robotics': '🤖',
-      'AI': '🧠',
-    };
+    const icons: Record<string, string> = { 'Science': '🔬', 'Technology': '💻', 'Engineering': '⚙️', 'Mathematics': '📐', 'Robotics': '🤖', 'AI': '🧠' };
     return icons[subject] || '📚';
   };
 
   const getSubjectColor = (subject: string) => {
     const colors: Record<string, string> = {
-      'Science': 'bg-[hsl(var(--stem-science))]',
-      'Technology': 'bg-[hsl(var(--stem-technology))]',
-      'Engineering': 'bg-[hsl(var(--stem-engineering))]',
-      'Mathematics': 'bg-[hsl(var(--stem-mathematics))]',
-      'Robotics': 'bg-[hsl(var(--stem-robotics))]',
-      'AI': 'bg-[hsl(var(--stem-ai))]',
+      'Science': 'bg-[hsl(var(--stem-science))]', 'Technology': 'bg-[hsl(var(--stem-technology))]',
+      'Engineering': 'bg-[hsl(var(--stem-engineering))]', 'Mathematics': 'bg-[hsl(var(--stem-mathematics))]',
+      'Robotics': 'bg-[hsl(var(--stem-robotics))]', 'AI': 'bg-[hsl(var(--stem-ai))]',
     };
     return colors[subject] || 'bg-primary';
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+      {/* Onboarding Tour */}
+      <OnboardingTour isActive={showTour} onComplete={completeTour} />
+
       {/* Animated Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <header id="tour-welcome" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -332,16 +345,21 @@ export default function Dashboard() {
               <p className="text-sm text-muted-foreground">Ready to conquer some exams today?</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="hover-lift">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour">
+              <HelpCircle className="h-5 w-5" />
+            </Button>
+            <Button variant="outline" onClick={handleSignOut} className="hover-lift">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center">
@@ -386,7 +404,7 @@ export default function Dashboard() {
         {/* Profile & Parent Info Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Profile Card */}
-          <Card className="hover-lift overflow-hidden">
+          <Card id="tour-profile" className="hover-lift overflow-hidden">
             <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -418,7 +436,7 @@ export default function Dashboard() {
 
           {/* Parent Info Card */}
           {parentInfo && (
-            <Card className="hover-lift overflow-hidden border-accent/30">
+            <Card id="tour-parent" className="hover-lift overflow-hidden border-accent/30">
               <div className="h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -513,7 +531,7 @@ export default function Dashboard() {
         </div>
 
         {/* My Exams Section */}
-        <div>
+        <div id="tour-exams">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
               <BookOpen className="h-6 w-6 text-primary-foreground" />
@@ -560,11 +578,7 @@ export default function Dashboard() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {attempt.exams.description}
-                      </p>
-
-                      {/* Status & Score */}
+                      <p className="text-sm text-muted-foreground line-clamp-2">{attempt.exams.description}</p>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Status</span>
@@ -575,67 +589,44 @@ export default function Dashboard() {
                             {attempt.status === 'graded' ? (isPassed ? '✓ Passed' : '✗ Failed') : attempt.status}
                           </Badge>
                         </div>
-                        
                         {attempt.status === 'graded' && attempt.marks_obtained !== null && (
                           <>
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Score</span>
-                              <span className="font-bold text-lg">
-                                {attempt.marks_obtained}/{attempt.exams.total_marks}
-                              </span>
+                              <span className="font-bold text-lg">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
                             </div>
                             <Progress value={scorePercent} className="h-2" />
                           </>
                         )}
-
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {attempt.exams.duration_minutes} min
-                          </span>
+                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{attempt.exams.duration_minutes} min</span>
                           {attempt.exams.exam_date && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(attempt.exams.exam_date).toLocaleDateString()}
-                            </span>
+                            <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(attempt.exams.exam_date).toLocaleDateString()}</span>
                           )}
                         </div>
                       </div>
-
-                      {/* Action Buttons */}
                       <div className="flex gap-2 pt-2">
                         {attempt.status === 'graded' && isPassed && (
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button variant="outline" size="sm" className="flex-1 hover-lift">
-                                <Award className="mr-2 h-4 w-4" />
-                                Certificate
+                                <Award className="mr-2 h-4 w-4" />Certificate
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-[900px]">
-                              <DialogHeader>
-                                <DialogTitle>🎉 Congratulations! Your Certificate</DialogTitle>
-                              </DialogHeader>
-                              <ExamCertificate
-                                studentName={profile?.full_name || ''}
-                                examTitle={attempt.exams.title}
-                                score={attempt.marks_obtained || 0}
-                                totalMarks={attempt.exams.total_marks}
-                                date={attempt.graded_at || attempt.completed_at || ''}
-                              />
+                              <DialogHeader><DialogTitle>🎉 Congratulations! Your Certificate</DialogTitle></DialogHeader>
+                              <ExamCertificate studentName={profile?.full_name || ''} examTitle={attempt.exams.title} score={attempt.marks_obtained || 0} totalMarks={attempt.exams.total_marks} date={attempt.graded_at || attempt.completed_at || ''} />
                             </DialogContent>
                           </Dialog>
                         )}
                         {attempt.status === 'pending' && (
                           <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                            <Play className="mr-2 h-4 w-4" />
-                            Start Exam
+                            <Play className="mr-2 h-4 w-4" />Start Exam
                           </Button>
                         )}
                         {(attempt.status === 'completed' || attempt.status === 'graded') && (
                           <Button variant="outline" size="sm" className="flex-1" disabled>
-                            <Check className="mr-2 h-4 w-4" />
-                            Completed
+                            <Check className="mr-2 h-4 w-4" />Completed
                           </Button>
                         )}
                       </div>
@@ -648,7 +639,7 @@ export default function Dashboard() {
         </div>
 
         {/* Available Exams Section */}
-        <div>
+        <div id="tour-available">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
               <Zap className="h-6 w-6 text-secondary-foreground" />
@@ -694,37 +685,28 @@ export default function Dashboard() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {exam.description}
-                    </p>
-                    
+                    <p className="text-sm text-muted-foreground line-clamp-2">{exam.description}</p>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                        <span className="font-medium">{exam.duration_minutes} min</span>
+                        <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{exam.duration_minutes} min</span>
                       </div>
                       <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <Target className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                        <span className="font-medium">{exam.total_marks} marks</span>
+                        <Target className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{exam.total_marks} marks</span>
                       </div>
                       <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                        <span className="font-medium">Pass: {exam.passing_marks}</span>
+                        <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">Pass: {exam.passing_marks}</span>
                       </div>
                       {exam.exam_date && (
                         <div className="p-2 rounded-lg bg-muted/50 text-center">
-                          <Calendar className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                          <span className="font-medium">{new Date(exam.exam_date).toLocaleDateString()}</span>
+                          <Calendar className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{new Date(exam.exam_date).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>
-
                     <Button 
                       onClick={() => handleRegisterExam(exam.id)} 
                       className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 group-hover:shadow-primary transition-shadow"
                     >
-                      <Brain className="mr-2 h-4 w-4" />
-                      Take This Exam
+                      <Brain className="mr-2 h-4 w-4" />Take This Exam
                     </Button>
                   </CardContent>
                 </Card>
