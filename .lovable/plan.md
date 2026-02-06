@@ -1,218 +1,179 @@
 
 
-## Fix Plan: Complete Auth System Debugging for Vercel Deployment
+# Plan: Fix Parent Authentication + Add Student Onboarding Tour
 
-### Issues Identified
+## Part 1: Parent Authentication Fix
 
-Based on my investigation, here are the problems causing auth failures after Vercel deployment:
+### Root Cause Analysis
 
----
+After thorough investigation, the parent auth data is correctly set up in the database:
+- 3 parent accounts exist with proper `user_roles` entries (role = 'parent')
+- Parent profiles exist in the `parents` table with matching `user_id`
+- RLS policies are correctly configured for parents to read their own roles and profiles
+- `exam_attempts` RLS also correctly allows parents to view children's attempts
 
-### Issue 1: Registration Error - "A user with this email address has already been registered"
+The likely failure points are:
 
-**Root Cause:** The `register` edge function checks if a student email exists in the `students` table, but it doesn't account for cases where:
-1. The email exists in `auth.users` but NOT in the `students` table (e.g., failed registration cleanup)
-2. The student email check passes but the auth user creation fails with `email_exists`
+1. **Password mismatch**: Parent passwords are auto-generated during student registration and reset every time a sibling registers with the same parent email. If the parent doesn't use the emailed/displayed password, login fails silently with "Invalid email or password."
 
-**Current Code Problem (register/index.ts line 120):**
-```typescript
-// Creates user but doesn't handle email_exists error properly for students
-const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({...})
-```
+2. **Session race condition**: After `signInWithPassword` succeeds, `AuthContext.onAuthStateChange` fires and calls `loadUserData`. Simultaneously, the `handleLogin` function in `Auth.tsx` queries `user_roles` with retry logic. If `loadUserData` sets the role and triggers the redirect `useEffect` before `handleLogin` finishes its retries, the redirect and the login handler can conflict -- in some cases, the handler might call `signOut()` after the redirect already navigated the user.
 
-**Fix:** Add proper handling for existing student auth users similar to how parent accounts are handled.
+3. **No parent-specific password recovery on the login page**: Parents have no way to recover credentials from the login screen itself; the only recovery mechanism (resend-parent-credentials) requires a student to be logged in.
 
----
+### Fixes
 
-### Issue 2: Refresh Token Error - "Invalid Refresh Token: Refresh Token Not Found"
+#### Fix 1: Eliminate race condition in Auth.tsx login handler
 
-**Root Cause:** This happens when:
-1. A session exists in localStorage but the refresh token has expired/been revoked on the server
-2. Common after clearing server-side sessions or when switching between environments
+Prevent the `useEffect` redirect from firing during an active login by adding a `loginInProgress` ref. This ensures only the `handleLogin` function controls the navigation after login.
 
-**Current Code:** The `AuthContext.tsx` doesn't handle this error gracefully - it logs it but doesn't clear the stale session.
+#### Fix 2: Add "Forgot Password" flow for parents on the Auth page
 
-**Fix:** Add error handling in AuthContext to clear localStorage when refresh token is invalid.
+Add a "Forgot your credentials?" link on the parent login tab that shows a small form where parents can enter their email. This calls a new edge function `reset-parent-password` that:
+- Verifies the email belongs to a parent account
+- Generates a new password
+- Emails the new credentials to the parent
+- Uses the service role key (no auth required)
 
----
+#### Fix 3: Improve error messaging for parent login
 
-### Issue 3: Session Propagation Delay on Vercel
+Add specific error messages when parent login fails:
+- "Invalid email or password. If you forgot your auto-generated password, use 'Resend Credentials' below."
+- Show the parent's access code hint if available
 
-**Root Cause:** Network latency on Vercel means the 150ms delay in Auth.tsx might not be enough for the RLS context to propagate.
+#### Fix 4: Create `reset-parent-password` edge function
 
-**Current Code (Auth.tsx line 54):**
-```typescript
-await new Promise(resolve => setTimeout(resolve, 150));
-```
+A new edge function that:
+- Accepts `{ email: string }`
+- Checks `parents` table for a matching email
+- Generates a new password and updates the auth user
+- Sends an email with the new credentials via Resend API
+- Returns success/failure
 
-**Fix:** Increase delay and add retry logic for role verification.
+### Files to Create/Modify
 
----
-
-### Issue 4: Parent Profile Query Returning Empty
-
-**Root Cause:** When loading parent info, the query searches by `user_id` but the student's `parent_id` references the parent's profile `id`, not `user_id`. The existing code at Dashboard.tsx line 101-105 is correct, but there's a disconnect when the parent profile wasn't created properly during registration.
-
----
-
-### Implementation Plan
-
-#### Step 1: Fix Register Edge Function
-
-Update `supabase/functions/register/index.ts`:
-
-1. Add handling for student `email_exists` error (similar to parent handling)
-2. If student auth user exists but no student profile, delete the orphan auth user and retry
-3. Add better error messages for debugging
-
-Key changes:
-- Check for `email_exists` error code on student auth creation
-- Attempt to find orphan auth user and clean up
-- Log detailed information for debugging
-
-#### Step 2: Fix AuthContext Refresh Token Handling
-
-Update `src/contexts/AuthContext.tsx`:
-
-1. Add error handling in the auth state listener for refresh token errors
-2. Clear stale session data when refresh token is invalid
-3. Add a recovery mechanism that redirects to login
-
-Key changes:
-- Wrap session refresh in try-catch
-- Clear localStorage on specific error codes (`refresh_token_not_found`)
-- Force sign out on irrecoverable auth errors
-
-#### Step 3: Improve Login Session Propagation
-
-Update `src/pages/Auth.tsx`:
-
-1. Increase session propagation delay from 150ms to 300ms
-2. Add retry logic for role verification (3 attempts with 200ms between)
-3. Add better error messages for specific failure cases
-
-Key changes:
-- Retry loop for role check
-- Exponential backoff
-- Clear error feedback to users
-
-#### Step 4: Add Vercel Environment Variable Validation
-
-Update `src/integrations/supabase/client.ts`:
-
-1. Add runtime validation that environment variables are set
-2. Log helpful error if Supabase URL is missing (common Vercel misconfiguration)
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/pages/Auth.tsx` | Modify | Add `loginInProgress` ref to prevent redirect race; add "Forgot credentials" UI for parents |
+| `supabase/functions/reset-parent-password/index.ts` | Create | New edge function for parent password recovery |
+| `supabase/config.toml` | Modify (auto) | Add `verify_jwt = false` for new function |
 
 ---
 
-### Files to Modify
+## Part 2: Student Onboarding Tour
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/register/index.ts` | Handle student email_exists error, cleanup orphan auth users |
-| `src/contexts/AuthContext.tsx` | Handle refresh token errors, clear stale sessions |
-| `src/pages/Auth.tsx` | Increase delay, add retry logic for role verification |
+### Design
+
+A step-by-step guided tour overlay that highlights key dashboard elements for first-time students.
+
+**Tour Steps:**
+1. **Welcome** - "Welcome to your STEM Dashboard! Let us show you around."
+2. **Profile Card** - "This is your profile. View your name, school, and grade here."
+3. **Stats Cards** - "Track your progress: exams taken, passed, average score, and available exams."
+4. **Available Exams** - "Browse and register for available STEM exams here."
+5. **Exam History** - "View your past exam results, scores, and certificates."
+6. **Parent Info Card** - "Share these credentials with your parent so they can monitor your progress."
+
+**Behavior:**
+- Auto-starts on first login (tracked via `user_preferences.onboarding_completed` flag)
+- Skippable at any time
+- "Take Tour Again" button on the dashboard header
+- Uses a spotlight/tooltip overlay pattern (no external library -- custom built with Tailwind)
+
+### Implementation
+
+**Tour Component**: A reusable `OnboardingTour` component that:
+- Accepts an array of step definitions (target element ID, title, description, position)
+- Renders a backdrop overlay with a cutout around the target element
+- Shows a tooltip with step info, "Next", "Skip", and progress dots
+- Uses `getBoundingClientRect()` to position the spotlight
+- Animates transitions between steps
+
+**Persistence**: Add `onboarding_completed` column to `user_preferences` table.
+
+### Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/OnboardingTour.tsx` | Create | Reusable tour overlay component |
+| `src/pages/Dashboard.tsx` | Modify | Add tour step target IDs to key elements; integrate OnboardingTour; add "Take Tour" button |
+| Database migration | Create | Add `onboarding_completed` boolean column to `user_preferences` |
 
 ---
 
-### Vercel Environment Variables Checklist
+## Technical Details
 
-After these code changes, ensure your Vercel project has these environment variables set:
-
-1. `VITE_SUPABASE_URL` = `https://kzxqhtdxjyuktrghzmsp.supabase.co`
-2. `VITE_SUPABASE_PUBLISHABLE_KEY` = (your anon key)
-3. `VITE_SUPABASE_PROJECT_ID` = `kzxqhtdxjyuktrghzmsp`
-
-Then redeploy the project from Vercel dashboard.
-
----
-
-### Technical Details
-
-#### Register Edge Function Fix
+### Auth.tsx Race Condition Fix
 
 ```typescript
-// Handle case where student email exists in auth but not in students table
-if (authError?.code === 'email_exists') {
-  // Try to find if there's an orphan auth user (exists in auth but not in students)
-  const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-  const orphanUser = existingUsers?.users?.find(u => u.email === email);
-  
-  if (orphanUser) {
-    // Check if student profile exists
-    const { data: existingProfile } = await supabaseAdmin
-      .from('students')
-      .select('id')
-      .eq('user_id', orphanUser.id)
-      .maybeSingle();
-    
-    if (!existingProfile) {
-      // Orphan auth user - delete and retry
-      await supabaseAdmin.auth.admin.deleteUser(orphanUser.id);
-      // Retry creation...
-    }
+const loginInProgressRef = useRef(false);
+
+useEffect(() => {
+  if (!authLoading && user && role && !loginInProgressRef.current) {
+    // Only auto-redirect if not in the middle of a login
+    if (role === 'admin') navigate('/admin');
+    else if (role === 'parent') navigate('/parent');
+    else navigate('/dashboard');
   }
-}
-```
+}, [user, role, authLoading, navigate]);
 
-#### AuthContext Refresh Token Fix
-
-```typescript
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (event === 'TOKEN_REFRESHED' && !session) {
-    // Token refresh failed - clear stale data
-    localStorage.removeItem('sb-kzxqhtdxjyuktrghzmsp-auth-token');
-    setUser(null);
-    setSession(null);
-    clearUserState();
+const handleLogin = async (e, userType) => {
+  e.preventDefault();
+  loginInProgressRef.current = true;
+  setLoading(true);
+  try {
+    // ... existing signIn + role check logic ...
+    // Navigate on success
+    navigate(userType === 'admin' ? '/admin' : userType === 'parent' ? '/parent' : '/dashboard');
+  } catch (error) {
+    // ... error handling ...
+  } finally {
     setLoading(false);
-    return;
+    loginInProgressRef.current = false;
   }
-  // ... rest of handler
-});
+};
 ```
 
-#### Login Retry Logic Fix
+### Reset Parent Password Edge Function
 
 ```typescript
-// Retry role verification with backoff
-let roleData = null;
-let attempts = 0;
-const maxAttempts = 3;
+// Accepts { email } -> verifies parent -> generates new password -> emails it
+// Uses SUPABASE_SERVICE_ROLE_KEY to update auth user
+// Uses RESEND_API_KEY to send email
+// No JWT required (configured in config.toml)
+```
 
-while (!roleData && attempts < maxAttempts) {
-  await new Promise(resolve => setTimeout(resolve, 200 * (attempts + 1)));
-  
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', authData.user.id)
-    .eq('role', userType)
-    .maybeSingle();
-  
-  if (!error && data) {
-    roleData = data;
-    break;
-  }
-  attempts++;
+### Onboarding Tour Component
+
+```typescript
+interface TourStep {
+  targetId: string;
+  title: string;
+  description: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
 }
 
-if (!roleData) {
-  await supabase.auth.signOut();
-  throw new Error(`Unable to verify ${userType} role after ${maxAttempts} attempts`);
-}
+// Renders: backdrop overlay + spotlight cutout + tooltip
+// Uses ResizeObserver for responsive positioning
+// Controlled via currentStep state
+// On completion: updates user_preferences.onboarding_completed = true
+```
+
+### Database Migration
+
+```sql
+ALTER TABLE user_preferences 
+ADD COLUMN IF NOT EXISTS onboarding_completed boolean DEFAULT false;
 ```
 
 ---
 
-### Summary
+## Implementation Order
 
-This plan addresses:
-
-1. Registration failures due to orphan auth users
-2. Refresh token errors causing login loops
-3. Session propagation delays on Vercel's network
-4. Proper error handling and user feedback
-
-After implementation, the auth system should work reliably on both preview and Vercel production environments.
+1. Database migration (add `onboarding_completed` column)
+2. Fix `Auth.tsx` race condition with `loginInProgressRef`
+3. Create `reset-parent-password` edge function
+4. Add "Forgot credentials" UI to parent login tab
+5. Create `OnboardingTour` component
+6. Integrate tour into `Dashboard.tsx`
+7. Deploy edge functions and test end-to-end
 
