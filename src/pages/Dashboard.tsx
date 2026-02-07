@@ -435,8 +435,9 @@ export default function Dashboard() {
           </Card>
 
           {/* Parent Info Card */}
-          {parentInfo && (
-            <Card id="tour-parent" className="hover-lift overflow-hidden border-accent/30">
+          <Card id="tour-parent" className="hover-lift overflow-hidden border-accent/30">
+            {parentInfo ? (
+              <>
               <div className="h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -526,8 +527,26 @@ export default function Dashboard() {
                   )}
                 </div>
               </CardContent>
-            </Card>
-          )}
+              </>
+            ) : (
+              <>
+              <div className="h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center">
+                    <Users className="h-5 w-5 text-accent-foreground" />
+                  </div>
+                  Parent/Guardian Access
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground text-sm">
+                  No parent/guardian account is linked to your profile yet. A parent account is automatically created when you register with a parent email. Contact your administrator if you need help.
+                </p>
+              </CardContent>
+              </>
+            )}
+          </Card>
         </div>
 
         {/* My Exams Section */}
