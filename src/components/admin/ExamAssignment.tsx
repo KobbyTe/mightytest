@@ -155,6 +155,25 @@ export default function ExamAssignment() {
 
       toast.success('Exam assigned successfully');
       setShowAssignDialog(false);
+      
+      // Automatically notify students via email (fire-and-forget)
+      supabase.functions.invoke('notify-exam-assigned', {
+        body: {
+          exam_id: assignForm.exam_id,
+          class_id: assignForm.class_id,
+          due_date: assignForm.due_date || null,
+        },
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to send notifications:', error);
+        } else {
+          const sent = data?.emailsSent || 0;
+          if (sent > 0) {
+            toast.success(`Email notifications sent to ${sent} student${sent > 1 ? 's' : ''}`);
+          }
+        }
+      });
+
       setAssignForm({ exam_id: '', school_id: '', class_id: '', due_date: '' });
       loadData();
     } catch (error: any) {
