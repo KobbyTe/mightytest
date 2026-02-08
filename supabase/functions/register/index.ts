@@ -220,50 +220,107 @@ serve(async (req) => {
         .maybeSingle();
 
       if (existingParentError || !existingParent) {
-        console.error('Parent exists in auth but no parent profile found:', existingParentError);
-        // Clean up student user since we cannot safely link the student to a parent
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        return new Response(
-          JSON.stringify({ error: 'Parent email already exists. Please use a different parent email or contact support.' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        // Orphan parent: exists in auth but no profile in parents table.
+        // Delete the orphan auth account and re-create fresh.
+        console.log('Parent email exists in auth but no profile found — handling orphan parent account');
+        
+        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+        const orphanParent = usersData?.users?.find(u => u.email === parentEmail);
+        
+        if (orphanParent) {
+          console.log('Deleting orphan parent auth user:', orphanParent.id);
+          await supabaseAdmin.auth.admin.deleteUser(orphanParent.id);
+          // Also clean up any stale role rows
+          await supabaseAdmin.from('user_roles').delete().eq('user_id', orphanParent.id);
+        }
+        
+        // Re-create parent auth user fresh
+        const { data: freshParentAuth, error: freshParentError } = await supabaseAdmin.auth.admin.createUser({
+          email: parentEmail,
+          password: parentPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: parentFullName,
+            role: 'parent',
+            access_code: accessCode,
+          },
+        });
+        
+        if (freshParentError || !freshParentAuth.user) {
+          console.error('Failed to re-create parent after orphan cleanup:', freshParentError);
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+          return new Response(
+            JSON.stringify({ error: freshParentError?.message || 'Failed to create parent account after cleanup' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        parentUserId = freshParentAuth.user.id;
+        
+        // Create fresh parent profile
+        const { data: freshParentProfile, error: freshProfileError } = await supabaseAdmin
+          .from('parents')
+          .insert({
+            user_id: parentUserId,
+            full_name: parentFullName,
+            email: parentEmail,
+            phone_number: parentPhone,
+            relationship_to_student: parentRelationship || 'guardian',
+            access_code: accessCode,
+          })
+          .select()
+          .single();
+        
+        if (freshProfileError) {
+          console.error('Failed to create parent profile after orphan cleanup:', freshProfileError);
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+          await supabaseAdmin.auth.admin.deleteUser(parentUserId);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create parent profile' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        parentProfile = freshParentProfile;
+        console.log('Successfully recovered from orphan parent account');
+      } else {
+        // Existing parent with a valid profile — reuse and update
+        parentUserId = existingParent.user_id;
+        parentProfile = existingParent;
+        finalAccessCode = existingParent.access_code || accessCode;
+
+        const existingParentUserId = existingParent.user_id;
+        const { error: resetParentError } = await supabaseAdmin.auth.admin.updateUserById(existingParentUserId, {
+          password: parentPassword,
+          email_confirm: true,
+          user_metadata: {
+            full_name: parentFullName,
+            role: 'parent',
+            access_code: finalAccessCode,
+          },
+        });
+
+        if (resetParentError) {
+          console.error('Parent password reset error:', resetParentError);
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+          return new Response(
+            JSON.stringify({ error: 'Failed to update existing parent account' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Keep parent profile updated with latest details
+        await supabaseAdmin
+          .from('parents')
+          .update({
+            full_name: parentFullName,
+            phone_number: parentPhone,
+            relationship_to_student: parentRelationship || 'guardian',
+            access_code: finalAccessCode,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', parentProfile.id);
       }
-
-      parentUserId = existingParent.user_id;
-      parentProfile = existingParent;
-      finalAccessCode = existingParent.access_code || accessCode;
-
-      const existingParentUserId = existingParent.user_id;
-      const { error: resetParentError } = await supabaseAdmin.auth.admin.updateUserById(existingParentUserId, {
-        password: parentPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: parentFullName,
-          role: 'parent',
-          access_code: finalAccessCode,
-        },
-      });
-
-      if (resetParentError) {
-        console.error('Parent password reset error:', resetParentError);
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        return new Response(
-          JSON.stringify({ error: 'Failed to update existing parent account' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Keep parent profile updated with latest details
-      await supabaseAdmin
-        .from('parents')
-        .update({
-          full_name: parentFullName,
-          phone_number: parentPhone,
-          relationship_to_student: parentRelationship || 'guardian',
-          access_code: finalAccessCode,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', parentProfile.id);
     } else if (parentAuthError || !parentAuthData.user) {
       console.error('Parent auth creation error:', parentAuthError);
       // Clean up student user if parent creation fails
