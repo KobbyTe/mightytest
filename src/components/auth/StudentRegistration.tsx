@@ -159,6 +159,45 @@ export const StudentRegistration = () => {
     return true;
   };
 
+  // Retry helper for transient network failures (e.g. Edge browser fetch issues)
+  const invokeWithRetry = async (fnName: string, body: any, maxRetries = 2) => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase.functions.invoke(fnName, { body });
+        
+        // supabase-js wraps non-2xx responses as FunctionsHttpError with the response body
+        if (error) {
+          const isNetworkError = error.message?.includes('Failed to send') || 
+                                  error.message?.includes('Failed to fetch') ||
+                                  error.message?.includes('NetworkError') ||
+                                  error.message?.includes('network');
+          
+          if (isNetworkError && attempt < maxRetries) {
+            console.warn(`Network error on attempt ${attempt + 1}, retrying in ${(attempt + 1)}s...`, error.message);
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            continue;
+          }
+          return { data: null, error };
+        }
+        return { data, error: null };
+      } catch (err: any) {
+        // Catch raw fetch failures that bypass the SDK error handling
+        const isNetworkError = err.message?.includes('Failed to fetch') ||
+                                err.message?.includes('NetworkError') ||
+                                err.message?.includes('network') ||
+                                err.name === 'TypeError';
+        
+        if (isNetworkError && attempt < maxRetries) {
+          console.warn(`Fetch exception on attempt ${attempt + 1}, retrying...`, err.message);
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        return { data: null, error: err };
+      }
+    }
+    return { data: null, error: new Error('Registration request failed after multiple attempts. Please check your internet connection and try again.') };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -167,11 +206,16 @@ export const StudentRegistration = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('register', {
-        body: formData
-      });
+      const { data, error } = await invokeWithRetry('register', formData);
 
-      if (error) throw error;
+      if (error) {
+        // Provide user-friendly error messages
+        const msg = error.message || '';
+        if (msg.includes('Failed to send') || msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          throw new Error('Could not reach the server. Please check your internet connection and try again.');
+        }
+        throw error;
+      }
 
       if (data?.success) {
         // Store parent credentials temporarily to display on dashboard
