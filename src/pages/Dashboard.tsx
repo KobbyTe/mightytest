@@ -180,17 +180,7 @@ export default function Dashboard() {
         }
       }
 
-      if (assignedExams.length === 0) {
-        const examsRes = await supabase
-          .from('exams')
-          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
-          .eq('status', 'active')
-          .limit(20);
-
-        if (!examsRes.error && examsRes.data) {
-          assignedExams = examsRes.data;
-        }
-      }
+      // No fallback — students only see exams assigned to their class
       
       setAvailableExams(assignedExams);
     } catch (error) {
