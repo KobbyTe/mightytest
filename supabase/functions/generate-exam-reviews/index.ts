@@ -75,7 +75,15 @@ serve(async (req) => {
       };
     }).filter(Boolean);
 
-    const prompt = `You are an educational tutor. For each question below, write a brief (1-2 sentence) explanation of WHY the correct answer is right. If the student got it wrong, also briefly explain why their answer was incorrect. Be educational, encouraging, and specific to the question content. Do NOT just restate the answer.
+    const prompt = `You are an expert educational tutor helping students learn from their exam results. For each question below, write a 2-3 sentence educational explanation.
+
+RULES:
+- Explain the underlying concept, principle, or reasoning that makes the correct answer right.
+- Do NOT simply say "The correct answer is X" or just restate the answer. Instead, TEACH the student the concept.
+- For example, if the question is about Newton's Third Law, explain what the law states and how it applies to the scenario.
+- If the student answered incorrectly, briefly explain why their chosen answer is a common misconception.
+- If the student did not answer (answer is "No answer"), explain the concept as if teaching the student for the first time.
+- Be encouraging, specific, and educational.
 
 Return a JSON array with objects containing "index" (matching the input) and "explanation" (your review text).
 
