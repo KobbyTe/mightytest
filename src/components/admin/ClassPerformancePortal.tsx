@@ -295,7 +295,7 @@ export default function ClassPerformancePortal({
               </Button>
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
