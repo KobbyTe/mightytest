@@ -91,6 +91,7 @@ const Hero = () => {
                   size="lg"
                   variant="outline"
                   className="w-full sm:w-auto text-lg px-10 py-7 border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
+                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Explore Features
                 </Button>
