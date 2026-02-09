@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-grade-notification]
 verify_jwt = false
+
+[functions.generate-exam-reviews]
+verify_jwt = false
