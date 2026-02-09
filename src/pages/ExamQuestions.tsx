@@ -324,7 +324,7 @@ export default function ExamQuestions() {
                 <DialogHeader>
                   <DialogTitle>Upload Exam PDF</DialogTitle>
                   <DialogDescription>
-                    Upload a PDF containing questions and answers. The system will automatically extract and create questions.
+                    Upload any PDF containing exam questions and answers. Our AI will analyze the document and automatically extract all questions, options, and correct answers — regardless of formatting.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handlePdfUpload} className="space-y-4">
@@ -337,12 +337,17 @@ export default function ExamQuestions() {
                       required
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Format: Questions should be numbered (Q1, Q2, etc.) followed by options (A, B, C, D) and correct answers marked clearly.
+                      Supports any PDF format — text-based, scanned, or image-based. AI will detect and extract questions automatically.
                     </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={uploadingPdf}>
-                    {uploadingPdf ? 'Processing...' : 'Upload and Process'}
+                    {uploadingPdf ? '🤖 Analyzing PDF with AI...' : 'Upload and Process'}
                   </Button>
+                  {uploadingPdf && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This may take 15-30 seconds depending on document size.
+                    </p>
+                  )}
                 </form>
               </DialogContent>
             </Dialog>
