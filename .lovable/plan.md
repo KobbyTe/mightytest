@@ -1,82 +1,76 @@
 
 
-# Fix: Student Registration Failing on Edge and Other Browsers
+# Two Feature Implementation Plan
 
-## Root Cause
+## Feature 1: Full-Page Class Performance Portal (Admin)
 
-Two separate issues are causing registration failures:
+### Current Behavior
+When an admin clicks the eye button on a class, the `ClassPerformancePortal` opens as a `Sheet` (side panel) with `sm:max-w-4xl`. This feels cramped and unprofessional for the amount of data displayed (student tables, charts, reports).
 
-### Issue 1: Orphan Parent Auth Accounts
-When a parent email exists in the authentication system but has no corresponding profile in the parents table, registration fails with "Parent email already exists. Please use a different parent email or contact support." This is happening because a test parent account (`parent-cors@example.com`) was created but its profile was never added. The register function handles orphan **student** accounts but does NOT handle orphan **parent** accounts.
+### Proposed Change
+Replace the `Sheet` component with a full-page `Dialog` that covers the entire screen, giving the portal a clean, professional full-page layout.
 
-### Issue 2: Browser Fetch Reliability
-The Supabase JS client's `functions.invoke()` method can fail with "Failed to send a request to the edge function" on Microsoft Edge and other browsers due to:
-- Stricter connection handling in Edge
-- No retry mechanism for transient network errors
-- Poor error messages when the function returns a non-200 status
-
----
-
-## Fixes
-
-### Fix 1: Handle Orphan Parent Accounts in the Register Function
-**File**: `supabase/functions/register/index.ts`
-
-Add orphan parent detection logic (similar to existing orphan student logic). When a parent email exists in auth but has no parents table profile:
-1. Delete the orphan auth account
-2. Re-create the parent account fresh
-3. Continue with normal registration
-
-This ensures stale/test parent accounts never block real registrations.
-
-### Fix 2: Add Retry Logic and Better Error Handling on the Client
-**File**: `src/components/auth/StudentRegistration.tsx`
-
-- Wrap the `supabase.functions.invoke('register', ...)` call in a retry helper (up to 2 retries with a short delay)
-- Distinguish between network errors ("Failed to fetch") and server errors (400/500 responses)
-- Show more descriptive error messages to the user
-
-### Fix 3: Clean Up Orphan Data
-Run a one-time cleanup to delete the existing orphan parent auth account that has no profile, so current registrations are unblocked immediately.
+**File: `src/components/admin/ClassPerformancePortal.tsx`**
+- Replace `Sheet`/`SheetContent`/`SheetHeader`/`SheetTitle`/`SheetDescription` with `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`/`DialogDescription`
+- Set `DialogContent` to use `max-w-[95vw] w-full h-[90vh] overflow-y-auto` for a near-fullscreen modal
+- Add a proper close button in the header
+- Keep all existing tabs (Students, Performance, Reports) and export functionality intact
 
 ---
 
-## Technical Details
+## Feature 2: Exam Review Page (Student Dashboard)
 
-### Orphan Parent Handler (register edge function)
+### Current Behavior
+On the student dashboard, completed/graded exams show a "Completed" button that is disabled. Students cannot see which questions they got wrong, what the correct answers were, or any explanations.
 
-When `parentAuthError?.code === 'email_exists'` and no parent profile is found, instead of failing:
+### Proposed Change
+Add a "Review Exam" button on completed/graded exam cards that navigates to a new dedicated review page showing a question-by-question breakdown.
 
-```text
-1. Look up the existing auth user by email
-2. Delete the orphan auth user
-3. Re-create the parent auth user with new credentials
-4. Continue creating the parent profile as normal
-```
+### New Page: `src/pages/ExamReview.tsx`
+A full page that:
+1. Fetches the exam attempt, all questions, and the student's answers
+2. Displays each question with:
+   - The question text and options
+   - The student's selected answer (highlighted green if correct, red if wrong)
+   - The correct answer (always shown in green)
+   - Marks awarded vs marks available
+3. For incorrect answers: shows a brief AI-generated review/explanation of why the correct answer is right (generated once and cached, or a static explanation based on the correct answer)
+4. Summary at the top: total score, pass/fail status, number correct vs total
 
-### Client Retry Logic
+### Implementation Details
 
-```text
-async function invokeWithRetry(fnName, body, maxRetries = 2) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const { data, error } = await supabase.functions.invoke(fnName, { body });
-    if (!error) return { data, error: null };
-    if (error.message?.includes('Failed to send') && attempt < maxRetries) {
-      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      continue;
-    }
-    return { data, error };
-  }
-}
-```
+**New route in `src/App.tsx`:**
+- `/exam/review/:attemptId` -- lazy-loaded `ExamReview` page
 
-### Files to Modify
+**Changes to `src/pages/Dashboard.tsx`:**
+- Replace the disabled "Completed" button with a "Review Exam" button that navigates to `/exam/review/{attemptId}`
 
-| File | Change |
+**New file: `src/pages/ExamReview.tsx`:**
+- Fetches `exam_attempts` by attempt ID (with exam details)
+- Fetches `exam_questions` for that exam
+- Fetches `exam_answers` for that attempt
+- Matches answers to questions and displays a clean, card-based review layout
+- Each question card shows:
+  - Question number and text
+  - For MCQ/True-False: all options with visual indicators (green checkmark for correct, red X for student's wrong answer)
+  - For essay/subjective: the student's answer text and marks awarded
+  - A "Review" section with a brief explanation for incorrect answers (a short static sentence explaining the correct answer, derived from the question context)
+- Color coding: correct answers get a green border/background, incorrect get a red border/background
+- A "Back to Dashboard" button at the top
+
+### Technical Notes
+- The review explanations will be simple, static text like "The correct answer is [X] because it matches the expected response" for auto-graded questions. For subjective questions, it will show the admin's feedback if available.
+- No AI API calls needed -- the review is based on comparing `exam_answers.answer_text` with `exam_questions.correct_answer`
+- RLS policies already allow students to view their own answers and questions for active exams, so no database changes are needed
+
+---
+
+## Summary of Files to Create/Modify
+
+| File | Action |
 |------|--------|
-| `supabase/functions/register/index.ts` | Add orphan parent detection and cleanup logic in the `email_exists` handler |
-| `src/components/auth/StudentRegistration.tsx` | Add retry logic for network failures; improve error messages |
+| `src/components/admin/ClassPerformancePortal.tsx` | Change from Sheet to full-page Dialog |
+| `src/pages/ExamReview.tsx` | New page for question-by-question exam review |
+| `src/pages/Dashboard.tsx` | Add "Review Exam" button on completed exam cards |
+| `src/App.tsx` | Add `/exam/review/:attemptId` route |
 
-### Data Cleanup
-
-Delete the orphan parent auth account (`parent-cors@example.com`) that has no profile in the parents table, along with the test accounts created during debugging.
