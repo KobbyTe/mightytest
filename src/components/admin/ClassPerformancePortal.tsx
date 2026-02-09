@@ -401,7 +401,7 @@ export default function ClassPerformancePortal({
             </Tabs>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

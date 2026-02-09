@@ -59,6 +59,7 @@ const App = () => (
               <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
               <Route path="/admin/analytics" element={<ExamAnalytics />} />
               <Route path="/exam/take" element={<ExamTaking />} />
+              <Route path="/exam/review/:attemptId" element={<ExamReview />} />
               <Route path="/parent" element={<ParentDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
