@@ -274,15 +274,15 @@ export default function ClassPerformancePortal({
     : 0;
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
-        <SheetHeader className="mb-6">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent className="max-w-[95vw] w-full h-[90vh] overflow-y-auto p-6">
+        <DialogHeader className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <SheetTitle className="text-2xl">{className}</SheetTitle>
-              <SheetDescription>
+              <DialogTitle className="text-2xl">{className}</DialogTitle>
+              <DialogDescription>
                 {schoolName} • {gradeLevel || 'Grade N/A'}
-              </SheetDescription>
+              </DialogDescription>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={loading}>
