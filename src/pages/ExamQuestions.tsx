@@ -341,8 +341,13 @@ export default function ExamQuestions() {
                     </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={uploadingPdf}>
-                    {uploadingPdf ? 'Processing...' : 'Upload and Process'}
+                    {uploadingPdf ? '🤖 Analyzing PDF with AI...' : 'Upload and Process'}
                   </Button>
+                  {uploadingPdf && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This may take 15-30 seconds depending on document size.
+                    </p>
+                  )}
                 </form>
               </DialogContent>
             </Dialog>
