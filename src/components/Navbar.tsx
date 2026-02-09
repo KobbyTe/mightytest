@@ -26,15 +26,15 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <Link to="/#features" className="text-sm font-medium hover:text-primary transition-colors">
+            <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">
               Features
-            </Link>
-            <Link to="/#subjects" className="text-sm font-medium hover:text-primary transition-colors">
+            </a>
+            <a href="#subjects" className="text-sm font-medium hover:text-primary transition-colors">
               Subjects
-            </Link>
-            <Link to="/#about" className="text-sm font-medium hover:text-primary transition-colors">
+            </a>
+            <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">
               About
-            </Link>
+            </a>
             {user ? (
               <Link to={getDashboardPath()}>
                 <Button className="shadow-primary hover:shadow-glow transition-all">
