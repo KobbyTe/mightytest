@@ -26,15 +26,15 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <Link to="/#features" className="text-sm font-medium hover:text-primary transition-colors">
+            <a href="#features" className="text-sm font-medium hover:text-primary transition-colors">
               Features
-            </Link>
-            <Link to="/#subjects" className="text-sm font-medium hover:text-primary transition-colors">
+            </a>
+            <a href="#subjects" className="text-sm font-medium hover:text-primary transition-colors">
               Subjects
-            </Link>
-            <Link to="/#about" className="text-sm font-medium hover:text-primary transition-colors">
+            </a>
+            <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">
               About
-            </Link>
+            </a>
             {user ? (
               <Link to={getDashboardPath()}>
                 <Button className="shadow-primary hover:shadow-glow transition-all">
@@ -70,27 +70,27 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         {isOpen && (
           <div className="md:hidden py-4 space-y-4 animate-fade-in">
-            <Link 
-              to="/#features" 
+            <a 
+              href="#features" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Features
-            </Link>
-            <Link 
-              to="/#subjects" 
+            </a>
+            <a 
+              href="#subjects" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Subjects
-            </Link>
-            <Link 
-              to="/#about" 
+            </a>
+            <a 
+              href="#about" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               About
-            </Link>
+            </a>
             <div className="space-y-2 pt-4">
               {user ? (
                 <Link to={getDashboardPath()} onClick={() => setIsOpen(false)}>

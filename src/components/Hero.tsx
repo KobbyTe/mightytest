@@ -56,7 +56,7 @@ const Hero = () => {
           </div>
 
           {/* Heading */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
             <span className="text-gradient-primary">Mighty Test</span>
             <br />
             <span className="text-white">STEM Excellence</span>
@@ -91,6 +91,7 @@ const Hero = () => {
                   size="lg"
                   variant="outline"
                   className="w-full sm:w-auto text-lg px-10 py-7 border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
+                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Explore Features
                 </Button>
@@ -99,18 +100,18 @@ const Hero = () => {
           </div>
 
           {/* Stats with frosted glass */}
-          <div className="grid grid-cols-3 gap-6 pt-8 max-w-lg mx-auto">
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-3">
-              <div className="text-3xl lg:text-4xl font-bold text-primary">10K+</div>
-              <div className="text-sm text-white/60">Students</div>
+          <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-8 max-w-lg mx-auto px-2 sm:px-0">
+            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">10K+</div>
+              <div className="text-xs sm:text-sm text-white/60">Students</div>
             </div>
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-3">
-              <div className="text-3xl lg:text-4xl font-bold text-primary">500+</div>
-              <div className="text-sm text-white/60">STEM Exams</div>
+            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">500+</div>
+              <div className="text-xs sm:text-sm text-white/60">STEM Exams</div>
             </div>
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-3">
-              <div className="text-3xl lg:text-4xl font-bold text-primary">98%</div>
-              <div className="text-sm text-white/60">Success Rate</div>
+            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">98%</div>
+              <div className="text-xs sm:text-sm text-white/60">Success Rate</div>
             </div>
           </div>
         </div>
