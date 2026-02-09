@@ -83,10 +83,36 @@ export default function ExamReview() {
       if (answersRes.error) throw answersRes.error;
 
       setExam(examRes.data);
-      setQuestions(questionsRes.data || []);
-      setAnswers(answersRes.data || []);
+      const loadedQuestions = questionsRes.data || [];
+      let loadedAnswers = answersRes.data || [];
+      setQuestions(loadedQuestions);
 
-      return answersRes.data || [];
+      // Part 1: Create stub answer rows for unanswered questions
+      const answeredQuestionIds = new Set(loadedAnswers.map(a => a.question_id));
+      const missingQuestions = loadedQuestions.filter(q => !answeredQuestionIds.has(q.id));
+
+      if (missingQuestions.length > 0) {
+        const stubs = missingQuestions.map(q => ({
+          attempt_id: attemptId!,
+          question_id: q.id,
+          answer_text: null,
+          is_correct: false,
+          marks_awarded: 0,
+          review_text: null,
+        }));
+
+        const { data: insertedStubs, error: stubErr } = await supabase
+          .from('exam_answers')
+          .insert(stubs)
+          .select('id, question_id, answer_text, is_correct, marks_awarded, review_text');
+
+        if (!stubErr && insertedStubs) {
+          loadedAnswers = [...loadedAnswers, ...insertedStubs];
+        }
+      }
+
+      setAnswers(loadedAnswers);
+      return loadedAnswers;
     } catch (error: any) {
       console.error('Error loading review:', error);
       toast.error('Failed to load exam review');
