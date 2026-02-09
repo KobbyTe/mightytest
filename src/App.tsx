@@ -19,6 +19,7 @@ const ExamTaking = lazy(() => import("./pages/ExamTaking"));
 const ExamQuestions = lazy(() => import("./pages/ExamQuestions"));
 const ExamGrading = lazy(() => import("./pages/ExamGrading"));
 const ExamAnalytics = lazy(() => import("./pages/ExamAnalytics"));
+const ExamReview = lazy(() => import("./pages/ExamReview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient with aggressive caching
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
               <Route path="/admin/analytics" element={<ExamAnalytics />} />
               <Route path="/exam/take" element={<ExamTaking />} />
+              <Route path="/exam/review/:attemptId" element={<ExamReview />} />
               <Route path="/parent" element={<ParentDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

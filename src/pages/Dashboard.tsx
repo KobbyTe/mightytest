@@ -643,9 +643,14 @@ export default function Dashboard() {
                             <Play className="mr-2 h-4 w-4" />Start Exam
                           </Button>
                         )}
-                        {(attempt.status === 'completed' || attempt.status === 'graded') && (
+                        {attempt.status === 'graded' && (
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/exam/review/${attempt.id}`)}>
+                            <BookOpen className="mr-2 h-4 w-4" />Review Exam
+                          </Button>
+                        )}
+                        {attempt.status === 'completed' && (
                           <Button variant="outline" size="sm" className="flex-1" disabled>
-                            <Check className="mr-2 h-4 w-4" />Completed
+                            <Check className="mr-2 h-4 w-4" />Awaiting Grade
                           </Button>
                         )}
                       </div>
