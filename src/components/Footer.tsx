@@ -73,7 +73,7 @@ const Footer = () => {
         </div>
 
         <div className="pt-8 border-t border-secondary-foreground/20 text-center text-secondary-foreground/70 text-sm">
-          <p>© 2024 Mighty Test. All rights reserved. Empowering STEM education worldwide.</p>
+          <p>© 2025 Mighty Test. All rights reserved. Empowering STEM education worldwide.</p>
         </div>
       </div>
     </footer>
