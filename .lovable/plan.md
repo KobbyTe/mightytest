@@ -1,61 +1,46 @@
 
 
-# Reliable PDF-to-Exam Generation Using AI
+# Homepage Enhancement with Hero Video
 
-## The Problem
+## Overview
 
-The current PDF processing edge function uses custom regex-based text extraction (decompressing FlateDecode streams, matching patterns like `Question: ... Answer: ...`). This approach is fragile and fails on most real-world PDFs because:
+Replace the static hero image with a clean, professional, muted autoplay hero video (no audio) showing STEM/technology/education visuals. Also polish the overall homepage with refined spacing, smoother animations, and a more modern feel.
 
-- It cannot handle image-based/scanned PDFs
-- Different PDF generators produce different internal stream formats
-- The regex patterns only match two specific question formats
-- Many PDFs use font encoding that breaks the text extraction
+## Changes
 
-## The Solution
+### 1. Hero Section -- Video Background (File: `src/components/Hero.tsx`)
 
-Replace the brittle custom parser with **AI-powered extraction**. The admin uploads a PDF, the system sends its content to the Lovable AI gateway (Gemini), which reliably extracts questions, options, correct answers, and question types -- regardless of PDF formatting.
+- Replace the right-side static `hero-stem.jpg` image with a **full-width background video** that covers the entire hero section
+- Use a free, royalty-free STEM/technology video from a CDN (e.g., a Pexels or Coverr video showing coding, robotics, or lab work)
+- Video attributes: `autoPlay`, `muted`, `loop`, `playsInline`, no controls -- completely silent and non-intrusive
+- Add a dark gradient overlay on top of the video so the text remains crisp and readable
+- Switch from the 2-column grid layout to a **centered text-over-video** layout for a more cinematic, modern feel
+- Keep all existing content (badge, heading, description, CTAs, stats) but center them over the video
 
-## How It Will Work
+### 2. Visual Polish (File: `src/components/Hero.tsx`)
 
-1. Admin clicks "Upload PDF" on the exam questions page
-2. The PDF is read as base64 on the client
-3. The base64 PDF is sent to the `process-exam-pdf` edge function
-4. The edge function sends the PDF content to **Lovable AI** (Gemini model with vision/multimodal support) with a structured prompt asking it to extract questions
-5. The AI returns structured question data via **tool calling** (not raw JSON)
-6. The edge function validates the response and inserts questions into the database
-7. The admin sees a success message with the number of questions created
+- Add a subtle `backdrop-blur` to the stats row for a frosted-glass look
+- Make the CTA buttons slightly larger with more breathing room
+- Add a subtle scroll-down indicator (animated chevron) at the bottom of the hero
+
+### 3. Features Section Refinement (File: `src/components/Features.tsx`)
+
+- Add a subtle gradient divider between Hero and Features for a smoother visual transition
+- No structural changes -- just minor spacing/padding tweaks
+
+### 4. Footer Year Update (File: `src/components/Footer.tsx`)
+
+- Update copyright year from 2024 to 2025
 
 ## Technical Details
 
-### File: `supabase/functions/process-exam-pdf/index.ts` (Full Rewrite)
+| File | Change |
+|------|--------|
+| `src/components/Hero.tsx` | Replace 2-column image layout with full-width background video + centered overlay content. Use an HTML `<video>` element with a free STEM video URL. Add gradient overlays for text readability. Add scroll indicator. |
+| `src/components/Features.tsx` | Minor spacing adjustments at the top for a smoother transition from the hero. |
+| `src/components/Footer.tsx` | Update copyright year to 2025. |
 
-Replace the entire custom PDF parser with an AI-powered approach:
+### Video Source
 
-- Remove: `pako` import, `decompress()`, `decode()`, `extractText()`, `detectType()`, `parseQuestions()` functions
-- Add: Call to Lovable AI gateway (`https://ai.gateway.lovable.dev/v1/chat/completions`) using `LOVABLE_API_KEY`
-- Use **Gemini 2.5 Flash** (`google/gemini-2.5-flash`) which supports multimodal input (can read PDF content directly)
-- Use **tool calling** to get structured output (array of questions with `question_text`, `question_type`, `options`, `correct_answer`, `marks`)
-- The system prompt will instruct the AI to extract every question from the document, classify types (multiple_choice, true_false, essay), identify correct answers, and extract options for MCQs
-- Handle rate limit (429) and payment (402) errors gracefully
-
-### File: `src/pages/ExamQuestions.tsx` (Minor Updates)
-
-- Update the PDF upload dialog description to clarify that any PDF format is now supported
-- Add a progress indicator ("Analyzing PDF with AI...") during processing since AI calls take longer than regex
-- Improve error messages for AI-specific failures (rate limits, etc.)
-
-### No Database Changes Required
-
-The `exam_questions` table schema already supports all needed fields (`question_text`, `question_type`, `options`, `correct_answer`, `marks`, `order_number`).
-
-### Edge Cases Handled
-
-| Scenario | Handling |
-|----------|----------|
-| Scanned/image PDF | Gemini multimodal can read images in PDFs |
-| Mixed format questions | AI classifies each question individually |
-| No questions found | Returns clear error message |
-| AI rate limited (429) | Returns user-friendly "try again later" message |
-| Very large PDF | Process first ~50 questions, warn if truncated |
-| Duplicate upload | Questions append to existing ones (admin can delete duplicates) |
+Will use a high-quality, royalty-free video URL from Pexels/Coverr CDN showing technology/STEM visuals (e.g., circuit boards, code on screens, robotics). The video loads via a direct URL -- no file upload needed. Falls back gracefully to a gradient background if the video fails to load.
 
