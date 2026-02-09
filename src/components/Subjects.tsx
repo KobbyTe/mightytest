@@ -1,4 +1,6 @@
-import { Beaker, Code2, Cog, Calculator, BrainCircuit, Bot } from "lucide-react";
+import { Beaker, Code2, Cog, Calculator, BrainCircuit, Bot, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const subjects = [
   {
@@ -53,9 +55,15 @@ const subjects = [
 
 const Subjects = () => {
   return (
-    <section id="subjects" className="py-24">
-      <div className="container mx-auto px-4">
+    <section id="subjects" className="relative py-24">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 dots-pattern pointer-events-none" />
+
+      <div className="container relative mx-auto px-4">
         <div className="text-center space-y-4 mb-16 animate-fade-in-up">
+          <span className="inline-block text-xs font-bold tracking-[0.2em] uppercase text-primary">
+            Explore Subjects
+          </span>
           <h2 className="text-4xl lg:text-5xl font-bold">
             <span className="text-foreground">Master All </span>
             <span className="text-gradient-primary">STEM Subjects</span>
@@ -81,7 +89,7 @@ const Subjects = () => {
                   <div className={`inline-flex p-4 rounded-xl ${subject.bgColor}/20 mb-4 group-hover:scale-110 transition-transform duration-300`}>
                     <Icon className={`w-10 h-10 ${subject.color}`} />
                   </div>
-                  <h3 className="text-2xl font-bold mb-2 group-hover:${subject.color} transition-colors">
+                  <h3 className="text-2xl font-bold mb-2 group-hover:text-primary transition-colors">
                     {subject.title}
                   </h3>
                   <p className="text-muted-foreground">
@@ -94,6 +102,16 @@ const Subjects = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* CTA */}
+        <div className="text-center mt-16">
+          <Link to="/auth">
+            <Button size="lg" className="text-lg px-10 py-7 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
+              Start Your STEM Journey
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+          </Link>
         </div>
       </div>
     </section>

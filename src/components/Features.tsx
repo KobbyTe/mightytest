@@ -50,8 +50,12 @@ const Features = () => {
     <section id="features" className="relative py-24 bg-muted/30">
       {/* Gradient divider from hero */}
       <div className="absolute top-0 left-0 right-0 h-24 -translate-y-full bg-gradient-to-b from-transparent to-muted/30 pointer-events-none" />
+
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-16 animate-fade-in-up">
+          <span className="inline-block text-xs font-bold tracking-[0.2em] uppercase text-primary">
+            Why Mighty Test
+          </span>
           <h2 className="text-4xl lg:text-5xl font-bold">
             <span className="text-gradient-primary">Powerful Features</span>
             <br />
@@ -68,7 +72,7 @@ const Features = () => {
             return (
               <div
                 key={index}
-                className="group p-6 rounded-2xl border-2 border-border bg-card hover:border-primary transition-all duration-300 hover:shadow-primary hover:-translate-y-2 animate-fade-in"
+                className="group p-8 rounded-2xl border-2 border-border bg-card hover:border-primary transition-all duration-300 hover:shadow-primary hover:-translate-y-2 animate-fade-in"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className={`inline-flex p-3 rounded-xl ${feature.bgColor} mb-4 group-hover:scale-110 transition-transform duration-300`}>
@@ -85,6 +89,9 @@ const Features = () => {
           })}
         </div>
       </div>
+
+      {/* Bottom gradient divider into Subjects */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 translate-y-full bg-gradient-to-b from-muted/30 to-transparent pointer-events-none z-10" />
     </section>
   );
 };

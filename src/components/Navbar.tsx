@@ -70,27 +70,27 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         {isOpen && (
           <div className="md:hidden py-4 space-y-4 animate-fade-in">
-            <Link 
-              to="/#features" 
+            <a 
+              href="#features" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Features
-            </Link>
-            <Link 
-              to="/#subjects" 
+            </a>
+            <a 
+              href="#subjects" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Subjects
-            </Link>
-            <Link 
-              to="/#about" 
+            </a>
+            <a 
+              href="#about" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               About
-            </Link>
+            </a>
             <div className="space-y-2 pt-4">
               {user ? (
                 <Link to={getDashboardPath()} onClick={() => setIsOpen(false)}>
