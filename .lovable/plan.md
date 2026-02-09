@@ -1,41 +1,61 @@
 
 
-# Fix: Exams Showing to Wrong Classes
+# Reliable PDF-to-Exam Generation Using AI
 
 ## The Problem
 
-When an exam is assigned to Grade 3 classes, students in Grade 5, Grade 8, and other grades also see it in their "Available Exams" section.
+The current PDF processing edge function uses custom regex-based text extraction (decompressing FlateDecode streams, matching patterns like `Question: ... Answer: ...`). This approach is fragile and fails on most real-world PDFs because:
 
-## Root Cause
+- It cannot handle image-based/scanned PDFs
+- Different PDF generators produce different internal stream formats
+- The regex patterns only match two specific question formats
+- Many PDFs use font encoding that breaks the text extraction
 
-In `Dashboard.tsx` (lines 183-193), there is a **fallback** that kicks in when a student's class has no exam assignments. Instead of showing "No exams available," it loads **ALL active exams** from the database:
+## The Solution
 
-```text
-if (assignedExams.length === 0) {
-  // Falls back to showing EVERY active exam to the student
-  const examsRes = await supabase.from('exams').select(...).eq('status', 'active');
-  assignedExams = examsRes.data;
-}
-```
+Replace the brittle custom parser with **AI-powered extraction**. The admin uploads a PDF, the system sends its content to the Lovable AI gateway (Gemini), which reliably extracts questions, options, correct answers, and question types -- regardless of PDF formatting.
 
-So any student whose class has zero assignments (e.g., a Grade 5 student) ends up seeing every exam on the platform, including ones assigned only to Grade 3.
+## How It Will Work
 
-## The Fix
-
-**Remove the fallback entirely.** If a student's class has no assigned exams, they should see an empty list with a friendly message -- not every exam on the platform.
-
-Additionally, if a student somehow has no `class_id` set, they should see a message saying they're not assigned to a class yet, rather than all exams.
-
-### File: `src/pages/Dashboard.tsx`
-
-**Change**: Delete lines 183-193 (the entire fallback block that queries all active exams when `assignedExams.length === 0`).
-
-The existing UI already handles the empty state correctly -- the "Available Exams" section will simply show no cards, and we can add a brief message like "No exams assigned to your class yet" for clarity.
+1. Admin clicks "Upload PDF" on the exam questions page
+2. The PDF is read as base64 on the client
+3. The base64 PDF is sent to the `process-exam-pdf` edge function
+4. The edge function sends the PDF content to **Lovable AI** (Gemini model with vision/multimodal support) with a structured prompt asking it to extract questions
+5. The AI returns structured question data via **tool calling** (not raw JSON)
+6. The edge function validates the response and inserts questions into the database
+7. The admin sees a success message with the number of questions created
 
 ## Technical Details
 
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Remove the fallback `if (assignedExams.length === 0)` block (lines 183-193) that loads all active exams. Optionally add a UI message for the empty state in the "Available Exams" section. |
+### File: `supabase/functions/process-exam-pdf/index.ts` (Full Rewrite)
 
-This is a single, targeted change. The exam assignment system and class filtering are working correctly -- the only issue is this fallback overriding the filtered results.
+Replace the entire custom PDF parser with an AI-powered approach:
+
+- Remove: `pako` import, `decompress()`, `decode()`, `extractText()`, `detectType()`, `parseQuestions()` functions
+- Add: Call to Lovable AI gateway (`https://ai.gateway.lovable.dev/v1/chat/completions`) using `LOVABLE_API_KEY`
+- Use **Gemini 2.5 Flash** (`google/gemini-2.5-flash`) which supports multimodal input (can read PDF content directly)
+- Use **tool calling** to get structured output (array of questions with `question_text`, `question_type`, `options`, `correct_answer`, `marks`)
+- The system prompt will instruct the AI to extract every question from the document, classify types (multiple_choice, true_false, essay), identify correct answers, and extract options for MCQs
+- Handle rate limit (429) and payment (402) errors gracefully
+
+### File: `src/pages/ExamQuestions.tsx` (Minor Updates)
+
+- Update the PDF upload dialog description to clarify that any PDF format is now supported
+- Add a progress indicator ("Analyzing PDF with AI...") during processing since AI calls take longer than regex
+- Improve error messages for AI-specific failures (rate limits, etc.)
+
+### No Database Changes Required
+
+The `exam_questions` table schema already supports all needed fields (`question_text`, `question_type`, `options`, `correct_answer`, `marks`, `order_number`).
+
+### Edge Cases Handled
+
+| Scenario | Handling |
+|----------|----------|
+| Scanned/image PDF | Gemini multimodal can read images in PDFs |
+| Mixed format questions | AI classifies each question individually |
+| No questions found | Returns clear error message |
+| AI rate limited (429) | Returns user-friendly "try again later" message |
+| Very large PDF | Process first ~50 questions, warn if truncated |
+| Duplicate upload | Questions append to existing ones (admin can delete duplicates) |
+
