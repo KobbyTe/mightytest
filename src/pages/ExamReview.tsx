@@ -156,9 +156,29 @@ export default function ExamReview() {
   useEffect(() => {
     if (attemptId && user) {
       loadReviewData().then((loadedAnswers) => {
-        const needsGeneration = loadedAnswers.some((a: Answer) => !a.review_text);
+        // Part 3: Detect generic/stale cached reviews that need regeneration
+        const genericPatterns = [/^Correct!/i, /^The correct answer is/i, /^Well done!/i, /^You did not answer/i];
+        const isGeneric = (text: string | null) => {
+          if (!text) return true;
+          return genericPatterns.some(p => p.test(text.trim()));
+        };
+
+        const needsGeneration = loadedAnswers.some((a: Answer) => isGeneric(a.review_text));
         if (needsGeneration && loadedAnswers.length > 0) {
-          generateReviews();
+          // Clear generic review_text so edge function regenerates them
+          const genericAnswerIds = loadedAnswers
+            .filter((a: Answer) => a.review_text && isGeneric(a.review_text))
+            .map((a: Answer) => a.id);
+
+          if (genericAnswerIds.length > 0) {
+            supabase
+              .from('exam_answers')
+              .update({ review_text: null })
+              .in('id', genericAnswerIds)
+              .then(() => generateReviews());
+          } else {
+            generateReviews();
+          }
         }
       });
     }
