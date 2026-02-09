@@ -1,36 +1,41 @@
 
 
-# Delete All Student Exam Scores and Attempts
+# Fix: Exams Showing to Wrong Classes
 
-## What Will Be Deleted
+## The Problem
 
-- **617 exam answer records** (individual question responses, AI review explanations)
-- **32 exam attempt records** (scores, grading status, timestamps)
+When an exam is assigned to Grade 3 classes, students in Grade 5, Grade 8, and other grades also see it in their "Available Exams" section.
 
-This will clear all student portals of any test history. The exams themselves and questions will remain intact so students can retake them.
+## Root Cause
 
-## Execution Order
+In `Dashboard.tsx` (lines 183-193), there is a **fallback** that kicks in when a student's class has no exam assignments. Instead of showing "No exams available," it loads **ALL active exams** from the database:
 
-Data must be deleted in the correct order to avoid foreign key issues:
+```text
+if (assignedExams.length === 0) {
+  // Falls back to showing EVERY active exam to the student
+  const examsRes = await supabase.from('exams').select(...).eq('status', 'active');
+  assignedExams = examsRes.data;
+}
+```
 
-1. **Delete all rows from `exam_answers`** -- must go first since answers reference attempts
-2. **Delete all rows from `exam_attempts`** -- can be deleted after answers are cleared
+So any student whose class has zero assignments (e.g., a Grade 5 student) ends up seeing every exam on the platform, including ones assigned only to Grade 3.
+
+## The Fix
+
+**Remove the fallback entirely.** If a student's class has no assigned exams, they should see an empty list with a friendly message -- not every exam on the platform.
+
+Additionally, if a student somehow has no `class_id` set, they should see a message saying they're not assigned to a class yet, rather than all exams.
+
+### File: `src/pages/Dashboard.tsx`
+
+**Change**: Delete lines 183-193 (the entire fallback block that queries all active exams when `assignedExams.length === 0`).
+
+The existing UI already handles the empty state correctly -- the "Available Exams" section will simply show no cards, and we can add a brief message like "No exams assigned to your class yet" for clarity.
 
 ## Technical Details
 
-Two SQL statements will be run using the database migration tool:
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Remove the fallback `if (assignedExams.length === 0)` block (lines 183-193) that loads all active exams. Optionally add a UI message for the empty state in the "Available Exams" section. |
 
-```sql
-DELETE FROM public.exam_answers;
-DELETE FROM public.exam_attempts;
-```
-
-No schema changes are needed -- only data removal.
-
-## Impact
-
-- All students will see a clean portal with no previous test scores
-- The exams and questions remain available for future assignments
-- Students can retake exams fresh
-- AI review explanations will be regenerated when students review future attempts
-
+This is a single, targeted change. The exam assignment system and class filtering are working correctly -- the only issue is this fallback overriding the filtered results.
