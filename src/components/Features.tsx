@@ -47,7 +47,9 @@ const features = [
 
 const Features = () => {
   return (
-    <section id="features" className="py-24 bg-muted/30">
+    <section id="features" className="relative py-24 bg-muted/30">
+      {/* Gradient divider from hero */}
+      <div className="absolute top-0 left-0 right-0 h-24 -translate-y-full bg-gradient-to-b from-transparent to-muted/30 pointer-events-none" />
       <div className="container mx-auto px-4">
         <div className="text-center space-y-4 mb-16 animate-fade-in-up">
           <h2 className="text-4xl lg:text-5xl font-bold">
