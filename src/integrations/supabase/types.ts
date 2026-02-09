@@ -64,6 +64,7 @@ export type Database = {
           is_correct: boolean | null
           marks_awarded: number | null
           question_id: string
+          review_text: string | null
         }
         Insert: {
           answer_text?: string | null
@@ -73,6 +74,7 @@ export type Database = {
           is_correct?: boolean | null
           marks_awarded?: number | null
           question_id: string
+          review_text?: string | null
         }
         Update: {
           answer_text?: string | null
@@ -82,6 +84,7 @@ export type Database = {
           is_correct?: boolean | null
           marks_awarded?: number | null
           question_id?: string
+          review_text?: string | null
         }
         Relationships: [
           {

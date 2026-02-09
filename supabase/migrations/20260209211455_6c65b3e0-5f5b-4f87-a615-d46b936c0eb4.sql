@@ -1,0 +1,1 @@
+ALTER TABLE public.exam_answers ADD COLUMN IF NOT EXISTS review_text text;
