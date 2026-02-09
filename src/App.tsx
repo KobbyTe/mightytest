@@ -19,6 +19,7 @@ const ExamTaking = lazy(() => import("./pages/ExamTaking"));
 const ExamQuestions = lazy(() => import("./pages/ExamQuestions"));
 const ExamGrading = lazy(() => import("./pages/ExamGrading"));
 const ExamAnalytics = lazy(() => import("./pages/ExamAnalytics"));
+const ExamReview = lazy(() => import("./pages/ExamReview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient with aggressive caching
