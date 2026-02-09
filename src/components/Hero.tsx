@@ -56,7 +56,7 @@ const Hero = () => {
           </div>
 
           {/* Heading */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
             <span className="text-gradient-primary">Mighty Test</span>
             <br />
             <span className="text-white">STEM Excellence</span>
