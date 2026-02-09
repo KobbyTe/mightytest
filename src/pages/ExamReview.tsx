@@ -320,29 +320,31 @@ export default function ExamReview() {
                       </div>
                     )}
 
-                    {/* AI Review Explanation */}
-                    {answer && (
-                      <div className="mt-1 p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/15">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-600">Explanation</span>
+                    {/* AI Review Explanation - always visible */}
+                    <div className="mt-2 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-300/40 dark:border-amber-500/20 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1 rounded-md bg-amber-400/20">
+                          <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                         </div>
-                        {reviewText ? (
-                          <p className="text-sm leading-relaxed text-foreground/80">{reviewText}</p>
-                        ) : generatingReviews ? (
-                          <div className="flex items-center gap-2">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-500" />
-                            <p className="text-sm text-muted-foreground italic">Generating explanation…</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground italic">
-                            {isCorrect
-                              ? (correctAnswer ? `Correct! The answer is "${correctAnswer}".` : 'Correct!')
-                              : (correctAnswer ? `The correct answer is "${correctAnswer}".` : 'Review the material for this topic.')}
-                          </p>
-                        )}
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Explanation</span>
                       </div>
-                    )}
+                      {reviewText ? (
+                        <p className="text-sm leading-relaxed text-foreground/90">{reviewText}</p>
+                      ) : generatingReviews ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
+                          <p className="text-sm text-muted-foreground italic">Generating explanation…</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-relaxed text-foreground/80">
+                          {isCorrect
+                            ? (correctAnswer ? `Well done! "${correctAnswer}" is correct.` : 'Correct! Great job on this question.')
+                            : answer
+                              ? (correctAnswer ? `The correct answer is "${correctAnswer}". Review this topic to strengthen your understanding.` : 'Review the material for this topic.')
+                              : (correctAnswer ? `You did not answer this question. The correct answer is "${correctAnswer}".` : 'You did not answer this question. Review the related material.')}
+                        </p>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );
