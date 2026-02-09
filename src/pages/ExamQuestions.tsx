@@ -337,7 +337,7 @@ export default function ExamQuestions() {
                       required
                     />
                     <p className="text-xs text-muted-foreground mt-2">
-                      Format: Questions should be numbered (Q1, Q2, etc.) followed by options (A, B, C, D) and correct answers marked clearly.
+                      Supports any PDF format — text-based, scanned, or image-based. AI will detect and extract questions automatically.
                     </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={uploadingPdf}>
