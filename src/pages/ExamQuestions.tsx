@@ -324,7 +324,7 @@ export default function ExamQuestions() {
                 <DialogHeader>
                   <DialogTitle>Upload Exam PDF</DialogTitle>
                   <DialogDescription>
-                    Upload a PDF containing questions and answers. The system will automatically extract and create questions.
+                    Upload any PDF containing exam questions and answers. Our AI will analyze the document and automatically extract all questions, options, and correct answers — regardless of formatting.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handlePdfUpload} className="space-y-4">
