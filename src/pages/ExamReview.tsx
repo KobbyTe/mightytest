@@ -263,14 +263,20 @@ export default function ExamReview() {
                     </div>
                   )}
 
-                  {/* Review explanation for incorrect answers */}
-                  {!isCorrect && answer && (
-                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <p className="text-xs font-semibold text-primary mb-1">📝 Review</p>
+                  {/* Review explanation for all answered questions */}
+                  {answer && (
+                    <div className={`p-3 rounded-lg border ${isCorrect ? 'bg-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20' : 'bg-primary/5 border-primary/20'}`}>
+                      <p className={`text-xs font-semibold mb-1 ${isCorrect ? 'text-[hsl(var(--success))]' : 'text-primary'}`}>
+                        {isCorrect ? '✅ Review' : '📝 Review'}
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {correctAnswer
-                          ? `The correct answer is "${correctAnswer}". Review this topic to strengthen your understanding.`
-                          : 'Review the material related to this question to improve your understanding.'}
+                        {isCorrect
+                          ? (correctAnswer
+                              ? `Correct! "${correctAnswer}" is the right answer. Well done — you've demonstrated a solid understanding of this concept.`
+                              : 'Correct! Great job on this question.')
+                          : (correctAnswer
+                              ? `The correct answer is "${correctAnswer}". Review this topic to strengthen your understanding.`
+                              : 'Review the material related to this question to improve your understanding.')}
                       </p>
                     </div>
                   )}
