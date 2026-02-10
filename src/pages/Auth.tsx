@@ -223,6 +223,7 @@ const Auth = () => {
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </button>
                         </div>
+                      </div>
                       <Button type="submit" className="w-full shadow-primary hover:shadow-glow transition-all mt-4" disabled={loading}>
                         {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
                       </Button>
