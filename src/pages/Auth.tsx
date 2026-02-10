@@ -20,6 +20,7 @@ const Auth = () => {
   const [showForgotCredentials, setShowForgotCredentials] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, role, loading: authLoading } = useAuth();
