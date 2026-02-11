@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import CodeTestRunner from '@/components/coding/CodeTestRunner';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,6 +32,7 @@ export default function ExamTaking() {
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [codingSubmitted, setCodingSubmitted] = useState<Record<string, boolean>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalTimeRemaining, setTotalTimeRemaining] = useState<number>(0);
   const [questionTimeRemaining, setQuestionTimeRemaining] = useState<number>(0);
@@ -79,7 +81,10 @@ export default function ExamTaking() {
         const question = currentQuestions.find(q => q.id === answer.question_id);
         if (!question) return answer;
 
-        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+        if (question.question_type === 'coding') {
+          // Coding questions are auto-graded at submission time
+          return answer;
+        } else if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
           const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
           const marks = isCorrect ? question.marks : 0;
           totalMarks += marks;
@@ -378,7 +383,10 @@ export default function ExamTaking() {
         const question = questions.find(q => q.id === answer.question_id);
         if (!question) continue;
 
-        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+        if (question.question_type === 'coding') {
+          // Coding answers already graded at submit time
+          gradedAnswers.push(answer);
+        } else if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
           const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
           const marksAwarded = isCorrect ? question.marks : 0;
           totalAutoGradedMarks += marksAwarded;
@@ -609,7 +617,8 @@ export default function ExamTaking() {
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline" className="text-xs">
                           {currentQuestion.question_type === 'multiple_choice' ? 'Multiple Choice' : 
-                           currentQuestion.question_type === 'true_false' ? 'True/False' : 'Essay'}
+                           currentQuestion.question_type === 'true_false' ? 'True/False' : 
+                           currentQuestion.question_type === 'coding' ? '💻 Coding' : 'Essay'}
                         </Badge>
                       </div>
                     </div>
@@ -691,6 +700,22 @@ export default function ExamTaking() {
                       💡 Essay questions will be manually graded by your instructor
                     </p>
                   </div>
+                )}
+
+                {currentQuestion.question_type === 'coding' && currentQuestion.options && (
+                  <CodeTestRunner
+                    questionId={currentQuestion.id}
+                    attemptId={attemptId!}
+                    questionText={currentQuestion.question_text}
+                    options={currentQuestion.options as any}
+                    marks={currentQuestion.marks}
+                    existingCode={answers[currentQuestion.id] || undefined}
+                    submitted={codingSubmitted[currentQuestion.id] || false}
+                    onSubmit={(code, passed, marksAwarded) => {
+                      handleAnswerChange(currentQuestion.id, code);
+                      setCodingSubmitted(prev => ({ ...prev, [currentQuestion.id]: true }));
+                    }}
+                  />
                 )}
 
                 {/* Navigation Buttons */}
