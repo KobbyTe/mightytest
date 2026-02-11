@@ -95,6 +95,18 @@ export default function ExamGrading() {
       
       setAnswers(answersData || []);
 
+      // Load code submissions for this attempt
+      const { data: codeSubs } = await supabase
+        .from('code_submissions')
+        .select('*')
+        .eq('attempt_id', attemptId);
+      
+      const codeMap: Record<string, any> = {};
+      (codeSubs || []).forEach((sub: any) => {
+        codeMap[sub.question_id] = sub;
+      });
+      setCodeSubmissions(codeMap);
+
       // Initialize answer grades
       const initialGrades: Record<string, { marks: number; feedback: string }> = {};
       (answersData || []).forEach((answer) => {
