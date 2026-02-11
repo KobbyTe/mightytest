@@ -23,7 +23,7 @@ interface Question {
 }
 
 export default function ExamTaking() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const attemptId = searchParams.get('attempt');
@@ -169,12 +169,13 @@ export default function ExamTaking() {
 
   // Load exam data
   useEffect(() => {
+    if (authLoading) return;
     if (!user || !attemptId) {
       navigate('/dashboard');
       return;
     }
     loadExamData();
-  }, [user, attemptId, navigate]);
+  }, [user, authLoading, attemptId, navigate]);
 
   // Total exam timer
   useEffect(() => {
@@ -305,7 +306,7 @@ export default function ExamTaking() {
       if (questionsError) throw questionsError;
       
       if (!questionsData || questionsData.length === 0) {
-        toast.error('No questions found for this exam');
+        toast.error('This exam has no questions yet. Please contact your teacher.');
         navigate('/dashboard');
         return;
       }
@@ -467,7 +468,7 @@ export default function ExamTaking() {
   const answeredCount = Object.keys(answers).filter(k => answers[k]?.trim()).length;
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
         <div className="flex flex-col items-center gap-4">

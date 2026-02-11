@@ -46,7 +46,7 @@ interface Attempt {
 
 export default function ExamGrading() {
   const { attemptId } = useParams();
-  const { user, role } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -55,12 +55,13 @@ export default function ExamGrading() {
   const [answerGrades, setAnswerGrades] = useState<Record<string, { marks: number; feedback: string }>>({});
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user || role !== 'admin') {
       navigate('/admin');
       return;
     }
     loadAttemptData();
-  }, [user, role, attemptId, navigate]);
+  }, [user, role, authLoading, attemptId, navigate]);
 
   const loadAttemptData = async () => {
     try {

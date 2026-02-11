@@ -25,7 +25,7 @@ interface Question {
 
 export default function ExamQuestions() {
   const { examId } = useParams();
-  const { user, role } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -44,12 +44,13 @@ export default function ExamQuestions() {
   });
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user || role !== 'admin') {
       navigate('/admin');
       return;
     }
     loadData();
-  }, [user, role, examId, navigate]);
+  }, [user, role, authLoading, examId, navigate]);
 
   const loadData = async () => {
     try {
