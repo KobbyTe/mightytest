@@ -278,7 +278,33 @@ export default function ExamGrading() {
                 )}
                 <div className="bg-muted/50 rounded p-3">
                   <p className="text-sm font-medium mb-1">Student's Answer:</p>
-                  <p className="text-sm">{answer.answer_text || 'No answer provided'}</p>
+                  {answer.question.question_type === 'coding' && codeSubmissions[answer.question_id] ? (
+                    <div className="space-y-3">
+                      <CodeEditor
+                        value={codeSubmissions[answer.question_id].code}
+                        language={codeSubmissions[answer.question_id].language}
+                        readOnly
+                        height="250px"
+                      />
+                      {codeSubmissions[answer.question_id].test_results && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">Test Results:</p>
+                          {(codeSubmissions[answer.question_id].test_results as any[]).map((tr: any, i: number) => (
+                            <div key={i} className={`flex items-center gap-2 p-2 rounded text-sm ${tr.passed ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
+                              {tr.passed ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                              <span>{tr.label}</span>
+                              {!tr.passed && <span className="ml-auto text-xs text-muted-foreground">Expected: "{tr.expected}" Got: "{tr.actual}"</span>}
+                            </div>
+                          ))}
+                          <Badge variant={codeSubmissions[answer.question_id].passed ? 'default' : 'destructive'} className="mt-1">
+                            {codeSubmissions[answer.question_id].passed ? 'All Passed' : 'Failed'}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm">{answer.answer_text || 'No answer provided'}</p>
+                  )}
                 </div>
                 {answer.is_correct !== null && (
                   <div className="flex items-center gap-2">
