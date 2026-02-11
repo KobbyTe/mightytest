@@ -17,6 +17,7 @@ import { Trash2, Edit, Eye, FileQuestion, CheckCircle, Clock, XCircle } from 'lu
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SchoolManagement from '@/components/admin/SchoolManagement';
 import ExamAssignment from '@/components/admin/ExamAssignment';
+import StudentManagement from '@/components/admin/StudentManagement';
 
 interface Exam {
   id: string;
