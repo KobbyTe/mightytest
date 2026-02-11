@@ -226,11 +226,12 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="exams">Exams</TabsTrigger>
             <TabsTrigger value="schools">Schools</TabsTrigger>
             <TabsTrigger value="assignments">Assignments</TabsTrigger>
             <TabsTrigger value="attempts">Attempts</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
           </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
