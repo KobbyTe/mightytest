@@ -62,7 +62,10 @@ const Auth = () => {
       const maxAttempts = 3;
       
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+        // Only delay on retries (2nd and 3rd attempts), not the first
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 300 * attempt));
+        }
         
         const { data, error } = await supabase
           .from('user_roles')
