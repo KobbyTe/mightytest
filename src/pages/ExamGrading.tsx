@@ -51,6 +51,7 @@ export default function ExamGrading() {
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [codeSubmissions, setCodeSubmissions] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [generalFeedback, setGeneralFeedback] = useState('');
   const [answerGrades, setAnswerGrades] = useState<Record<string, { marks: number; feedback: string }>>({});
