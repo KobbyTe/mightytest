@@ -32,6 +32,7 @@ export default function ExamTaking() {
   const [exam, setExam] = useState<any>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [codingSubmitted, setCodingSubmitted] = useState<Record<string, boolean>>({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [totalTimeRemaining, setTotalTimeRemaining] = useState<number>(0);
   const [questionTimeRemaining, setQuestionTimeRemaining] = useState<number>(0);
