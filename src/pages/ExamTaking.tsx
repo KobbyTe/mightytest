@@ -702,6 +702,22 @@ export default function ExamTaking() {
                   </div>
                 )}
 
+                {currentQuestion.question_type === 'coding' && currentQuestion.options && (
+                  <CodeTestRunner
+                    questionId={currentQuestion.id}
+                    attemptId={attemptId!}
+                    questionText={currentQuestion.question_text}
+                    options={currentQuestion.options as any}
+                    marks={currentQuestion.marks}
+                    existingCode={answers[currentQuestion.id] || undefined}
+                    submitted={codingSubmitted[currentQuestion.id] || false}
+                    onSubmit={(code, passed, marksAwarded) => {
+                      handleAnswerChange(currentQuestion.id, code);
+                      setCodingSubmitted(prev => ({ ...prev, [currentQuestion.id]: true }));
+                    }}
+                  />
+                )}
+
                 {/* Navigation Buttons */}
                 <div className="flex justify-between pt-6 border-t">
                   <Button
