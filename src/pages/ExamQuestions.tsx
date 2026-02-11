@@ -134,11 +134,14 @@ export default function ExamQuestions() {
     setFormData({
       question_text: question.question_text,
       question_type: question.question_type,
-      options: question.options || ['', '', '', ''],
+      options: question.question_type === 'coding' ? ['', '', '', ''] : (question.options || ['', '', '', '']),
       correct_answer: question.correct_answer || '',
       marks: question.marks,
       order_number: question.order_number
     });
+    if (question.question_type === 'coding' && question.options) {
+      setCodingMetadata(question.options as any);
+    }
     setIsDialogOpen(true);
   };
 
