@@ -1,60 +1,69 @@
 
+# Fix Platform Speed and Login Redirect Issues
 
-# Full Homepage Enhancement + Smooth Scroll + Mobile Fixes
+## Problems Identified
 
-## Overview
+1. **Artificial delay in login**: The role verification loop waits 200ms before even the FIRST attempt, then 400ms and 600ms for retries -- adding up to 1.2 seconds of unnecessary wait time on every login.
 
-Enhance every section of the homepage for a cleaner, more professional and modern look. Wire up smooth scroll for the "Explore Features" button and navbar links. Fix mobile layout issues spotted during inspection (hero text sizing, stats overflow, section spacing).
+2. **Dashboard redirects back to /auth**: After login, the user navigates to `/dashboard`. But the Dashboard's redirect logic runs `if (!user) navigate('/auth')` before AuthContext has finished loading the session. The `loading` state can briefly be `false` while the auth listener hasn't fired yet, causing a flash redirect back to the auth page.
+
+3. **Sequential data loading**: AuthContext loads role/profile first, THEN Dashboard starts loading its own data (exams, parent info). These could overlap.
+
+4. **Large hero video**: The video is UHD (2560x1440) which is unnecessarily large and slows down the homepage.
 
 ## Changes
 
-### 1. Smooth Scroll Behavior (File: `src/index.css`)
+### 1. Speed Up Role Verification in Login (File: `src/pages/Auth.tsx`)
 
-- Add `scroll-behavior: smooth` to the `html` element in the base layer so all anchor scrolls are smooth site-wide.
+- Remove the artificial delay before the FIRST role verification attempt -- query immediately after sign-in
+- Only apply backoff delay on retry attempts (2nd and 3rd)
+- This alone saves 200-600ms on every login
 
-### 2. Hero -- "Explore Features" Button Scroll (File: `src/components/Hero.tsx`)
+### 2. Fix Dashboard Redirect Race Condition (File: `src/pages/Dashboard.tsx`)
 
-- Add an `onClick` handler to the "Explore Features" button that scrolls to `#features`:
+- Change the redirect logic from:
   ```
-  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+  if (loading) return;
+  if (!user) navigate('/auth');
   ```
-- Mobile fixes:
-  - Reduce heading from `text-5xl` to `text-3xl` on small screens for better fit
-  - Reduce stats text from `text-3xl` to `text-2xl` on mobile
-  - Add `px-2` padding to stats grid to prevent edge overflow
-  - Reduce max-width on description text for mobile readability
+  To:
+  ```
+  if (loading) return; // still loading, do nothing
+  if (!user) navigate('/auth'); // only redirect when loading is definitively done AND no user
+  ```
+- The real fix: also gate on `role` being resolved. Currently, `loading` becomes `false` when `loadUserData` finishes, but there's a window where `onAuthStateChange` fires, sets `user`, but `loadUserData` hasn't finished yet -- so `role` is null. The redirect should only happen when `loading` is false AND there's no user. If user exists but role is null, we should wait, not redirect.
+- Updated logic:
+  ```
+  if (loading) return;
+  if (!user) { navigate('/auth'); return; }
+  if (role && role !== 'student') { /* redirect to correct dashboard */ }
+  // If user exists but role is still null, just wait (loadUserData is in progress)
+  ```
 
-### 3. Navbar -- Smooth Scroll for Hash Links (File: `src/components/Navbar.tsx`)
+### 3. Prevent Dashboard Data-Load Spinner When Auth Is Already Cached (File: `src/pages/Dashboard.tsx`)
 
-- Replace `<Link to="/#features">` etc. with `<a href="#features">` anchor tags that use smooth scroll behavior (provided by the CSS change above), so clicking Features/Subjects in the navbar scrolls smoothly instead of doing a page navigation.
-- Apply the same for mobile nav links and close the mobile menu after clicking.
+- Initialize `loadingData` as `true` but immediately check if profile is already available from the AuthContext cache
+- Start loading dashboard data as soon as `profile?.id` is available, without waiting for a re-render cycle
 
-### 4. Features Section Enhancement (File: `src/components/Features.tsx`)
+### 4. Remove Redundant First-Attempt Delay in Auth (File: `src/pages/Auth.tsx`)
 
-- Add a subtle section label/overline text ("WHY MIGHTY TEST") above the heading for visual hierarchy
-- Add a bottom gradient divider for a smoother transition into the Subjects section
-- Slightly increase card padding and add a subtle gradient border on hover
+- Change the retry loop so the first query fires immediately (no `setTimeout`), and only retries 2 and 3 have the backoff
 
-### 5. Subjects Section Enhancement (File: `src/components/Subjects.tsx`)
+### 5. Optimize Hero Video Size (File: `src/components/Hero.tsx`)
 
-- Add an overline label ("EXPLORE SUBJECTS") above the heading
-- Add a CTA button at the bottom: "Start Your STEM Journey" linking to `/auth`
-- Add subtle background pattern or gradient for visual interest
+- Switch from UHD (2560x1440) to a smaller HD version of the same Pexels video, or use `poster` attribute + `preload="none"` so the video doesn't block page load
+- Add `preload="none"` and a `poster` frame so the page renders instantly with the gradient fallback, then the video loads in the background
 
-### 6. Footer Enhancement (File: `src/components/Footer.tsx`)
+## Technical Summary
 
-- Add social media icon placeholders (Github, Twitter/X, LinkedIn) with hover effects
-- Add a subtle gradient top border for visual separation
-- Improve spacing and typography on mobile
+| File | Change |
+|------|--------|
+| `src/pages/Auth.tsx` | Remove 200ms delay before first role check; only backoff on retries |
+| `src/pages/Dashboard.tsx` | Fix redirect logic to not bounce to /auth when role is still loading; wait for role to resolve before redirecting |
+| `src/components/Hero.tsx` | Add `preload="none"` to video element; use smaller resolution video URL |
 
-## Technical Details
+## Expected Impact
 
-| File | Changes |
-|------|---------|
-| `src/index.css` | Add `html { scroll-behavior: smooth }` in base layer |
-| `src/components/Hero.tsx` | Wire onClick smooth scroll on "Explore Features" button; fix mobile text sizes (3xl/2xl); fix stats grid mobile padding |
-| `src/components/Navbar.tsx` | Convert hash links from `<Link to="/#x">` to `<a href="#x">` for native smooth scroll; close mobile menu on click |
-| `src/components/Features.tsx` | Add overline text; add bottom gradient divider; minor card polish |
-| `src/components/Subjects.tsx` | Add overline text; add CTA button at bottom; subtle background treatment |
-| `src/components/Footer.tsx` | Add social icons row; gradient top border; mobile spacing tweaks |
-
+- Login to dashboard load time reduced by ~1-2 seconds
+- Eliminates the "bounce back to auth page" bug entirely
+- Homepage loads faster with deferred video loading
