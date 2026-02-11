@@ -264,7 +264,8 @@ export default function ExamGrading() {
                   <Badge variant="secondary">{answer.question.marks} marks</Badge>
                 </CardTitle>
                 <CardDescription>
-                  {answer.question.question_type === 'essay' ? 'Essay Question' : 'Multiple Choice / True-False'}
+                  {answer.question.question_type === 'essay' ? 'Essay Question' : 
+                   answer.question.question_type === 'coding' ? '💻 Coding Question' : 'Multiple Choice / True-False'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
