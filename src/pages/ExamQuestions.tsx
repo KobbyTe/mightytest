@@ -91,12 +91,13 @@ export default function ExamQuestions() {
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const isCoding = formData.question_type === 'coding';
       const questionData = {
         exam_id: examId,
         question_text: formData.question_text,
         question_type: formData.question_type,
-        options: formData.question_type === 'multiple_choice' ? formData.options : null,
-        correct_answer: formData.question_type !== 'essay' ? formData.correct_answer : null,
+        options: isCoding ? codingMetadata : formData.question_type === 'multiple_choice' ? formData.options : null,
+        correct_answer: isCoding ? null : formData.question_type !== 'essay' ? formData.correct_answer : null,
         marks: formData.marks,
         order_number: editingQuestion ? editingQuestion.order_number : questions.length + 1
       };
