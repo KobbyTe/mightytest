@@ -81,7 +81,10 @@ export default function ExamTaking() {
         const question = currentQuestions.find(q => q.id === answer.question_id);
         if (!question) return answer;
 
-        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+        if (question.question_type === 'coding') {
+          // Coding questions are auto-graded at submission time
+          return answer;
+        } else if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
           const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
           const marks = isCorrect ? question.marks : 0;
           totalMarks += marks;
