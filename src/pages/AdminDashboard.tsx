@@ -579,6 +579,10 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="students">
+            <StudentManagement />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
