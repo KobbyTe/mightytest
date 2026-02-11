@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.delete-student]
 verify_jwt = false
+
+[functions.execute-code]
+verify_jwt = false

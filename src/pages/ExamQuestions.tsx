@@ -534,6 +534,14 @@ export default function ExamQuestions() {
                   </p>
                 </CardContent>
               )}
+              {question.question_type === 'coding' && question.options && (
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Badge variant="outline" className="gap-1"><Code className="h-3 w-3" />{(question.options as any).language}</Badge>
+                    <Badge variant="secondary">{((question.options as any).test_cases || []).length} test cases</Badge>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           ))}
 
