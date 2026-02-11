@@ -40,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const loadUserData = useCallback(async (userId: string) => {
+    // Signal that we're loading user data (prevents premature redirects)
+    setLoading(true);
+    
     // Check cache first
     const cached = userDataCache.get(userId);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
