@@ -1,71 +1,61 @@
 
 
-# Fix Exam Redirect and Missing Questions Issues
+# Add Student Management for Admins (Change Class and Delete)
 
-## Problems Found
-
-### 1. Victoria's Redirect Issue (ExamTaking.tsx)
-The `ExamTaking` page has the **same auth race condition** we fixed in Dashboard. On line 172, it checks `if (!user)` but does NOT check `loading`. When a student navigates to `/exam/take?attempt=...`, the auth context hasn't finished loading yet, so `user` is `null` and the page immediately redirects to `/dashboard`, which in turn may redirect to `/auth`.
-
-The same bug exists in `ExamQuestions.tsx` and `ExamGrading.tsx` (admin pages) -- they check `user` and `role` without waiting for `loading` to finish.
-
-### 2. "No Questions Found" for BALLOON CAR Exam
-The exam titled **"1st ASSESSMENT TEST (BALLOON CAR)"** (id: `14a435a1-...`) has **0 questions** in the database. This is a duplicate/incomplete exam -- the correct one is **"1st ASSESSMENT TEST (DIY BALLOON CAR)"** which has 30 questions. This is a data issue, not a code bug. The admin likely created the exam but never added questions to it.
+## Overview
+Add a new "Students" tab to the Admin Dashboard where admins can view all students, change a student's class assignment, and delete students entirely.
 
 ## Changes
 
-### 1. Fix ExamTaking Auth Guard (File: `src/pages/ExamTaking.tsx`)
+### 1. New "Students" Tab in Admin Dashboard (`src/pages/AdminDashboard.tsx`)
+- Add a 5th tab called "Students" to the existing TabsList
+- Display a searchable table of all students showing: Name, Email, School, Class, Grade, and Actions
+- Actions include: "Change Class" (opens a dialog) and "Delete" (with confirmation)
 
-Add `loading` from `useAuth()` and gate the redirect on `loading` being false:
+### 2. Student Management Component (`src/components/admin/StudentManagement.tsx` - new file)
+- Fetches all students with their school/class info
+- Search bar to find students by name or email
+- Filter by school
+- **Change Class**: Opens a dialog with school and class dropdowns. When the admin selects a new class, updates the student's `class_id` and `school_id` in the `students` table
+- **Delete Student**: Confirmation dialog, then deletes the student record from the `students` table and their auth account via a backend function
 
+### 3. Delete Student Backend Function (`supabase/functions/delete-student/index.ts` - new file)
+- Accepts a `student_id`
+- Looks up the student's `user_id`
+- Deletes the auth user (which cascades to delete the student record and related data)
+- Only callable by admins (verified via JWT role check)
+
+## Technical Details
+
+### Student Table Update (Change Class)
+Simple UPDATE query on the `students` table:
+```sql
+UPDATE students SET class_id = 'new-class-id', school_id = 'new-school-id' WHERE id = 'student-id'
 ```
-const { user, loading: authLoading } = useAuth();
+This is already allowed by the existing RLS policy: "Admins can manage students" (ALL command).
 
-useEffect(() => {
-  if (authLoading) return; // wait for auth to resolve
-  if (!user || !attemptId) {
-    navigate('/dashboard');
-    return;
-  }
-  loadExamData();
-}, [user, authLoading, attemptId, navigate]);
-```
+### Student Deletion
+- The edge function will use the Supabase service role to call `auth.admin.deleteUser(userId)`
+- This cascades through foreign keys to clean up related records
+- The function validates the caller is an admin before proceeding
 
-Also gate the loading spinner to show while `authLoading` is true.
+### UI Layout
+The Students tab will show:
 
-### 2. Fix ExamQuestions Auth Guard (File: `src/pages/ExamQuestions.tsx`)
+| Name | Email | School | Class | Actions |
+|------|-------|--------|-------|---------|
+| Victoria Blay | blay...@gmail.com | School Name | Class A | [Change Class] [Delete] |
 
-Add `loading` from `useAuth()` and wait for it:
+The "Change Class" dialog will have:
+- Current class displayed
+- School dropdown (to filter classes)
+- Class dropdown (filtered by selected school)
+- Save button
 
-```
-const { user, role, loading: authLoading } = useAuth();
-
-useEffect(() => {
-  if (authLoading) return;
-  if (!user || role !== 'admin') {
-    navigate('/admin');
-    return;
-  }
-  loadData();
-}, [user, role, authLoading, examId, navigate]);
-```
-
-### 3. Fix ExamGrading Auth Guard (File: `src/pages/ExamGrading.tsx`)
-
-Same pattern -- add `authLoading` check before the redirect.
-
-### 4. Improve "No Questions" UX (File: `src/pages/ExamTaking.tsx`)
-
-Instead of silently redirecting to dashboard when no questions are found, show a clearer error message so students know the exam has no questions yet and they should contact their teacher.
-
-## Technical Summary
-
-| File | Change |
+### Files to Create/Modify
+| File | Action |
 |------|--------|
-| `src/pages/ExamTaking.tsx` | Add `loading` check to auth guard so it waits for session before redirecting; improve no-questions error message |
-| `src/pages/ExamQuestions.tsx` | Add `loading` check to auth guard |
-| `src/pages/ExamGrading.tsx` | Add `loading` check to auth guard |
-
-## Data Note
-The "BALLOON CAR" exam with 0 questions is a separate exam entry from "DIY BALLOON CAR" (which has 30 questions). The admin should either add questions to it or delete the empty exam to avoid student confusion.
+| `src/components/admin/StudentManagement.tsx` | Create - new student management component |
+| `src/pages/AdminDashboard.tsx` | Modify - add Students tab |
+| `supabase/functions/delete-student/index.ts` | Create - backend function for deleting student auth accounts |
 
