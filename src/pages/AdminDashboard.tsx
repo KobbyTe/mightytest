@@ -17,6 +17,7 @@ import { Trash2, Edit, Eye, FileQuestion, CheckCircle, Clock, XCircle } from 'lu
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SchoolManagement from '@/components/admin/SchoolManagement';
 import ExamAssignment from '@/components/admin/ExamAssignment';
+import StudentManagement from '@/components/admin/StudentManagement';
 
 interface Exam {
   id: string;
@@ -225,11 +226,12 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="exams">Exams</TabsTrigger>
             <TabsTrigger value="schools">Schools</TabsTrigger>
             <TabsTrigger value="assignments">Assignments</TabsTrigger>
             <TabsTrigger value="attempts">Attempts</TabsTrigger>
+            <TabsTrigger value="students">Students</TabsTrigger>
           </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
@@ -576,6 +578,10 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="students">
+            <StudentManagement />
           </TabsContent>
         </Tabs>
       </main>
