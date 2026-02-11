@@ -55,6 +55,63 @@ export type Database = {
           },
         ]
       }
+      code_submissions: {
+        Row: {
+          attempt_id: string
+          code: string
+          execution_time_ms: number | null
+          id: string
+          language: string
+          passed: boolean | null
+          question_id: string
+          stderr: string | null
+          stdout: string | null
+          submitted_at: string
+          test_results: Json | null
+        }
+        Insert: {
+          attempt_id: string
+          code: string
+          execution_time_ms?: number | null
+          id?: string
+          language: string
+          passed?: boolean | null
+          question_id: string
+          stderr?: string | null
+          stdout?: string | null
+          submitted_at?: string
+          test_results?: Json | null
+        }
+        Update: {
+          attempt_id?: string
+          code?: string
+          execution_time_ms?: number | null
+          id?: string
+          language?: string
+          passed?: boolean | null
+          question_id?: string
+          stderr?: string | null
+          stdout?: string | null
+          submitted_at?: string
+          test_results?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_submissions_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_submissions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "exam_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exam_answers: {
         Row: {
           answer_text: string | null
