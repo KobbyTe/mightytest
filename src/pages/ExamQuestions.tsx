@@ -476,6 +476,10 @@ export default function ExamQuestions() {
                   </div>
                 )}
 
+                {formData.question_type === 'coding' && (
+                  <CodingQuestionForm value={codingMetadata} onChange={setCodingMetadata} />
+                )}
+
                 <Button type="submit" className="w-full">
                   {editingQuestion ? 'Update Question' : 'Add Question'}
                 </Button>
