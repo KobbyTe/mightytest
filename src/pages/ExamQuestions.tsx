@@ -408,6 +408,7 @@ export default function ExamQuestions() {
                         <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                         <SelectItem value="true_false">True/False</SelectItem>
                         <SelectItem value="essay">Essay</SelectItem>
+                        <SelectItem value="coding">Coding</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
