@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 const HERO_VIDEO_URL =
-  "https://videos.pexels.com/video-files/3129671/3129671-uhd_2560_1440_30fps.mp4";
+  "https://videos.pexels.com/video-files/3129671/3129671-hd_1920_1080_30fps.mp4";
 
 const Hero = () => {
   const { user, role } = useAuth();
@@ -33,6 +33,7 @@ const Hero = () => {
         muted
         loop
         playsInline
+        preload="none"
         onCanPlay={() => setVideoLoaded(true)}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
       >

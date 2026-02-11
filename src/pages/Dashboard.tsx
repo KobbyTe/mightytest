@@ -69,12 +69,14 @@ export default function Dashboard() {
   const [resendingCredentials, setResendingCredentials] = useState(false);
   const [showTour, setShowTour] = useState(false);
 
-  // Redirect logic
+  // Redirect logic — wait for auth to fully resolve before redirecting
   useEffect(() => {
-    if (loading) return;
-    if (!user) navigate('/auth');
-    else if (role === 'parent') navigate('/parent');
+    if (loading) return; // still loading, do nothing
+    if (!user) { navigate('/auth'); return; } // definitively no user
+    // User exists — check role (may still be null while loadUserData runs)
+    if (role === 'parent') navigate('/parent');
     else if (role === 'admin') navigate('/admin');
+    // If role is 'student' or still null, stay here (data will load once role resolves)
   }, [user, loading, role, navigate]);
 
   // Data loading
