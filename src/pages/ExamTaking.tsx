@@ -617,7 +617,8 @@ export default function ExamTaking() {
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline" className="text-xs">
                           {currentQuestion.question_type === 'multiple_choice' ? 'Multiple Choice' : 
-                           currentQuestion.question_type === 'true_false' ? 'True/False' : 'Essay'}
+                           currentQuestion.question_type === 'true_false' ? 'True/False' : 
+                           currentQuestion.question_type === 'coding' ? '💻 Coding' : 'Essay'}
                         </Badge>
                       </div>
                     </div>
