@@ -383,7 +383,10 @@ export default function ExamTaking() {
         const question = questions.find(q => q.id === answer.question_id);
         if (!question) continue;
 
-        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+        if (question.question_type === 'coding') {
+          // Coding answers already graded at submit time
+          gradedAnswers.push(answer);
+        } else if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
           const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
           const marksAwarded = isCorrect ? question.marks : 0;
           totalAutoGradedMarks += marksAwarded;
