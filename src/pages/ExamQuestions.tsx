@@ -43,6 +43,12 @@ export default function ExamQuestions() {
     marks: 1,
     order_number: 1
   });
+  const [codingMetadata, setCodingMetadata] = useState({
+    language: 'python',
+    starter_code: '# Write your solution here\n\ndef solve():\n    pass\n',
+    test_cases: [] as { input: string; expected_output: string; label: string }[],
+    time_limit_seconds: 10,
+  });
 
   useEffect(() => {
     if (authLoading) return;
