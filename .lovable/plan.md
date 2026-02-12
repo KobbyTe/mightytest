@@ -1,27 +1,37 @@
 
 
-# Fix Build Error: Add Missing CodeMirror Dependencies
+# Fix Student Registration and Build Issues
 
-## Problem
-The build fails because `CodeEditor.tsx` imports three packages that are **not listed** in `package.json`:
-- `@uiw/react-codemirror`
-- `@codemirror/lang-javascript`
-- `@codemirror/lang-cpp`
+## Two Issues Found
 
-Previous attempts to install these via tooling did not persist in the file.
+### Issue 1: Build Failure (Blocking Everything)
+The production build still fails because three CodeMirror packages are missing from `package.json`. Previous installation attempts did not persist. This must be fixed by directly editing `package.json`.
 
-## Fix
-Directly edit `package.json` to add the three missing packages in their correct alphabetical positions within the `dependencies` section:
+**Missing packages:**
+- `@uiw/react-codemirror` (version ^4.25.4)
+- `@codemirror/lang-javascript` (version ^6.2.0)
+- `@codemirror/lang-cpp` (version ^6.0.0)
 
-1. After `"@codemirror/lang-python"` (line 14), add:
-   - `"@codemirror/lang-cpp": "^6.0.0"`
-   - `"@codemirror/lang-javascript": "^6.2.0"`
+**Fix:** Manually add these three entries into the `dependencies` section of `package.json` at the correct alphabetical positions.
 
-2. After `"@uiw/codemirror-theme-vscode"` (line 45), add:
-   - `"@uiw/react-codemirror": "^4.25.4"`
+### Issue 2: Invalid Resend API Key (Email Only)
+The `RESEND_API_KEY` secret is configured but contains an invalid key. This causes a 401 error when trying to send parent credential emails after student registration.
 
-## Result
-The Rollup/Vite build will resolve all imports from `CodeEditor.tsx` and both preview and production deployments will succeed.
+**Important:** The registration itself still works -- students and parents are created successfully. Only the email delivery fails. The system already handles this gracefully and shows credentials on the dashboard instead.
 
-## Technical Detail
-The `dependencies` block (lines 13-69) will be edited with a line-replace to insert the three entries. No other files need changes.
+**Fix:** You need to update the `RESEND_API_KEY` with a valid API key from your Resend account (https://resend.com/api-keys). I will prompt you to enter the correct key.
+
+## Steps
+
+1. Add the three missing CodeMirror dependencies to `package.json`
+2. Prompt you to update the `RESEND_API_KEY` secret with a valid key
+3. Verify the build succeeds and registration works end-to-end
+
+## Technical Details
+
+**package.json edits (lines 14-15 and after line 45):**
+- Insert `"@codemirror/lang-cpp": "^6.0.0"` and `"@codemirror/lang-javascript": "^6.2.0"` after `@codemirror/lang-python`
+- Insert `"@uiw/react-codemirror": "^4.25.4"` after `@uiw/codemirror-theme-vscode`
+
+No changes needed to the register edge function code -- it already handles email failures gracefully.
+
