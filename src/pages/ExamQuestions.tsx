@@ -8,11 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, Upload, Code } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import CodingQuestionForm from '@/components/coding/CodingQuestionForm';
 
 interface Question {
   id: string;
@@ -42,12 +41,6 @@ export default function ExamQuestions() {
     correct_answer: '',
     marks: 1,
     order_number: 1
-  });
-  const [codingMetadata, setCodingMetadata] = useState({
-    language: 'python',
-    starter_code: '# Write your solution here\n\ndef solve():\n    pass\n',
-    test_cases: [] as { input: string; expected_output: string; label: string }[],
-    time_limit_seconds: 10,
   });
 
   useEffect(() => {
@@ -91,13 +84,12 @@ export default function ExamQuestions() {
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const isCoding = formData.question_type === 'coding';
       const questionData = {
         exam_id: examId,
         question_text: formData.question_text,
         question_type: formData.question_type,
-        options: isCoding ? codingMetadata : formData.question_type === 'multiple_choice' ? formData.options : null,
-        correct_answer: isCoding ? null : formData.question_type !== 'essay' ? formData.correct_answer : null,
+        options: formData.question_type === 'multiple_choice' ? formData.options : null,
+        correct_answer: formData.question_type !== 'essay' ? formData.correct_answer : null,
         marks: formData.marks,
         order_number: editingQuestion ? editingQuestion.order_number : questions.length + 1
       };
@@ -134,14 +126,11 @@ export default function ExamQuestions() {
     setFormData({
       question_text: question.question_text,
       question_type: question.question_type,
-      options: question.question_type === 'coding' ? ['', '', '', ''] : (question.options || ['', '', '', '']),
+      options: question.options || ['', '', '', ''],
       correct_answer: question.correct_answer || '',
       marks: question.marks,
       order_number: question.order_number
     });
-    if (question.question_type === 'coding' && question.options) {
-      setCodingMetadata(question.options as any);
-    }
     setIsDialogOpen(true);
   };
 
@@ -408,7 +397,6 @@ export default function ExamQuestions() {
                         <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
                         <SelectItem value="true_false">True/False</SelectItem>
                         <SelectItem value="essay">Essay</SelectItem>
-                        <SelectItem value="coding">Coding</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -476,10 +464,6 @@ export default function ExamQuestions() {
                   </div>
                 )}
 
-                {formData.question_type === 'coding' && (
-                  <CodingQuestionForm value={codingMetadata} onChange={setCodingMetadata} />
-                )}
-
                 <Button type="submit" className="w-full">
                   {editingQuestion ? 'Update Question' : 'Add Question'}
                 </Button>
@@ -532,14 +516,6 @@ export default function ExamQuestions() {
                   <p className="text-sm">
                     Correct Answer: <Badge variant="default">{question.correct_answer}</Badge>
                   </p>
-                </CardContent>
-              )}
-              {question.question_type === 'coding' && question.options && (
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="gap-1"><Code className="h-3 w-3" />{(question.options as any).language}</Badge>
-                    <Badge variant="secondary">{((question.options as any).test_cases || []).length} test cases</Badge>
-                  </div>
                 </CardContent>
               )}
             </Card>

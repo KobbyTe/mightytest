@@ -8,9 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, CheckCircle, XCircle, Code } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import CodeEditor from '@/components/coding/CodeEditor';
 
 interface Answer {
   id: string;
@@ -51,7 +50,7 @@ export default function ExamGrading() {
   const navigate = useNavigate();
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
-  const [codeSubmissions, setCodeSubmissions] = useState<Record<string, any>>({});
+  
   const [loading, setLoading] = useState(true);
   const [generalFeedback, setGeneralFeedback] = useState('');
   const [answerGrades, setAnswerGrades] = useState<Record<string, { marks: number; feedback: string }>>({});
@@ -94,18 +93,6 @@ export default function ExamGrading() {
       if (answersError) throw answersError;
       
       setAnswers(answersData || []);
-
-      // Load code submissions for this attempt
-      const { data: codeSubs } = await supabase
-        .from('code_submissions')
-        .select('*')
-        .eq('attempt_id', attemptId);
-      
-      const codeMap: Record<string, any> = {};
-      (codeSubs || []).forEach((sub: any) => {
-        codeMap[sub.question_id] = sub;
-      });
-      setCodeSubmissions(codeMap);
 
       // Initialize answer grades
       const initialGrades: Record<string, { marks: number; feedback: string }> = {};
@@ -264,8 +251,7 @@ export default function ExamGrading() {
                   <Badge variant="secondary">{answer.question.marks} marks</Badge>
                 </CardTitle>
                 <CardDescription>
-                  {answer.question.question_type === 'essay' ? 'Essay Question' : 
-                   answer.question.question_type === 'coding' ? '💻 Coding Question' : 'Multiple Choice / True-False'}
+                  {answer.question.question_type === 'essay' ? 'Essay Question' : 'Multiple Choice / True-False'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -278,33 +264,7 @@ export default function ExamGrading() {
                 )}
                 <div className="bg-muted/50 rounded p-3">
                   <p className="text-sm font-medium mb-1">Student's Answer:</p>
-                  {answer.question.question_type === 'coding' && codeSubmissions[answer.question_id] ? (
-                    <div className="space-y-3">
-                      <CodeEditor
-                        value={codeSubmissions[answer.question_id].code}
-                        language={codeSubmissions[answer.question_id].language}
-                        readOnly
-                        height="250px"
-                      />
-                      {codeSubmissions[answer.question_id].test_results && (
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">Test Results:</p>
-                          {(codeSubmissions[answer.question_id].test_results as any[]).map((tr: any, i: number) => (
-                            <div key={i} className={`flex items-center gap-2 p-2 rounded text-sm ${tr.passed ? 'bg-green-500/10' : 'bg-destructive/10'}`}>
-                              {tr.passed ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
-                              <span>{tr.label}</span>
-                              {!tr.passed && <span className="ml-auto text-xs text-muted-foreground">Expected: "{tr.expected}" Got: "{tr.actual}"</span>}
-                            </div>
-                          ))}
-                          <Badge variant={codeSubmissions[answer.question_id].passed ? 'default' : 'destructive'} className="mt-1">
-                            {codeSubmissions[answer.question_id].passed ? 'All Passed' : 'Failed'}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm">{answer.answer_text || 'No answer provided'}</p>
-                  )}
+                  <p className="text-sm">{answer.answer_text || 'No answer provided'}</p>
                 </div>
                 {answer.is_correct !== null && (
                   <div className="flex items-center gap-2">
