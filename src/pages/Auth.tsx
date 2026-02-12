@@ -198,15 +198,15 @@ const Auth = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="student" className="mt-6">
-              {showRegistration ? (
-                <div className="space-y-4">
-                  <Button variant="outline" onClick={() => setShowRegistration(false)} className="mb-4">
-                    ← Back to Login
-                  </Button>
-                  <StudentRegistration />
-                </div>
-              ) : (
+             <TabsContent value="student" className="mt-6">
+               {showRegistration ? (
+                 <div key="registration-form" className="space-y-4">
+                   <Button variant="outline" onClick={() => setShowRegistration(false)} className="mb-4">
+                     ← Back to Login
+                   </Button>
+                   <StudentRegistration key={`registration-${Date.now()}`} />
+                 </div>
+               ) : (
                 <Card className="border-2">
                   <CardHeader>
                     <CardTitle className="text-2xl">Student Login</CardTitle>
