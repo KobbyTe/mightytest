@@ -4,13 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, GraduationCap } from "lucide-react";
@@ -347,59 +340,55 @@ export const StudentRegistration = () => {
             </div>
           </div>
 
-          {/* School & Class Selection - NEW */}
-          <div className="pt-4 border-t">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              School & Class Information *
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="schoolId">Select School *</Label>
-                <Select
-                  value={formData.schoolId}
-                  onValueChange={(value) => handleChange('schoolId', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose your school" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.map(school => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name} ({school.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {schools.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No schools available. Contact admin.</p>
-                )}
-              </div>
+           {/* School & Class Selection - NEW */}
+           <div className="pt-4 border-t">
+             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+               <Building2 className="h-5 w-5 text-primary" />
+               School & Class Information *
+             </h3>
+             
+             <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-2">
+                 <Label htmlFor="schoolId">Select School *</Label>
+                 <select
+                   id="schoolId"
+                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                   value={formData.schoolId}
+                   onChange={(e) => handleChange('schoolId', e.target.value)}
+                 >
+                   <option value="">Choose your school</option>
+                   {schools.map(school => (
+                     <option key={school.id} value={school.id}>
+                       {school.name} ({school.code})
+                     </option>
+                   ))}
+                 </select>
+                 {schools.length === 0 && (
+                   <p className="text-xs text-muted-foreground">No schools available. Contact admin.</p>
+                 )}
+               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="classId">Select Class *</Label>
-                <Select
-                  value={formData.classId}
-                  onValueChange={(value) => handleChange('classId', value)}
-                  disabled={!formData.schoolId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.schoolId ? "Choose your class" : "Select school first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredClasses.map(cls => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name} {cls.grade_level && `(${cls.grade_level})`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {formData.schoolId && filteredClasses.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No classes in this school yet.</p>
-                )}
-              </div>
-            </div>
+               <div className="space-y-2">
+                 <Label htmlFor="classId">Select Class *</Label>
+                 <select
+                   id="classId"
+                   className="w-full h-10 px-3 rounded-md border border-input bg-background disabled:opacity-50"
+                   value={formData.classId}
+                   onChange={(e) => handleChange('classId', e.target.value)}
+                   disabled={!formData.schoolId}
+                 >
+                   <option value="">{formData.schoolId ? "Choose your class" : "Select school first"}</option>
+                   {filteredClasses.map(cls => (
+                     <option key={cls.id} value={cls.id}>
+                       {cls.name} {cls.grade_level && `(${cls.grade_level})`}
+                     </option>
+                   ))}
+                 </select>
+                 {formData.schoolId && filteredClasses.length === 0 && (
+                   <p className="text-xs text-muted-foreground">No classes in this school yet.</p>
+                 )}
+               </div>
+             </div>
 
             <div className="mt-4 space-y-2">
               <Label htmlFor="studentSchoolId">Student ID (Optional)</Label>
