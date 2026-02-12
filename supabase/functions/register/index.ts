@@ -360,32 +360,47 @@ serve(async (req) => {
       parentProfile = createdParentProfile;
     }
 
-    // Create student profile with school_id and class_id
-    const { error: studentProfileError } = await supabaseAdmin
-      .from('students')
-      .insert({
-        user_id: authData.user.id,
-        full_name: fullName,
-        date_of_birth: dateOfBirth,
-        gender: gender || 'prefer_not_to_say',
-        email,
-        phone_number: phoneNumber,
-        address_city: addressCity,
-        address_country: addressCountry,
-        grade,
-        school_name: schoolName,
-        school_id: schoolId || null,
-        class_id: classId || null,
-        student_school_id: studentSchoolId,
-        parent_id: parentProfile.id,
-        stem_interests: stemInterests || [],
-        programming_experience: programmingExperience || 'beginner',
-        programming_languages: programmingLanguages || []
-      });
+    // Create student profile with school_id and class_id (with retry for FK race condition)
+    const studentInsertData = {
+      user_id: authData.user.id,
+      full_name: fullName,
+      date_of_birth: dateOfBirth,
+      gender: gender || 'prefer_not_to_say',
+      email,
+      phone_number: phoneNumber,
+      address_city: addressCity,
+      address_country: addressCountry,
+      grade,
+      school_name: schoolName,
+      school_id: schoolId || null,
+      class_id: classId || null,
+      student_school_id: studentSchoolId,
+      parent_id: parentProfile.id,
+      stem_interests: stemInterests || [],
+      programming_experience: programmingExperience || 'beginner',
+      programming_languages: programmingLanguages || []
+    };
+
+    let studentProfileError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error } = await supabaseAdmin.from('students').insert(studentInsertData);
+      if (!error) {
+        studentProfileError = null;
+        break;
+      }
+      // Retry only on foreign key violation (auth user not yet visible)
+      if (error.code === '23503' && error.message?.includes('students_user_id_fkey')) {
+        console.log(`Student insert FK race condition, retry ${attempt + 1}/3...`);
+        await new Promise(r => setTimeout(r, 500));
+        studentProfileError = error;
+      } else {
+        studentProfileError = error;
+        break;
+      }
+    }
 
     if (studentProfileError) {
       console.error('Student profile creation error:', studentProfileError);
-      // Clean up all created data
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       if (parentUserId) {
         await supabaseAdmin.auth.admin.deleteUser(parentUserId);
