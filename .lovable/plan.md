@@ -1,37 +1,100 @@
 
 
-# Fix Student Registration and Build Issues
+# Remove Coding Tests and Fix Student Registration
 
-## Two Issues Found
+## Problem Summary
 
-### Issue 1: Build Failure (Blocking Everything)
-The production build still fails because three CodeMirror packages are missing from `package.json`. Previous installation attempts did not persist. This must be fixed by directly editing `package.json`.
+**Two issues to fix:**
 
-**Missing packages:**
-- `@uiw/react-codemirror` (version ^4.25.4)
-- `@codemirror/lang-javascript` (version ^6.2.0)
-- `@codemirror/lang-cpp` (version ^6.0.0)
+1. **Student registration fails** with error: `students_user_id_fkey` foreign key violation. The `students` table has a foreign key referencing `auth.users(id)`, but auth user creation via the admin API and the subsequent insert happen so fast that the auth user record is not yet visible to the database when the insert runs. This is a known timing issue with Supabase's `auth.admin.createUser`.
 
-**Fix:** Manually add these three entries into the `dependencies` section of `package.json` at the correct alphabetical positions.
+2. **Coding test feature** needs to be fully removed from the platform per your request.
 
-### Issue 2: Invalid Resend API Key (Email Only)
-The `RESEND_API_KEY` secret is configured but contains an invalid key. This causes a 401 error when trying to send parent credential emails after student registration.
+---
 
-**Important:** The registration itself still works -- students and parents are created successfully. Only the email delivery fails. The system already handles this gracefully and shows credentials on the dashboard instead.
+## Plan
 
-**Fix:** You need to update the `RESEND_API_KEY` with a valid API key from your Resend account (https://resend.com/api-keys). I will prompt you to enter the correct key.
+### Step 1: Fix Student Registration (Edge Function)
 
-## Steps
+The `register` edge function creates an auth user, then immediately inserts into the `students` table which has a foreign key to `auth.users`. The fix is to add a small delay and retry logic after creating the auth user, giving the database time to propagate the auth record before inserting the student profile.
 
-1. Add the three missing CodeMirror dependencies to `package.json`
-2. Prompt you to update the `RESEND_API_KEY` secret with a valid key
-3. Verify the build succeeds and registration works end-to-end
+**File:** `supabase/functions/register/index.ts`
+- Add a retry wrapper around the `students` insert (lines 364-384) that waits briefly (500ms) and retries up to 3 times if the foreign key error occurs
+- This handles the race condition without removing the foreign key constraint
+
+### Step 2: Remove Coding Test Components
+
+Delete the following files:
+- `src/components/coding/CodeEditor.tsx`
+- `src/components/coding/CodeTestRunner.tsx`
+- `src/components/coding/CodingQuestionForm.tsx`
+- `src/components/coding/HtmlPreview.tsx`
+
+### Step 3: Remove Coding Test Dependencies
+
+Remove from `package.json`:
+- `@codemirror/lang-cpp`
+- `@codemirror/lang-javascript`
+- `@codemirror/lang-python`
+- `@uiw/codemirror-theme-vscode`
+- `@uiw/react-codemirror`
+- `react-resizable-panels`
+
+### Step 4: Remove Coding References from Pages
+
+**`src/pages/ExamQuestions.tsx`:**
+- Remove `CodingQuestionForm` import
+- Remove `coding` from question type options
+- Remove coding-related state (`codingMetadata`) and conditional UI blocks
+
+**`src/pages/ExamTaking.tsx`:**
+- Remove `CodeTestRunner` import
+- Remove `codingSubmitted` state
+- Remove coding-specific grading/rendering logic
+
+**`src/pages/ExamGrading.tsx`:**
+- Remove `CodeEditor` import
+- Remove coding-specific display blocks and code submission fetching
+
+### Step 5: Remove Execute-Code Edge Function
+
+Delete `supabase/functions/execute-code/` since it only served the coding test feature.
+
+### Step 6: Drop `code_submissions` Table (Optional)
+
+The `code_submissions` table has zero rows. A migration will drop it to clean up the schema.
+
+---
 
 ## Technical Details
 
-**package.json edits (lines 14-15 and after line 45):**
-- Insert `"@codemirror/lang-cpp": "^6.0.0"` and `"@codemirror/lang-javascript": "^6.2.0"` after `@codemirror/lang-python`
-- Insert `"@uiw/react-codemirror": "^4.25.4"` after `@uiw/codemirror-theme-vscode`
+### Registration Fix - Retry Logic
 
-No changes needed to the register edge function code -- it already handles email failures gracefully.
+```text
+Insert student profile
+  |
+  v
+Foreign key error (23503)?
+  |-- No --> Continue
+  |-- Yes --> Wait 500ms, retry (up to 3 times)
+```
+
+The retry targets only error code `23503` on the `students_user_id_fkey` constraint, ensuring other errors still fail immediately.
+
+### Files Modified
+- `supabase/functions/register/index.ts` (add retry on student insert)
+- `src/pages/ExamQuestions.tsx` (remove coding question type)
+- `src/pages/ExamTaking.tsx` (remove CodeTestRunner usage)
+- `src/pages/ExamGrading.tsx` (remove CodeEditor usage)
+- `package.json` (remove 6 coding dependencies)
+
+### Files Deleted
+- `src/components/coding/CodeEditor.tsx`
+- `src/components/coding/CodeTestRunner.tsx`
+- `src/components/coding/CodingQuestionForm.tsx`
+- `src/components/coding/HtmlPreview.tsx`
+- `supabase/functions/execute-code/index.ts`
+
+### Database Migration
+- Drop `code_submissions` table
 
