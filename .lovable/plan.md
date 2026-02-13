@@ -1,100 +1,41 @@
 
 
-# Remove Coding Tests and Fix Student Registration
+# Add Forgot Password for Student Login
 
-## Problem Summary
+## What Changes
 
-**Two issues to fix:**
+Add a "Forgot password?" link to the Student Login tab that lets students reset their password via email. This uses the built-in password reset flow -- when a student enters their email, they receive a reset link, and clicking it redirects them back to the app where they can set a new password.
 
-1. **Student registration fails** with error: `students_user_id_fkey` foreign key violation. The `students` table has a foreign key referencing `auth.users(id)`, but auth user creation via the admin API and the subsequent insert happen so fast that the auth user record is not yet visible to the database when the insert runs. This is a known timing issue with Supabase's `auth.admin.createUser`.
+## How It Works
 
-2. **Coding test feature** needs to be fully removed from the platform per your request.
+1. Student clicks "Forgot password?" on the login form
+2. A small form appears asking for their email
+3. The system sends a password reset email with a magic link
+4. Student clicks the link, returns to the app, and sets a new password
+5. Student is redirected to their dashboard
 
----
+## Steps
 
-## Plan
+### 1. Add Forgot Password UI to Student Tab (Auth.tsx)
 
-### Step 1: Fix Student Registration (Edge Function)
+- Add a "Forgot password?" link below the student login form (similar to the parent "Forgot credentials?" link)
+- Show an inline form with email input and "Send Reset Link" button
+- Use a new state variable `showStudentForgotPassword` to toggle between login and reset views
+- Call `supabase.auth.resetPasswordForEmail()` with `redirectTo` set to the app's `/auth` page
 
-The `register` edge function creates an auth user, then immediately inserts into the `students` table which has a foreign key to `auth.users`. The fix is to add a small delay and retry logic after creating the auth user, giving the database time to propagate the auth record before inserting the student profile.
+### 2. Handle Password Reset Callback (Auth.tsx)
 
-**File:** `supabase/functions/register/index.ts`
-- Add a retry wrapper around the `students` insert (lines 364-384) that waits briefly (500ms) and retries up to 3 times if the foreign key error occurs
-- This handles the race condition without removing the foreign key constraint
-
-### Step 2: Remove Coding Test Components
-
-Delete the following files:
-- `src/components/coding/CodeEditor.tsx`
-- `src/components/coding/CodeTestRunner.tsx`
-- `src/components/coding/CodingQuestionForm.tsx`
-- `src/components/coding/HtmlPreview.tsx`
-
-### Step 3: Remove Coding Test Dependencies
-
-Remove from `package.json`:
-- `@codemirror/lang-cpp`
-- `@codemirror/lang-javascript`
-- `@codemirror/lang-python`
-- `@uiw/codemirror-theme-vscode`
-- `@uiw/react-codemirror`
-- `react-resizable-panels`
-
-### Step 4: Remove Coding References from Pages
-
-**`src/pages/ExamQuestions.tsx`:**
-- Remove `CodingQuestionForm` import
-- Remove `coding` from question type options
-- Remove coding-related state (`codingMetadata`) and conditional UI blocks
-
-**`src/pages/ExamTaking.tsx`:**
-- Remove `CodeTestRunner` import
-- Remove `codingSubmitted` state
-- Remove coding-specific grading/rendering logic
-
-**`src/pages/ExamGrading.tsx`:**
-- Remove `CodeEditor` import
-- Remove coding-specific display blocks and code submission fetching
-
-### Step 5: Remove Execute-Code Edge Function
-
-Delete `supabase/functions/execute-code/` since it only served the coding test feature.
-
-### Step 6: Drop `code_submissions` Table (Optional)
-
-The `code_submissions` table has zero rows. A migration will drop it to clean up the schema.
-
----
+- Detect the `PASSWORD_RECOVERY` event from `onAuthStateChange` in the Auth page
+- When detected, show a "Set New Password" form with password input and confirm
+- Call `supabase.auth.updateUser({ password })` to save the new password
+- Redirect to the student dashboard on success
 
 ## Technical Details
 
-### Registration Fix - Retry Logic
-
-```text
-Insert student profile
-  |
-  v
-Foreign key error (23503)?
-  |-- No --> Continue
-  |-- Yes --> Wait 500ms, retry (up to 3 times)
-```
-
-The retry targets only error code `23503` on the `students_user_id_fkey` constraint, ensuring other errors still fail immediately.
-
-### Files Modified
-- `supabase/functions/register/index.ts` (add retry on student insert)
-- `src/pages/ExamQuestions.tsx` (remove coding question type)
-- `src/pages/ExamTaking.tsx` (remove CodeTestRunner usage)
-- `src/pages/ExamGrading.tsx` (remove CodeEditor usage)
-- `package.json` (remove 6 coding dependencies)
-
-### Files Deleted
-- `src/components/coding/CodeEditor.tsx`
-- `src/components/coding/CodeTestRunner.tsx`
-- `src/components/coding/CodingQuestionForm.tsx`
-- `src/components/coding/HtmlPreview.tsx`
-- `supabase/functions/execute-code/index.ts`
-
-### Database Migration
-- Drop `code_submissions` table
+**Auth.tsx changes:**
+- New state: `showStudentForgotPassword`, `studentForgotEmail`, `studentForgotLoading`, `showResetPassword`, `newPassword`, `confirmPassword`, `resetLoading`
+- New handler: `handleStudentForgotPassword` -- calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/auth' })`
+- New handler: `handlePasswordReset` -- calls `supabase.auth.updateUser({ password: newPassword })`
+- New `useEffect`: listens for `PASSWORD_RECOVERY` event on `supabase.auth.onAuthStateChange` to toggle the reset password form
+- UI: Add "Forgot password?" button below the student sign-in button, and a reset password card that appears when the recovery link is clicked
 
