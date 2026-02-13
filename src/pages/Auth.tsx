@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Shield, Loader2, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { GraduationCap, Users, Shield, Loader2, Mail, ArrowLeft, Eye, EyeOff, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StudentRegistration } from "@/components/auth/StudentRegistration";
@@ -21,19 +21,45 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Student forgot password state
+  const [showStudentForgotPassword, setShowStudentForgotPassword] = useState(false);
+  const [studentForgotEmail, setStudentForgotEmail] = useState("");
+  const [studentForgotLoading, setStudentForgotLoading] = useState(false);
+
+  // Password reset (after clicking email link) state
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, role, loading: authLoading } = useAuth();
   const loginInProgressRef = useRef(false);
 
-  // Redirect authenticated users — but NOT during an active login
+  // Listen for PASSWORD_RECOVERY event
   useEffect(() => {
-    if (!authLoading && user && role && !loginInProgressRef.current) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowResetPassword(true);
+        setShowRegistration(false);
+        setShowStudentForgotPassword(false);
+        setActiveTab("student");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Redirect authenticated users — but NOT during an active login or password reset
+  useEffect(() => {
+    if (!authLoading && user && role && !loginInProgressRef.current && !showResetPassword) {
       if (role === 'admin') navigate('/admin');
       else if (role === 'parent') navigate('/parent');
       else navigate('/dashboard');
     }
-  }, [user, role, authLoading, navigate]);
+  }, [user, role, authLoading, navigate, showResetPassword]);
 
   const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin') => {
     e.preventDefault();
@@ -56,13 +82,11 @@ const Auth = () => {
         throw new Error(authError?.message || 'Invalid email or password');
       }
 
-      // Retry role verification with exponential backoff
       let roleData = null;
       let lastError = null;
       const maxAttempts = 3;
       
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        // Only delay on retries (2nd and 3rd attempts), not the first
         if (attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, 300 * attempt));
         }
@@ -145,6 +169,100 @@ const Auth = () => {
     }
   };
 
+  const handleStudentForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStudentForgotLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(studentForgotEmail, {
+        redirectTo: window.location.origin + '/auth',
+      });
+      if (error) throw error;
+
+      toast({
+        title: "Reset link sent! ✉️",
+        description: "If an account exists with that email, a password reset link has been sent.",
+      });
+      setShowStudentForgotPassword(false);
+      setStudentForgotEmail("");
+    } catch (error: any) {
+      console.error('Forgot password error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setStudentForgotLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure both passwords are the same.", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "Password too short", description: "Password must be at least 6 characters.", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      toast({ title: "Password updated! 🎉", description: "You can now log in with your new password." });
+      setShowResetPassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      navigate('/dashboard');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({ title: "Error", description: error.message || "Failed to reset password.", variant: "destructive" });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // If showing password reset form (user came from email link)
+  if (showResetPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-background">
+        <div className="w-full max-w-md animate-fade-in">
+          <Card className="border-2">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <KeyRound className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Set New Password</CardTitle>
+              <CardDescription>Enter your new password below</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <div className="relative">
+                    <Input id="new-password" type={showNewPassword ? "text" : "password"} placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className="pr-10" />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input id="confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                </div>
+                <Button type="submit" className="w-full" disabled={resetLoading}>
+                  {resetLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>) : "Update Password"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
@@ -206,6 +324,27 @@ const Auth = () => {
                    </Button>
                    <StudentRegistration key={`registration-${Date.now()}`} />
                  </div>
+               ) : showStudentForgotPassword ? (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-2xl">Reset Password</CardTitle>
+                    <CardDescription>We'll send a password reset link to your email</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <button onClick={() => setShowStudentForgotPassword(false)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowLeft className="h-3 w-3" /> Back to login
+                    </button>
+                    <form onSubmit={handleStudentForgotPassword} className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="student-forgot-email">Email Address</Label>
+                        <Input id="student-forgot-email" type="email" placeholder="student@example.com" value={studentForgotEmail} onChange={(e) => setStudentForgotEmail(e.target.value)} required />
+                      </div>
+                      <Button type="submit" className="w-full" disabled={studentForgotLoading}>
+                        {studentForgotLoading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>) : (<><Mail className="mr-2 h-4 w-4" />Send Reset Link</>)}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
                ) : (
                 <Card className="border-2">
                   <CardHeader>
@@ -231,9 +370,14 @@ const Auth = () => {
                         {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
                       </Button>
                     </form>
-                    <div className="text-center text-sm text-muted-foreground">
-                      Don't have an account?{" "}
-                      <button onClick={() => setShowRegistration(true)} className="text-primary hover:underline font-medium">Sign up</button>
+                    <div className="text-center space-y-1">
+                      <div className="text-sm text-muted-foreground">
+                        Don't have an account?{" "}
+                        <button onClick={() => setShowRegistration(true)} className="text-primary hover:underline font-medium">Sign up</button>
+                      </div>
+                      <button onClick={() => setShowStudentForgotPassword(true)} className="text-sm text-primary hover:underline font-medium">
+                        Forgot your password?
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
