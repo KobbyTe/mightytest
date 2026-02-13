@@ -33,6 +33,7 @@ const Auth = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [registrationKey, setRegistrationKey] = useState(0);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -322,7 +323,7 @@ const Auth = () => {
                    <Button variant="outline" onClick={() => setShowRegistration(false)} className="mb-4">
                      ← Back to Login
                    </Button>
-                   <StudentRegistration key={`registration-${Date.now()}`} />
+                   <StudentRegistration key={`registration-${registrationKey}`} />
                  </div>
                ) : showStudentForgotPassword ? (
                 <Card className="border-2">
@@ -373,7 +374,7 @@ const Auth = () => {
                     <div className="text-center space-y-1">
                       <div className="text-sm text-muted-foreground">
                         Don't have an account?{" "}
-                        <button onClick={() => setShowRegistration(true)} className="text-primary hover:underline font-medium">Sign up</button>
+                        <button onClick={() => { setRegistrationKey(k => k + 1); setShowRegistration(true); }} className="text-primary hover:underline font-medium">Sign up</button>
                       </div>
                       <button onClick={() => setShowStudentForgotPassword(true)} className="text-sm text-primary hover:underline font-medium">
                         Forgot your password?
