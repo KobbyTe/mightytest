@@ -139,6 +139,10 @@ serve(async (req) => {
     const parentPassword = generatePassword(10);
     const accessCode = generateAccessCode();
 
+    let parentId: string | null = null;
+    let parentCredentials: { email: string; password: string; accessCode: string } | null = null;
+    let parentAuthUserId: string | null = null;
+
     const { data: parentAuthData, error: parentAuthError } = await supabaseAdmin.auth.admin.createUser({
       email: parentEmail,
       password: parentPassword,
@@ -149,17 +153,58 @@ serve(async (req) => {
       },
     });
 
-    let parentId: string | null = null;
-    let parentCredentials: { email: string; password: string; accessCode: string } | null = null;
-
-    if (parentAuthError || !parentAuthData.user) {
-      console.error('Parent auth creation error (non-fatal):', parentAuthError);
-      // Non-fatal: student still gets created, parent account may already exist
-    } else {
-      // Assign parent role
+    if (parentAuthError) {
+      // If parent email already exists, look up existing parent
+      if (parentAuthError.message?.includes('already been registered') || (parentAuthError as any).code === 'email_exists') {
+        console.log('Parent email already exists, looking up existing user...');
+        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
+        const existingUser = usersData?.users?.find((u: any) => u.email === parentEmail);
+        if (existingUser) {
+          parentAuthUserId = existingUser.id;
+          // Check if parent profile already exists
+          const { data: existingParent } = await supabaseAdmin
+            .from('parents')
+            .select('id, access_code')
+            .eq('user_id', existingUser.id)
+            .maybeSingle();
+          if (existingParent) {
+            parentId = existingParent.id;
+            parentCredentials = { email: parentEmail, password: '(use your existing password)', accessCode: existingParent.access_code };
+          } else {
+            // User exists but no parent profile - create one
+            // Check if role already assigned
+            const { data: existingRole } = await supabaseAdmin.from('user_roles').select('id').eq('user_id', existingUser.id).eq('role', 'parent').maybeSingle();
+            if (!existingRole) {
+              await supabaseAdmin.from('user_roles').insert({ user_id: existingUser.id, role: 'parent' });
+            }
+            const { data: newParent } = await supabaseAdmin
+              .from('parents')
+              .insert({
+                user_id: existingUser.id,
+                full_name: parentName,
+                email: parentEmail,
+                phone_number: parentPhone || null,
+                relationship_to_student: parentRelationship || null,
+                access_code: accessCode,
+              })
+              .select('id')
+              .single();
+            if (newParent) {
+              parentId = newParent.id;
+              parentCredentials = { email: parentEmail, password: '(use your existing password)', accessCode };
+            }
+          }
+        } else {
+          console.error('Parent email exists but user not found in listing');
+        }
+      } else {
+        console.error('Parent auth creation error (non-fatal):', parentAuthError);
+      }
+    } else if (parentAuthData?.user) {
+      parentAuthUserId = parentAuthData.user.id;
+      // New parent account created successfully
       await supabaseAdmin.from('user_roles').insert({ user_id: parentAuthData.user.id, role: 'parent' });
 
-      // Create parent profile
       const { data: parentProfile, error: parentProfileError } = await supabaseAdmin
         .from('parents')
         .insert({
@@ -221,8 +266,9 @@ serve(async (req) => {
     if (studentProfileError || !studentData) {
       console.error('Student profile error:', studentProfileError);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      if (parentAuthData?.user) {
-        await supabaseAdmin.auth.admin.deleteUser(parentAuthData.user.id);
+      // Only delete parent if we just created them (not pre-existing)
+      if (parentAuthUserId && parentAuthData?.user) {
+        await supabaseAdmin.auth.admin.deleteUser(parentAuthUserId);
       }
       return new Response(
         JSON.stringify({ error: 'Failed to create student profile' }),
