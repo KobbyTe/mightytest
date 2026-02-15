@@ -39,7 +39,11 @@ const Auth = () => {
   const [studentIdCode, setStudentIdCode] = useState('');
   const [verifiedKeyInfo, setVerifiedKeyInfo] = useState<{ schoolName: string; className: string; keyCode: string } | null>(null);
   const [studentIdVerifying, setStudentIdVerifying] = useState(false);
-  const [studentIdForm, setStudentIdForm] = useState({ firstName: '', lastName: '', password: '', confirmPassword: '' });
+  const [studentIdForm, setStudentIdForm] = useState({
+    firstName: '', lastName: '', password: '', confirmPassword: '',
+    dateOfBirth: '', gender: '', phoneNumber: '', city: '', country: '',
+    parentName: '', parentGender: '', parentEmail: '', parentPhone: '', parentRelationship: '',
+  });
   const [studentIdRegistering, setStudentIdRegistering] = useState(false);
 
   const navigate = useNavigate();
@@ -404,14 +408,24 @@ const Auth = () => {
                            setStudentIdRegistering(true);
                            loginInProgressRef.current = true;
                            try {
-                             const { data, error } = await supabase.functions.invoke('register-with-key', {
-                               body: {
-                                 keyCode: verifiedKeyInfo.keyCode,
-                                 firstName: studentIdForm.firstName,
-                                 lastName: studentIdForm.lastName,
-                                 password: studentIdForm.password,
-                               },
-                             });
+                              const { data, error } = await supabase.functions.invoke('register-with-key', {
+                                body: {
+                                  keyCode: verifiedKeyInfo.keyCode,
+                                  firstName: studentIdForm.firstName,
+                                  lastName: studentIdForm.lastName,
+                                  password: studentIdForm.password,
+                                  dateOfBirth: studentIdForm.dateOfBirth,
+                                  gender: studentIdForm.gender,
+                                  phoneNumber: studentIdForm.phoneNumber,
+                                  city: studentIdForm.city,
+                                  country: studentIdForm.country,
+                                  parentName: studentIdForm.parentName,
+                                  parentGender: studentIdForm.parentGender,
+                                  parentEmail: studentIdForm.parentEmail,
+                                  parentPhone: studentIdForm.parentPhone,
+                                  parentRelationship: studentIdForm.parentRelationship,
+                                },
+                              });
                              if (error) throw error;
                              if (data?.error) throw new Error(data.error);
                              if (data?.session) {
@@ -434,27 +448,108 @@ const Auth = () => {
                              <p className="text-sm"><span className="font-medium">Class:</span> {verifiedKeyInfo.className}</p>
                              <p className="text-sm font-mono"><span className="font-medium font-sans">Student ID:</span> {verifiedKeyInfo.keyCode}</p>
                            </div>
-                           <div className="grid grid-cols-2 gap-3">
-                             <div className="space-y-2">
-                               <Label htmlFor="sid-first">First Name</Label>
-                               <Input id="sid-first" value={studentIdForm.firstName} onChange={e => setStudentIdForm(f => ({ ...f, firstName: e.target.value }))} required />
-                             </div>
-                             <div className="space-y-2">
-                               <Label htmlFor="sid-last">Last Name</Label>
-                               <Input id="sid-last" value={studentIdForm.lastName} onChange={e => setStudentIdForm(f => ({ ...f, lastName: e.target.value }))} required />
-                             </div>
-                           </div>
-                           <div className="space-y-2">
-                             <Label htmlFor="sid-password">Password</Label>
-                             <Input id="sid-password" type="password" placeholder="••••••••" value={studentIdForm.password} onChange={e => setStudentIdForm(f => ({ ...f, password: e.target.value }))} required />
-                           </div>
-                           <div className="space-y-2">
-                             <Label htmlFor="sid-confirm">Confirm Password</Label>
-                             <Input id="sid-confirm" type="password" placeholder="••••••••" value={studentIdForm.confirmPassword} onChange={e => setStudentIdForm(f => ({ ...f, confirmPassword: e.target.value }))} required />
-                           </div>
-                           <Button type="submit" className="w-full" disabled={studentIdRegistering}>
-                             {studentIdRegistering ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating Account...</> : 'Create Account'}
-                           </Button>
+                            {/* Student Details */}
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-semibold text-foreground">Student Details</h3>
+                              <div className="h-px bg-border" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-first">First Name</Label>
+                                <Input id="sid-first" value={studentIdForm.firstName} onChange={e => setStudentIdForm(f => ({ ...f, firstName: e.target.value }))} required />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-last">Last Name</Label>
+                                <Input id="sid-last" value={studentIdForm.lastName} onChange={e => setStudentIdForm(f => ({ ...f, lastName: e.target.value }))} required />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-dob">Date of Birth</Label>
+                                <Input id="sid-dob" type="date" value={studentIdForm.dateOfBirth} onChange={e => setStudentIdForm(f => ({ ...f, dateOfBirth: e.target.value }))} required />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-gender">Gender</Label>
+                                <select id="sid-gender" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.gender} onChange={e => setStudentIdForm(f => ({ ...f, gender: e.target.value }))} required>
+                                  <option value="">Select</option>
+                                  <option value="male">Male</option>
+                                  <option value="female">Female</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-phone">Phone Number</Label>
+                                <Input id="sid-phone" type="tel" placeholder="+1234567890" value={studentIdForm.phoneNumber} onChange={e => setStudentIdForm(f => ({ ...f, phoneNumber: e.target.value }))} />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-city">City</Label>
+                                <Input id="sid-city" value={studentIdForm.city} onChange={e => setStudentIdForm(f => ({ ...f, city: e.target.value }))} />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sid-country">Country</Label>
+                              <Input id="sid-country" value={studentIdForm.country} onChange={e => setStudentIdForm(f => ({ ...f, country: e.target.value }))} />
+                            </div>
+
+                            {/* Parent / Guardian Details */}
+                            <div className="space-y-1 pt-2">
+                              <h3 className="text-sm font-semibold text-foreground">Parent / Guardian Details</h3>
+                              <div className="h-px bg-border" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-pname">Full Name</Label>
+                                <Input id="sid-pname" value={studentIdForm.parentName} onChange={e => setStudentIdForm(f => ({ ...f, parentName: e.target.value }))} required />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-pgender">Gender</Label>
+                                <select id="sid-pgender" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentGender} onChange={e => setStudentIdForm(f => ({ ...f, parentGender: e.target.value }))} required>
+                                  <option value="">Select</option>
+                                  <option value="male">Male</option>
+                                  <option value="female">Female</option>
+                                  <option value="other">Other</option>
+                                </select>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-pemail">Email</Label>
+                                <Input id="sid-pemail" type="email" placeholder="parent@example.com" value={studentIdForm.parentEmail} onChange={e => setStudentIdForm(f => ({ ...f, parentEmail: e.target.value }))} required />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="sid-pphone">Phone Number</Label>
+                                <Input id="sid-pphone" type="tel" placeholder="+1234567890" value={studentIdForm.parentPhone} onChange={e => setStudentIdForm(f => ({ ...f, parentPhone: e.target.value }))} />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sid-prelation">Relationship to Student</Label>
+                              <select id="sid-prelation" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentRelationship} onChange={e => setStudentIdForm(f => ({ ...f, parentRelationship: e.target.value }))} required>
+                                <option value="">Select</option>
+                                <option value="father">Father</option>
+                                <option value="mother">Mother</option>
+                                <option value="guardian">Guardian</option>
+                                <option value="other">Other</option>
+                              </select>
+                            </div>
+
+                            {/* Password */}
+                            <div className="space-y-1 pt-2">
+                              <h3 className="text-sm font-semibold text-foreground">Account Password</h3>
+                              <div className="h-px bg-border" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sid-password">Password</Label>
+                              <Input id="sid-password" type="password" placeholder="••••••••" value={studentIdForm.password} onChange={e => setStudentIdForm(f => ({ ...f, password: e.target.value }))} required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="sid-confirm">Confirm Password</Label>
+                              <Input id="sid-confirm" type="password" placeholder="••••••••" value={studentIdForm.confirmPassword} onChange={e => setStudentIdForm(f => ({ ...f, confirmPassword: e.target.value }))} required />
+                            </div>
+                            <Button type="submit" className="w-full" disabled={studentIdRegistering}>
+                              {studentIdRegistering ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating Account...</> : 'Create Account'}
+                            </Button>
                          </form>
                        ) : null}
                      </CardContent>
