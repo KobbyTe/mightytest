@@ -1,112 +1,84 @@
 
 
-# Two-Step Student ID Authentication System
+# Two-Part Fix: Official Student ID Generation and Parent Credentials Display
 
-## Overview
+## Problem 1: Student ID Should Be Generated After Signup
 
-Replace the current email-based student sign-up with a two-step flow: (1) validate a pre-generated Student ID, then (2) create a profile with password -- no email required. Admins can generate and manage batches of Student IDs.
+Currently, the admin-generated key (e.g., `SCHOOL-CLASS-A1B2`) is reused as the student's permanent login ID. The user wants a different flow:
+- The admin key is only a **temporary validation code** to prove eligibility
+- After successful registration, the system generates a **unique official Student ID** (different format) that becomes the student's permanent login credential
 
-## Database Changes
+### Solution
 
-### New Table: `registration_keys`
+**Edge function (`register-with-key`):**
+- After validating the temporary key and creating the student, generate a new official Student ID in a distinct format, e.g., `STU-SCHOOLCODE-XXXX` (where XXXX is a random 4-character alphanumeric)
+- Use this official ID as the synthetic email: `{officialId}@studentid.internal`
+- Store the official ID in `students.student_id_code`
+- Return the official Student ID in the response so the frontend can display it
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | Primary key |
-| key_code | text | Unique, format: SCHOOLCODE-CLASSCODE-XXXX |
-| school_id | uuid | FK to schools |
-| class_id | uuid | FK to classes |
-| status | text | 'available' or 'claimed' |
-| claimed_by | uuid | Nullable, FK to students.id |
-| claimed_at | timestamptz | Nullable |
-| created_by | uuid | Admin who generated it |
-| created_at | timestamptz | Default now() |
+**Auth.tsx login:**
+- Update the Student ID detection logic to also recognize the new format (any input with dashes and no `@`)
+- No change needed since the detection logic already handles this
 
-RLS: Admins can manage all; unauthenticated users can SELECT where status = 'available' (needed for the validation step before login).
+**Auth.tsx signup success:**
+- After successful registration, display the generated official Student ID to the student so they know what to use for future logins
 
-### Students Table Update
+**Admin key management:**
+- No changes needed -- keys remain as temporary validation codes
 
-- Make `email` column nullable (currently NOT NULL)
-- Add `student_id_code` text column to store the registration key used
+---
 
-## Authentication Architecture
+## Problem 2: Parent Credentials Not Showing on Student Dashboard
 
-Since the backend auth system requires an email, we use a synthetic email pattern:
+Currently, after Student ID signup:
+1. The edge function returns `parentCredentials` (email, password, accessCode) in its response
+2. Auth.tsx receives `data.parentCredentials` but **never stores it** in `sessionStorage`
+3. Dashboard.tsx checks `sessionStorage.getItem('parentCredentials')` -- finds nothing
+4. Dashboard falls back to querying the `parents` table, but it only gets `email`, `access_code`, and `full_name` (no password), so the password shows as "not available"
 
-- When registering via Student ID, the system generates a fake email: `{STUDENT_ID}@studentid.internal`
-- This is invisible to the user -- they only ever see/use their Student ID
-- Login accepts Student ID, resolves it to the synthetic email, then authenticates normally
+### Solution
 
-## New Edge Function: `register-with-key`
+**Auth.tsx:** After successful Student ID registration, store `data.parentCredentials` in `sessionStorage` before navigating to the dashboard. This ensures the temporary password is visible on first login.
 
-1. Receives: `keyCode`, `firstName`, `lastName`, `password`
-2. Validates key exists and status = 'available'
-3. Looks up school_id/class_id from the key
-4. Creates auth user with synthetic email + password
-5. Creates student profile (no parent account created)
-6. Assigns 'student' role
-7. Marks key as 'claimed'
-8. Auto-enrolls in class exams
-9. Returns session data for auto-login
+---
 
-## Frontend Changes
+## Technical Changes
 
-### Auth.tsx -- Login Form
+### 1. Edge Function `register-with-key/index.ts`
 
-- Change the Email input to accept "Email or Student ID"
-- On submit, detect if the input looks like a Student ID (contains dashes, no @)
-- If Student ID: resolve to synthetic email `{id}@studentid.internal`, then call `signInWithPassword`
-- If email: proceed as before
+- Add a function to generate an official Student ID: `generateStudentId(schoolCode)` producing format `STU-{SCHOOLCODE}-{RANDOM4}`
+- Use this generated ID (instead of the temporary key code) for:
+  - The synthetic email: `{officialId.toLowerCase()}@studentid.internal`
+  - The `student_id_code` field in the students table
+- Return `officialStudentId` in the response JSON alongside `parentCredentials`
 
-### Auth.tsx -- Sign Up Options
+### 2. Auth.tsx -- Student ID Signup Success Handler
 
-Add a toggle/button: "Sign Up With Student ID" vs current email registration.
+- After successful registration, store `data.parentCredentials` in `sessionStorage`:
+  ```
+  sessionStorage.setItem('parentCredentials', JSON.stringify({
+    email: data.parentCredentials.email,
+    password: data.parentCredentials.password,
+    accessCode: data.parentCredentials.accessCode,
+    name: studentIdForm.parentName
+  }));
+  ```
+- Display the new official Student ID to the student (toast or brief dialog) so they know their login credential
 
-**Student ID Sign-Up Flow (new):**
-- Step 1: Single input for Student ID + "Verify" button
-- Step 2 (on success): Show read-only School Name and Class Name, plus First Name, Last Name, Password, Confirm Password fields. No email field.
+### 3. Dashboard.tsx -- No Changes Needed
 
-The existing email-based registration remains available as an alternative path.
+The dashboard already reads from `sessionStorage` first and falls back to the database. Once Auth.tsx stores the credentials, it will work.
 
-### Admin Dashboard -- Key Management Tab
+### 4. Login Detection
 
-Add a "Registration Keys" tab to the admin dashboard:
+The existing login detection logic (`!includes('@') && includes('-')`) already handles both formats, so no changes needed.
 
-- **Generate Keys**: Select a school and class, enter quantity (batch size), click "Generate". Creates keys in format `SCHOOLCODE-CLASSCODE-XXXX`.
-- **View Keys**: Table showing key_code, school, class, status (Available / Claimed by [Student Name]), created date.
-- **Filter/Search**: Filter by school, class, or status.
+---
 
-## Step-by-Step Implementation
+## Summary of Files to Change
 
-1. **Database migration**: Create `registration_keys` table with RLS policies. Alter `students.email` to be nullable. Add `student_id_code` column.
-
-2. **Edge function `register-with-key`**: Validate key, create auth user with synthetic email, create student profile, mark key claimed, auto-enroll in exams.
-
-3. **Auth.tsx login update**: Accept Student ID or email in the login field. Detect format and resolve accordingly.
-
-4. **Auth.tsx sign-up update**: Add "Sign Up With Student ID" option. Implement two-step form (validate key, then profile creation with auto-filled school/class).
-
-5. **Admin key management**: Add "Registration Keys" tab with generate batch and view/filter functionality.
-
-6. **Register edge function update**: Update existing `register` function to handle nullable email in student profile.
-
-## Technical Details
-
-**Key format generation** (in admin UI or edge function):
-```
-SCHOOLCODE-CLASSCODE-XXXX
-```
-Where XXXX is a random 4-character alphanumeric string. Uniqueness enforced by database constraint.
-
-**Login detection logic:**
-```typescript
-const isStudentId = !loginData.email.includes('@') && loginData.email.includes('-');
-const email = isStudentId 
-  ? `${loginData.email.toLowerCase()}@studentid.internal` 
-  : loginData.email;
-```
-
-**Forgot password**: Student ID users cannot use "Forgot Password" (no real email). The UI will hide this option when Student ID is detected, and show a message to contact their teacher instead.
-
-**AuthContext**: No changes needed -- it already loads roles and profiles by user_id regardless of email.
+| File | Change |
+|------|--------|
+| `supabase/functions/register-with-key/index.ts` | Generate official Student ID instead of reusing temp key; return it in response |
+| `src/pages/Auth.tsx` | Store parentCredentials in sessionStorage after signup; show official Student ID to user |
 
