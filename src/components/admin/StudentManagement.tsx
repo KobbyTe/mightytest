@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowRightLeft, Trash2, Users } from 'lucide-react';
+import { Search, ArrowRightLeft, Trash2, Users, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Student {
@@ -20,8 +20,12 @@ interface Student {
   school_id: string | null;
   class_id: string | null;
   user_id: string;
+  date_of_birth: string;
+  gender: string | null;
+  phone_number: string | null;
   school: { id: string; name: string } | null;
   class: { id: string; name: string } | null;
+  parent: { full_name: string; phone_number: string | null; relationship_to_student: string | null } | null;
 }
 
 interface School {
@@ -56,6 +60,10 @@ export default function StudentManagement() {
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // View details dialog
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewStudent, setViewStudent] = useState<Student | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -65,7 +73,7 @@ export default function StudentManagement() {
       const [studentsRes, schoolsRes, classesRes] = await Promise.all([
         supabase
           .from('students')
-          .select('id, full_name, email, grade, school_id, class_id, user_id, school:schools(id, name), class:classes(id, name)')
+          .select('id, full_name, email, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
           .order('full_name')
           .limit(1000),
         supabase.from('schools').select('id, name').order('name'),
@@ -246,6 +254,15 @@ export default function StudentManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => { setViewStudent(student); setViewOpen(true); }}
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => openChangeClass(student)}
                             title="Change Class"
                           >
@@ -353,6 +370,53 @@ export default function StudentManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* View Student Details */}
+      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Student Details</DialogTitle>
+            <DialogDescription>{viewStudent?.full_name}</DialogDescription>
+          </DialogHeader>
+          {viewStudent && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Student Information</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-muted-foreground">Email</span>
+                  <span>{viewStudent.email}</span>
+                  <span className="text-muted-foreground">Date of Birth</span>
+                  <span>{viewStudent.date_of_birth ? new Date(viewStudent.date_of_birth).toLocaleDateString() : '—'}</span>
+                  <span className="text-muted-foreground">Gender</span>
+                  <span className="capitalize">{viewStudent.gender || '—'}</span>
+                  <span className="text-muted-foreground">Phone</span>
+                  <span>{viewStudent.phone_number || '—'}</span>
+                  <span className="text-muted-foreground">Grade</span>
+                  <span>{viewStudent.grade || '—'}</span>
+                  <span className="text-muted-foreground">School</span>
+                  <span>{viewStudent.school?.name || '—'}</span>
+                  <span className="text-muted-foreground">Class</span>
+                  <span>{viewStudent.class?.name || '—'}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Parent / Guardian</h4>
+                {viewStudent.parent ? (
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Name</span>
+                    <span>{viewStudent.parent.full_name}</span>
+                    <span className="text-muted-foreground">Phone</span>
+                    <span>{viewStudent.parent.phone_number || '—'}</span>
+                    <span className="text-muted-foreground">Relationship</span>
+                    <span className="capitalize">{viewStudent.parent.relationship_to_student || '—'}</span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No parent linked</p>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
