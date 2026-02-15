@@ -6,17 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+function generatePassword(length = 10): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let password = '';
+  const array = new Uint8Array(length);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < length; i++) {
+    password += chars[array[i] % chars.length];
+  }
+  return password;
+}
+
+function generateAccessCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  const array = new Uint8Array(6);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < 6; i++) {
+    code += chars[array[i] % chars.length];
+  }
+  return code;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { keyCode, firstName, lastName, password } = await req.json();
+    const {
+      keyCode, firstName, lastName, password,
+      dateOfBirth, gender, phoneNumber, city, country,
+      parentName, parentGender, parentEmail, parentPhone, parentRelationship,
+    } = await req.json();
 
-    if (!keyCode || !firstName || !lastName || !password) {
+    if (!keyCode || !firstName || !lastName || !password || !dateOfBirth || !gender) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!parentName || !parentEmail) {
+      return new Response(
+        JSON.stringify({ error: 'Parent name and email are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -71,7 +104,7 @@ serve(async (req) => {
     const syntheticEmail = `${keyCode.toLowerCase()}@studentid.internal`;
     const fullName = `${firstName} ${lastName}`;
 
-    // Create auth user
+    // Create auth user for student
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: syntheticEmail,
       password,
@@ -90,17 +123,68 @@ serve(async (req) => {
       );
     }
 
+    // --- Create Parent Account ---
+    const parentPassword = generatePassword(10);
+    const accessCode = generateAccessCode();
+
+    const { data: parentAuthData, error: parentAuthError } = await supabaseAdmin.auth.admin.createUser({
+      email: parentEmail,
+      password: parentPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: parentName,
+        role: 'parent',
+      },
+    });
+
+    let parentId: string | null = null;
+    let parentCredentials: { email: string; password: string; accessCode: string } | null = null;
+
+    if (parentAuthError || !parentAuthData.user) {
+      console.error('Parent auth creation error (non-fatal):', parentAuthError);
+      // Non-fatal: student still gets created, parent account may already exist
+    } else {
+      // Assign parent role
+      await supabaseAdmin.from('user_roles').insert({ user_id: parentAuthData.user.id, role: 'parent' });
+
+      // Create parent profile
+      const { data: parentProfile, error: parentProfileError } = await supabaseAdmin
+        .from('parents')
+        .insert({
+          user_id: parentAuthData.user.id,
+          full_name: parentName,
+          email: parentEmail,
+          phone_number: parentPhone || null,
+          relationship_to_student: parentRelationship || null,
+          access_code: accessCode,
+        })
+        .select('id')
+        .single();
+
+      if (!parentProfileError && parentProfile) {
+        parentId = parentProfile.id;
+        parentCredentials = { email: parentEmail, password: parentPassword, accessCode };
+      } else {
+        console.error('Parent profile creation error:', parentProfileError);
+      }
+    }
+
     // Create student profile with retry for FK race condition
     const studentInsertData = {
       user_id: authData.user.id,
       full_name: fullName,
-      date_of_birth: '2000-01-01', // Default; can be updated later
+      date_of_birth: dateOfBirth,
+      gender: gender,
+      phone_number: phoneNumber || null,
+      address_city: city || null,
+      address_country: country || null,
       email: syntheticEmail,
       student_id_code: keyCode.toUpperCase(),
       school_id: key.school_id,
       class_id: key.class_id,
       school_name: schoolRes.data.name,
       grade: classRes.data.grade_level || null,
+      parent_id: parentId,
     };
 
     let studentProfileError: any = null;
@@ -125,6 +209,9 @@ serve(async (req) => {
     if (studentProfileError || !studentData) {
       console.error('Student profile error:', studentProfileError);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      if (parentAuthData?.user) {
+        await supabaseAdmin.auth.admin.deleteUser(parentAuthData.user.id);
+      }
       return new Response(
         JSON.stringify({ error: 'Failed to create student profile' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -160,6 +247,45 @@ serve(async (req) => {
       }
     }
 
+    // Send parent credentials email
+    if (parentCredentials) {
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      if (RESEND_API_KEY) {
+        try {
+          const emailRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'Mighty Test <onboarding@resend.dev>',
+              to: [parentCredentials.email],
+              subject: `Your Parent Dashboard Login Credentials - ${fullName}'s Account`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #6366f1;">Welcome to Mighty Test! 🎓</h2>
+                  <p>Dear ${parentName},</p>
+                  <p>Your child <strong>${fullName}</strong> has been registered on the Mighty Test platform. Here are your login credentials to access the Parent Dashboard:</p>
+                  <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                    <p style="margin: 4px 0;"><strong>Email:</strong> ${parentCredentials.email}</p>
+                    <p style="margin: 4px 0;"><strong>Password:</strong> ${parentCredentials.password}</p>
+                    <p style="margin: 4px 0;"><strong>Access Code:</strong> ${parentCredentials.accessCode}</p>
+                  </div>
+                  <p>Please change your password after your first login for security purposes.</p>
+                  <p>Best regards,<br/>The Mighty Test Team</p>
+                </div>
+              `,
+            }),
+          });
+          const emailResult = await emailRes.json();
+          console.log('Parent credential email sent:', emailResult);
+        } catch (emailErr) {
+          console.error('Failed to send parent email (non-fatal):', emailErr);
+        }
+      }
+    }
+
     // Sign in to get session for auto-login
     const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
       email: syntheticEmail,
@@ -173,6 +299,11 @@ serve(async (req) => {
         success: true,
         session: signInData?.session || null,
         user: authData.user,
+        parentCredentials: parentCredentials ? {
+          email: parentCredentials.email,
+          password: parentCredentials.password,
+          accessCode: parentCredentials.accessCode,
+        } : null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
