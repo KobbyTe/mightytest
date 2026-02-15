@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.execute-code]
 verify_jwt = false
+
+[functions.register-with-key]
+verify_jwt = false

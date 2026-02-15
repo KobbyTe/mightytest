@@ -34,6 +34,13 @@ const Auth = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [registrationKey, setRegistrationKey] = useState(0);
+  const [showStudentIdSignup, setShowStudentIdSignup] = useState(false);
+  const [studentIdStep, setStudentIdStep] = useState<'verify' | 'profile'>('verify');
+  const [studentIdCode, setStudentIdCode] = useState('');
+  const [verifiedKeyInfo, setVerifiedKeyInfo] = useState<{ schoolName: string; className: string; keyCode: string } | null>(null);
+  const [studentIdVerifying, setStudentIdVerifying] = useState(false);
+  const [studentIdForm, setStudentIdForm] = useState({ firstName: '', lastName: '', password: '', confirmPassword: '' });
+  const [studentIdRegistering, setStudentIdRegistering] = useState(false);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -68,8 +75,15 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Detect Student ID format: contains dashes, no @
+      const inputEmail = loginData.email;
+      const isStudentId = !inputEmail.includes('@') && inputEmail.includes('-');
+      const resolvedEmail = isStudentId
+        ? `${inputEmail.toLowerCase()}@studentid.internal`
+        : inputEmail;
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
+        email: resolvedEmail,
         password: loginData.password,
       });
 
@@ -318,7 +332,135 @@ const Auth = () => {
             </TabsList>
 
              <TabsContent value="student" className="mt-6">
-               {showRegistration ? (
+               {showStudentIdSignup ? (
+                 <div className="space-y-4">
+                   <Button variant="outline" onClick={() => { setShowStudentIdSignup(false); setStudentIdStep('verify'); setVerifiedKeyInfo(null); setStudentIdCode(''); }} className="mb-4">
+                     ← Back to Login
+                   </Button>
+                   <Card className="border-2">
+                     <CardHeader>
+                       <CardTitle className="text-2xl">Sign Up with Student ID</CardTitle>
+                       <CardDescription>
+                         {studentIdStep === 'verify' ? 'Enter the Student ID provided by your teacher' : 'Complete your profile to create your account'}
+                       </CardDescription>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                       {studentIdStep === 'verify' ? (
+                         <div className="space-y-4">
+                           <div className="space-y-2">
+                             <Label htmlFor="student-id-input">Student ID</Label>
+                             <Input
+                               id="student-id-input"
+                               type="text"
+                               placeholder="SCHOOL-CLASS-XXXX"
+                               value={studentIdCode}
+                               onChange={e => setStudentIdCode(e.target.value.toUpperCase())}
+                               required
+                             />
+                           </div>
+                           <Button
+                             className="w-full"
+                             disabled={studentIdVerifying || !studentIdCode.trim()}
+                             onClick={async () => {
+                               setStudentIdVerifying(true);
+                               try {
+                                 const { data, error } = await supabase
+                                   .from('registration_keys')
+                                   .select('key_code, status, school:schools(name), class:classes(name)')
+                                   .eq('key_code', studentIdCode.trim().toUpperCase())
+                                   .eq('status', 'available')
+                                   .maybeSingle();
+                                 if (error || !data) {
+                                   toast({ title: "Invalid Student ID", description: "Invalid or already-claimed ID. Please contact your teacher.", variant: "destructive" });
+                                   return;
+                                 }
+                                 setVerifiedKeyInfo({
+                                   schoolName: (data.school as any)?.name || 'Unknown',
+                                   className: (data.class as any)?.name || 'Unknown',
+                                   keyCode: data.key_code,
+                                 });
+                                 setStudentIdStep('profile');
+                               } catch (err: any) {
+                                 toast({ title: "Error", description: err.message || "Verification failed", variant: "destructive" });
+                               } finally {
+                                 setStudentIdVerifying(false);
+                               }
+                             }}
+                           >
+                             {studentIdVerifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</> : 'Verify Student ID'}
+                           </Button>
+                         </div>
+                       ) : verifiedKeyInfo ? (
+                         <form onSubmit={async (e) => {
+                           e.preventDefault();
+                           if (studentIdForm.password !== studentIdForm.confirmPassword) {
+                             toast({ title: "Passwords don't match", variant: "destructive" });
+                             return;
+                           }
+                           if (studentIdForm.password.length < 6) {
+                             toast({ title: "Password too short", description: "At least 6 characters required", variant: "destructive" });
+                             return;
+                           }
+                           setStudentIdRegistering(true);
+                           loginInProgressRef.current = true;
+                           try {
+                             const { data, error } = await supabase.functions.invoke('register-with-key', {
+                               body: {
+                                 keyCode: verifiedKeyInfo.keyCode,
+                                 firstName: studentIdForm.firstName,
+                                 lastName: studentIdForm.lastName,
+                                 password: studentIdForm.password,
+                               },
+                             });
+                             if (error) throw error;
+                             if (data?.error) throw new Error(data.error);
+                             if (data?.session) {
+                               await supabase.auth.setSession({
+                                 access_token: data.session.access_token,
+                                 refresh_token: data.session.refresh_token,
+                               });
+                             }
+                             toast({ title: "Account created! 🎉", description: "Welcome to the platform!" });
+                             navigate('/dashboard');
+                           } catch (err: any) {
+                             toast({ title: "Registration failed", description: err.message || "Please try again", variant: "destructive" });
+                           } finally {
+                             setStudentIdRegistering(false);
+                             loginInProgressRef.current = false;
+                           }
+                         }} className="space-y-4">
+                           <div className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                             <p className="text-sm"><span className="font-medium">School:</span> {verifiedKeyInfo.schoolName}</p>
+                             <p className="text-sm"><span className="font-medium">Class:</span> {verifiedKeyInfo.className}</p>
+                             <p className="text-sm font-mono"><span className="font-medium font-sans">Student ID:</span> {verifiedKeyInfo.keyCode}</p>
+                           </div>
+                           <div className="grid grid-cols-2 gap-3">
+                             <div className="space-y-2">
+                               <Label htmlFor="sid-first">First Name</Label>
+                               <Input id="sid-first" value={studentIdForm.firstName} onChange={e => setStudentIdForm(f => ({ ...f, firstName: e.target.value }))} required />
+                             </div>
+                             <div className="space-y-2">
+                               <Label htmlFor="sid-last">Last Name</Label>
+                               <Input id="sid-last" value={studentIdForm.lastName} onChange={e => setStudentIdForm(f => ({ ...f, lastName: e.target.value }))} required />
+                             </div>
+                           </div>
+                           <div className="space-y-2">
+                             <Label htmlFor="sid-password">Password</Label>
+                             <Input id="sid-password" type="password" placeholder="••••••••" value={studentIdForm.password} onChange={e => setStudentIdForm(f => ({ ...f, password: e.target.value }))} required />
+                           </div>
+                           <div className="space-y-2">
+                             <Label htmlFor="sid-confirm">Confirm Password</Label>
+                             <Input id="sid-confirm" type="password" placeholder="••••••••" value={studentIdForm.confirmPassword} onChange={e => setStudentIdForm(f => ({ ...f, confirmPassword: e.target.value }))} required />
+                           </div>
+                           <Button type="submit" className="w-full" disabled={studentIdRegistering}>
+                             {studentIdRegistering ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating Account...</> : 'Create Account'}
+                           </Button>
+                         </form>
+                       ) : null}
+                     </CardContent>
+                   </Card>
+                 </div>
+               ) : showRegistration ? (
                  <div key="registration-form" className="space-y-4">
                    <Button variant="outline" onClick={() => setShowRegistration(false)} className="mb-4">
                      ← Back to Login
@@ -347,17 +489,17 @@ const Auth = () => {
                   </CardContent>
                 </Card>
                ) : (
-                <Card className="border-2">
-                  <CardHeader>
-                    <CardTitle className="text-2xl">Student Login</CardTitle>
-                    <CardDescription>Access your STEM learning dashboard</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <form onSubmit={(e) => handleLogin(e, 'student')}>
-                      <div className="space-y-2">
-                        <Label htmlFor="student-email">Email</Label>
-                        <Input id="student-email" type="email" placeholder="student@example.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
-                      </div>
+                 <Card className="border-2">
+                   <CardHeader>
+                     <CardTitle className="text-2xl">Student Login</CardTitle>
+                     <CardDescription>Access your STEM learning dashboard</CardDescription>
+                   </CardHeader>
+                   <CardContent className="space-y-4">
+                     <form onSubmit={(e) => handleLogin(e, 'student')}>
+                       <div className="space-y-2">
+                         <Label htmlFor="student-email">Email or Student ID</Label>
+                         <Input id="student-email" type="text" placeholder="student@example.com or SCHOOL-CLASS-XXXX" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
+                       </div>
                       <div className="space-y-2 mt-4">
                         <Label htmlFor="student-password">Password</Label>
                         <div className="relative">
@@ -371,15 +513,23 @@ const Auth = () => {
                         {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
                       </Button>
                     </form>
-                    <div className="text-center space-y-1">
-                      <div className="text-sm text-muted-foreground">
-                        Don't have an account?{" "}
-                        <button onClick={() => { setRegistrationKey(k => k + 1); setShowRegistration(true); }} className="text-primary hover:underline font-medium">Sign up</button>
-                      </div>
-                      <button onClick={() => setShowStudentForgotPassword(true)} className="text-sm text-primary hover:underline font-medium">
-                        Forgot your password?
-                      </button>
-                    </div>
+                     <div className="text-center space-y-2">
+                       <div className="text-sm text-muted-foreground">
+                         Don't have an account?{" "}
+                         <button onClick={() => { setRegistrationKey(k => k + 1); setShowRegistration(true); }} className="text-primary hover:underline font-medium">Sign up with Email</button>
+                         {" or "}
+                         <button onClick={() => setShowStudentIdSignup(true)} className="text-primary hover:underline font-medium">Sign up with Student ID</button>
+                       </div>
+                       {/* Only show forgot password if input looks like email */}
+                       {(!loginData.email || loginData.email.includes('@') || !loginData.email.includes('-')) && (
+                         <button onClick={() => setShowStudentForgotPassword(true)} className="text-sm text-primary hover:underline font-medium">
+                           Forgot your password?
+                         </button>
+                       )}
+                       {loginData.email && !loginData.email.includes('@') && loginData.email.includes('-') && (
+                         <p className="text-xs text-muted-foreground">Student ID users: contact your teacher to reset your password.</p>
+                       )}
+                     </div>
                   </CardContent>
                 </Card>
               )}

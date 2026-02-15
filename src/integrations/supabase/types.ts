@@ -375,6 +375,64 @@ export type Database = {
         }
         Relationships: []
       }
+      registration_keys: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          class_id: string
+          created_at: string
+          created_by: string
+          id: string
+          key_code: string
+          school_id: string
+          status: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          class_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          key_code: string
+          school_id: string
+          status?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          class_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          key_code?: string
+          school_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_keys_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_keys_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_keys_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
           address: string | null
@@ -425,7 +483,7 @@ export type Database = {
           class_id: string | null
           created_at: string | null
           date_of_birth: string
-          email: string
+          email: string | null
           full_name: string
           gender: string | null
           grade: string | null
@@ -440,6 +498,7 @@ export type Database = {
           school_name: string | null
           skill_levels: Json | null
           stem_interests: string[] | null
+          student_id_code: string | null
           student_school_id: string | null
           updated_at: string | null
           user_id: string
@@ -451,7 +510,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string | null
           date_of_birth: string
-          email: string
+          email?: string | null
           full_name: string
           gender?: string | null
           grade?: string | null
@@ -466,6 +525,7 @@ export type Database = {
           school_name?: string | null
           skill_levels?: Json | null
           stem_interests?: string[] | null
+          student_id_code?: string | null
           student_school_id?: string | null
           updated_at?: string | null
           user_id: string
@@ -477,7 +537,7 @@ export type Database = {
           class_id?: string | null
           created_at?: string | null
           date_of_birth?: string
-          email?: string
+          email?: string | null
           full_name?: string
           gender?: string | null
           grade?: string | null
@@ -492,6 +552,7 @@ export type Database = {
           school_name?: string | null
           skill_levels?: Json | null
           stem_interests?: string[] | null
+          student_id_code?: string | null
           student_school_id?: string | null
           updated_at?: string | null
           user_id?: string
