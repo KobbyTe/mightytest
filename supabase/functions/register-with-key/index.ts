@@ -28,6 +28,17 @@ function generateAccessCode(): string {
   return code;
 }
 
+function generateStudentId(schoolCode: string): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  const array = new Uint8Array(4);
+  crypto.getRandomValues(array);
+  for (let i = 0; i < 4; i++) {
+    suffix += chars[array[i] % chars.length];
+  }
+  return `STU-${schoolCode.toUpperCase()}-${suffix}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -100,8 +111,9 @@ serve(async (req) => {
       );
     }
 
-    // Create synthetic email from key code
-    const syntheticEmail = `${keyCode.toLowerCase()}@studentid.internal`;
+    // Generate official Student ID (distinct from temporary key)
+    const officialStudentId = generateStudentId(schoolRes.data.code);
+    const syntheticEmail = `${officialStudentId.toLowerCase()}@studentid.internal`;
     const fullName = `${firstName} ${lastName}`;
 
     // Create auth user for student
@@ -179,7 +191,7 @@ serve(async (req) => {
       address_city: city || null,
       address_country: country || null,
       email: syntheticEmail,
-      student_id_code: keyCode.toUpperCase(),
+      student_id_code: officialStudentId,
       school_id: key.school_id,
       class_id: key.class_id,
       school_name: schoolRes.data.name,
@@ -299,6 +311,7 @@ serve(async (req) => {
         success: true,
         session: signInData?.session || null,
         user: authData.user,
+        officialStudentId,
         parentCredentials: parentCredentials ? {
           email: parentCredentials.email,
           password: parentCredentials.password,
