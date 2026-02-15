@@ -428,14 +428,31 @@ const Auth = () => {
                               });
                              if (error) throw error;
                              if (data?.error) throw new Error(data.error);
-                             if (data?.session) {
-                               await supabase.auth.setSession({
-                                 access_token: data.session.access_token,
-                                 refresh_token: data.session.refresh_token,
-                               });
-                             }
-                             toast({ title: "Account created! 🎉", description: "Welcome to the platform!" });
-                             navigate('/dashboard');
+                              if (data?.session) {
+                                await supabase.auth.setSession({
+                                  access_token: data.session.access_token,
+                                  refresh_token: data.session.refresh_token,
+                                });
+                              }
+                              // Store parent credentials in sessionStorage for dashboard display
+                              if (data?.parentCredentials) {
+                                sessionStorage.setItem('parentCredentials', JSON.stringify({
+                                  email: data.parentCredentials.email,
+                                  password: data.parentCredentials.password,
+                                  accessCode: data.parentCredentials.accessCode,
+                                  name: studentIdForm.parentName,
+                                }));
+                              }
+                              // Show official Student ID to user
+                              const officialId = data?.officialStudentId;
+                              toast({
+                                title: "Account created! 🎉",
+                                description: officialId
+                                  ? `Your official Student ID is: ${officialId}. Use this to log in.`
+                                  : "Welcome to the platform!",
+                                duration: 15000,
+                              });
+                              navigate('/dashboard');
                            } catch (err: any) {
                              toast({ title: "Registration failed", description: err.message || "Please try again", variant: "destructive" });
                            } finally {
