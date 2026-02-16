@@ -406,22 +406,40 @@ export default function Dashboard() {
                 My Profile
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Full Name</p>
-                <p className="font-semibold mt-1">{profile?.full_name}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
-                <p className="font-semibold mt-1 truncate">{profile?.email}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Grade</p>
-                <p className="font-semibold mt-1">{profile?.grade || 'Not specified'}</p>
-              </div>
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">School</p>
-                <p className="font-semibold mt-1">{profile?.school_name || 'Not specified'}</p>
+            <CardContent className="space-y-4">
+              {profile?.student_id_code && (
+                <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Student ID</p>
+                    <p className="font-bold text-lg text-primary mt-1">{profile.student_id_code}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(profile.student_id_code, 'studentId')}
+                    className="shrink-0"
+                  >
+                    {copiedField === 'studentId' ? <Check className="h-4 w-4 text-[hsl(var(--success))]" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 rounded-xl bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Full Name</p>
+                  <p className="font-semibold mt-1">{profile?.full_name}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
+                  <p className="font-semibold mt-1 truncate">{profile?.email}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Grade</p>
+                  <p className="font-semibold mt-1">{profile?.grade || 'Not specified'}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">School</p>
+                  <p className="font-semibold mt-1">{profile?.school_name || 'Not specified'}</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -16,6 +16,7 @@ interface Student {
   id: string;
   full_name: string;
   email: string;
+  student_id_code: string | null;
   grade: string | null;
   school_id: string | null;
   class_id: string | null;
@@ -73,7 +74,7 @@ export default function StudentManagement() {
       const [studentsRes, schoolsRes, classesRes] = await Promise.all([
         supabase
           .from('students')
-          .select('id, full_name, email, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
+          .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
           .order('full_name')
           .limit(1000),
         supabase.from('schools').select('id, name').order('name'),
@@ -214,9 +215,10 @@ export default function StudentManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>School</TableHead>
+                   <TableHead>Name</TableHead>
+                   <TableHead>Student ID</TableHead>
+                   <TableHead>Email</TableHead>
+                   <TableHead>School</TableHead>
                   <TableHead>Class</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -225,7 +227,7 @@ export default function StudentManagement() {
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       {search || schoolFilter !== 'all' ? 'No students match your search' : 'No students found'}
                     </TableCell>
                   </TableRow>
@@ -233,6 +235,13 @@ export default function StudentManagement() {
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>
                       <TableCell className="font-medium">{student.full_name}</TableCell>
+                      <TableCell>
+                        {student.student_id_code ? (
+                          <Badge variant="outline" className="font-mono text-xs">{student.student_id_code}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{student.email}</TableCell>
                       <TableCell>
                         {student.school ? (
@@ -382,8 +391,10 @@ export default function StudentManagement() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Student Information</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Email</span>
-                  <span>{viewStudent.email}</span>
+                   <span className="text-muted-foreground">Student ID</span>
+                   <span className="font-mono">{viewStudent.student_id_code || '—'}</span>
+                   <span className="text-muted-foreground">Email</span>
+                   <span>{viewStudent.email}</span>
                   <span className="text-muted-foreground">Date of Birth</span>
                   <span>{viewStudent.date_of_birth ? new Date(viewStudent.date_of_birth).toLocaleDateString() : '—'}</span>
                   <span className="text-muted-foreground">Gender</span>

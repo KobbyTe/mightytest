@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Optimized parallel queries with minimal field selection
       const [roleRes, studentRes, parentRes, prefsRes] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
-        supabase.from('students').select('id,user_id,full_name,email,grade,school_name,parent_id,class_id').eq('user_id', userId).maybeSingle(),
+        supabase.from('students').select('id,user_id,full_name,email,grade,school_name,parent_id,class_id,student_id_code').eq('user_id', userId).maybeSingle(),
         supabase.from('parents').select('id,user_id,full_name,email,access_code').eq('user_id', userId).maybeSingle(),
         supabase.from('user_preferences').select('theme,language,notifications_enabled').eq('user_id', userId).maybeSingle()
       ]);
