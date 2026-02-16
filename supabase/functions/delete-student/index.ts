@@ -59,8 +59,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get student's user_id
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // Get student's user_id
     const { data: student, error: studentErr } = await adminClient
       .from("students")
       .select("user_id")
@@ -74,7 +75,58 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete auth user (cascades to student record and related data)
+    // Delete related records in correct order to avoid FK constraint errors
+
+    // 1. Get all exam attempt IDs for this student
+    const { data: attempts } = await adminClient
+      .from("exam_attempts")
+      .select("id")
+      .eq("student_id", student_id);
+
+    const attemptIds = (attempts || []).map(a => a.id);
+
+    // 2. Delete exam_answers for those attempts
+    if (attemptIds.length > 0) {
+      await adminClient
+        .from("exam_answers")
+        .delete()
+        .in("attempt_id", attemptIds);
+    }
+
+    // 3. Delete exam_attempts
+    await adminClient
+      .from("exam_attempts")
+      .delete()
+      .eq("student_id", student_id);
+
+    // 4. Delete registration_keys claimed by this student
+    await adminClient
+      .from("registration_keys")
+      .update({ claimed_by: null, claimed_at: null, status: "active" })
+      .eq("claimed_by", student_id);
+
+    // 5. Delete user_preferences
+    await adminClient
+      .from("user_preferences")
+      .delete()
+      .eq("user_id", student.user_id);
+
+    // 6. Delete user_roles
+    await adminClient
+      .from("user_roles")
+      .delete()
+      .eq("user_id", student.user_id);
+
+    // 7. Delete student record
+    await adminClient
+      .from("students")
+      .delete()
+      .eq("id", student_id);
+
+    // 8. Delete parent if exists and no other children reference it
+    // (skip for now — parent may have multiple children)
+
+    // 9. Finally delete the auth user
     const { error: deleteErr } = await adminClient.auth.admin.deleteUser(student.user_id);
     if (deleteErr) {
       throw deleteErr;

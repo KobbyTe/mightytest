@@ -480,7 +480,6 @@ export default function ExamTaking() {
   const answeredCount = Object.keys(answers).filter(k => answers[k]?.trim()).length;
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
-  if (authLoading || loading) {
   if (showResults && resultData) {
     const percentage = resultData.totalMarks > 0 ? Math.round((resultData.marks / resultData.totalMarks) * 100) : 0;
     return (
@@ -573,6 +572,8 @@ export default function ExamTaking() {
       </div>
     );
   }
+
+  if (authLoading || loading) {
 
   return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
