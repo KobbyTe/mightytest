@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 
@@ -38,6 +38,15 @@ export default function ExamTaking() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [examStarted, setExamStarted] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [resultData, setResultData] = useState<{
+    marks: number;
+    totalMarks: number;
+    passingMarks: number;
+    passed: boolean;
+    hasEssay: boolean;
+    examTitle: string;
+  } | null>(null);
   
   const isSubmittingRef = useRef(false);
   const answersRef = useRef(answers);
@@ -436,13 +445,15 @@ export default function ExamTaking() {
         console.error('Failed to send notification:', notifyError);
       }
 
-      if (hasEssayQuestions) {
-        toast.success('Exam submitted! Your score will be available after manual grading.');
-      } else {
-        toast.success(`Exam submitted! You scored ${totalAutoGradedMarks} marks.`);
-      }
-      
-      navigate('/dashboard');
+      setResultData({
+        marks: totalAutoGradedMarks,
+        totalMarks: exam?.total_marks || 0,
+        passingMarks: exam?.passing_marks || 0,
+        passed: !hasEssayQuestions && totalAutoGradedMarks >= (exam?.passing_marks || 0),
+        hasEssay: hasEssayQuestions,
+        examTitle: exam?.title || 'Exam',
+      });
+      setShowResults(true);
     } catch (error) {
       console.error('Error submitting exam:', error);
       toast.error('Failed to submit exam');
@@ -470,7 +481,100 @@ export default function ExamTaking() {
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
   if (authLoading || loading) {
+  if (showResults && resultData) {
+    const percentage = resultData.totalMarks > 0 ? Math.round((resultData.marks / resultData.totalMarks) * 100) : 0;
     return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/10 flex items-center justify-center p-4">
+        <div className="max-w-lg w-full text-center space-y-8">
+          {/* Celebration Icon */}
+          <div className="relative inline-block">
+            <div className={`w-32 h-32 mx-auto rounded-full flex items-center justify-center ${
+              resultData.hasEssay
+                ? 'bg-secondary/20 border-4 border-secondary/40'
+                : resultData.passed
+                ? 'bg-[hsl(var(--success))]/20 border-4 border-[hsl(var(--success))]/40'
+                : 'bg-secondary/20 border-4 border-secondary/40'
+            }`}>
+              {resultData.hasEssay ? (
+                <Clock className="h-16 w-16 text-secondary" />
+              ) : resultData.passed ? (
+                <Trophy className="h-16 w-16 text-[hsl(var(--success))]" />
+              ) : (
+                <Star className="h-16 w-16 text-secondary" />
+              )}
+            </div>
+            {resultData.passed && !resultData.hasEssay && (
+              <>
+                <Sparkles className="absolute -top-2 -left-2 h-8 w-8 text-secondary animate-pulse" />
+                <Sparkles className="absolute -top-2 -right-2 h-6 w-6 text-primary animate-pulse delay-150" />
+                <Award className="absolute -bottom-2 -right-4 h-8 w-8 text-[hsl(var(--success))] animate-bounce" />
+              </>
+            )}
+          </div>
+
+          {/* Title */}
+          <div>
+            <h1 className="text-3xl font-bold mb-2">
+              {resultData.hasEssay
+                ? 'Exam Submitted! 📝'
+                : resultData.passed
+                ? 'Amazing Work! 🎉'
+                : 'Keep Going! 💪'}
+            </h1>
+            <p className="text-muted-foreground text-lg">{resultData.examTitle}</p>
+          </div>
+
+          {/* Score Display */}
+          {resultData.hasEssay ? (
+            <Card className="border-secondary/30">
+              <CardContent className="py-8">
+                <p className="text-lg text-muted-foreground">
+                  Your exam contains essay questions that require manual grading.
+                </p>
+                <p className="text-muted-foreground mt-2">
+                  Your score will be available once your instructor reviews your answers.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className={`border-2 ${resultData.passed ? 'border-[hsl(var(--success))]/30' : 'border-secondary/30'}`}>
+              <CardContent className="py-8 space-y-4">
+                <div className="text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  {resultData.marks}/{resultData.totalMarks}
+                </div>
+                <div className="text-2xl font-semibold text-muted-foreground">
+                  {percentage}%
+                </div>
+                <Badge 
+                  variant={resultData.passed ? 'default' : 'secondary'}
+                  className={`text-sm px-4 py-1 ${resultData.passed ? 'bg-[hsl(var(--success))] text-white' : ''}`}
+                >
+                  {resultData.passed ? '✓ PASSED' : 'NOT YET PASSED'}
+                </Badge>
+                <p className="text-muted-foreground mt-4">
+                  {resultData.passed
+                    ? 'Fantastic job! You crushed it! Keep up the great work! 🌟'
+                    : `You need ${resultData.passingMarks} marks to pass. Don't give up — practice makes perfect! 🚀`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Return Button */}
+          <Button
+            size="lg"
+            onClick={() => navigate('/dashboard')}
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-lg px-8 py-6"
+          >
+            Return to Dashboard
+            <ArrowRight className="ml-2 h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/10">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
