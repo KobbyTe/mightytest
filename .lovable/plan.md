@@ -1,88 +1,141 @@
-# Plan: Display Student ID Code & Email + Exam Score Celebration Screen
+
+# Plan: Resit Exam System
 
 ## Overview
-
-Three changes: (1) show the official Student ID code and email on the student dashboard profile card, (2) show them in the admin's student management table and details dialog, and (3) add a celebratory score results screen after exam submission instead of immediately redirecting to the dashboard.
-
----
-
-## Change 1: Student Dashboard Profile Card
-
-**File: `src/contexts/AuthContext.tsx**`
-
-- Add `student_id_code` to the student select query (line 60):
-  - From: `'id,user_id,full_name,email,grade,school_name,parent_id,class_id'`
-  - To: `'id,user_id,full_name,email,grade,school_name,parent_id,class_id,student_id_code'`
-
-**File: `src/pages/Dashboard.tsx**`
-
-- In the Profile Card section (around line 409-426), add two new fields:
-  - **Student ID**: `profile?.student_id_code` (displayed prominently with a badge style)
-  - **Email**: `profile?.email` (already shown, but ensure it displays the real email or the synthetic one clearly)
+Add a resit (retake) exam system where the admin can reopen an exam for a specific class, students apply for the resit, and the admin approves individual students before they can retake the exam.
 
 ---
 
-## Change 2: Admin Dashboard Student Management
+## Database Changes
 
-**File: `src/components/admin/StudentManagement.tsx**`
+### New Table: `resit_requests`
+Tracks which exams are open for resit per class, and individual student requests with admin approval status.
 
-- Add `student_id_code` to the student select query (line 76):
-  - Add it to the select fields
-- Add `student_id_code` to the `Student` interface
-- Add a "Student ID" column to the table between Name and Email
-- Add "Student ID" to the View Details dialog
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | Primary key |
+| exam_id | uuid | References exams |
+| class_id | uuid | References classes |
+| student_id | uuid | References students |
+| status | text | `pending`, `approved`, `rejected` (default: `pending`) |
+| requested_at | timestamptz | Default: now() |
+| reviewed_at | timestamptz | Nullable |
+| reviewed_by | uuid | Nullable (admin who reviewed) |
+| admin_note | text | Optional rejection/approval reason |
+| created_at | timestamptz | Default: now() |
+
+### New Table: `resit_openings`
+Tracks which exam+class combos are open for resit applications.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | Primary key |
+| exam_id | uuid | References exams |
+| class_id | uuid | References classes |
+| opened_by | uuid | Admin who opened it |
+| is_open | boolean | Default: true |
+| deadline | timestamptz | Nullable, deadline to apply |
+| created_at | timestamptz | Default: now() |
+
+### RLS Policies
+- **resit_openings**: Admins can manage all. Students can SELECT openings for their class.
+- **resit_requests**: Admins can manage all. Students can INSERT their own requests and SELECT their own requests.
 
 ---
 
-## Change 3: Exam Score Celebration Screen
+## Admin Side (ExamAssignment or new tab)
 
-**File: `src/pages/ExamTaking.tsx**`
+### "Resit Management" section added to Admin Dashboard
+A new tab called **"Resits"** in the admin dashboard with two sub-sections:
 
-- Instead of immediately navigating to `/dashboard` after submission, show a full-screen celebratory results overlay:
-  - Display the score prominently (e.g., "You scored 85/100!")
-  - Show pass/fail status with appropriate messaging
-  - Celebratory animations for passing (confetti-like styling, trophy icon, encouraging text like "Amazing work!")
-  - Encouraging message for failing ("Keep practicing, you'll get there!")
-  - A "Back to Dashboard" button that navigates after the student has seen their score
-- For essay-only exams (pending grading), show a "Submitted successfully! Your score will be available after grading." message instead
-- Add a new state `showResults` with `resultData` (marks, total, passed, hasEssay) to control the overlay
+1. **Open Resit Portal**: Admin selects a school, class, and exam, then clicks "Open for Resit". This creates a `resit_openings` row. Admin can also close the portal and set a deadline.
+
+2. **Review Resit Requests**: A table showing all pending resit requests with student name, exam title, class, original score, and approve/reject buttons. Bulk approve option included.
+
+When an admin approves a request:
+- The `resit_requests.status` is set to `approved`
+- This allows the student to register a new `exam_attempts` row for that exam
+
+---
+
+## Student Side (Dashboard)
+
+### Resit Section on Student Dashboard
+Below the "Available Exams" section, a new **"Resit Exams"** section appears if there are any open resit portals for the student's class and the student has a completed/graded attempt for that exam.
+
+- Shows the exam name, original score, and deadline
+- Student clicks **"Apply for Resit"** which creates a `resit_requests` row with status `pending`
+- Once approved, the exam appears in available exams again with a "Resit" badge and the student can register a new attempt
+- If pending, shows "Awaiting Approval" status
+- If rejected, shows "Rejected" with admin note
+
+### Exam Registration Logic Update
+The `handleRegisterExam` function in Dashboard.tsx will be updated:
+- Before inserting a new attempt, check if the student already has a completed/graded attempt
+- If yes, verify there is an approved `resit_requests` entry for this student+exam combo
+- If no approved resit, block registration with a message
+- If approved, allow the new attempt (the existing unique constraint on exam_attempts may need to be relaxed -- currently there's no unique constraint based on the error handling code, so multiple attempts should work)
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| Migration SQL | Create | New `resit_openings` and `resit_requests` tables with RLS |
+| `src/components/admin/ResitManagement.tsx` | Create | Admin UI for opening resits and approving requests |
+| `src/pages/AdminDashboard.tsx` | Modify | Add "Resits" tab |
+| `src/pages/Dashboard.tsx` | Modify | Add resit section and update exam registration logic |
 
 ---
 
 ## Technical Details
 
-### AuthContext query change (line 60)
+### Migration SQL
+```text
+-- resit_openings table
+CREATE TABLE public.resit_openings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_id UUID NOT NULL,
+  class_id UUID NOT NULL,
+  opened_by UUID,
+  is_open BOOLEAN DEFAULT true,
+  deadline TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(exam_id, class_id)
+);
 
+ALTER TABLE public.resit_openings ENABLE ROW LEVEL SECURITY;
+
+-- resit_requests table
+CREATE TABLE public.resit_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  exam_id UUID NOT NULL,
+  class_id UUID NOT NULL,
+  student_id UUID NOT NULL,
+  status TEXT DEFAULT 'pending',
+  requested_at TIMESTAMPTZ DEFAULT now(),
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by UUID,
+  admin_note TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(exam_id, student_id)
+);
+
+ALTER TABLE public.resit_requests ENABLE ROW LEVEL SECURITY;
 ```
-supabase.from('students').select('id,user_id,full_name,email,grade,school_name,parent_id,class_id,student_id_code')
-```
 
-### Dashboard profile card additions
+### Admin Resit Workflow
+1. Admin goes to "Resits" tab
+2. Clicks "Open Resit Portal" -- selects school, class, exam
+3. Students in that class who failed see the resit option
+4. Students apply -- request appears in admin's pending list
+5. Admin reviews original score, approves or rejects
+6. Approved students can re-register for the exam
 
-Two new grid items showing Student ID (with copy button) and Email.
-
-### StudentManagement query change (line 76)
-
-Add `student_id_code` to the select string and display it in the table and view dialog.
-
-### ExamTaking results screen
-
-- New state: `showResults` (boolean), `resultData` ({ marks, totalMarks, passingMarks, passed, hasEssay, examTitle })
-- After successful submission in `handleManualSubmit`, set `showResults = true` with the score data instead of navigating
-- Render a full-screen overlay when `showResults` is true with:
-  - Large trophy/star icon
-  - Score in large bold text
-  - Pass/fail badge
-  - Percentage display
-  - Motivational message
-  - "Return to Dashboard" button
-
-### Files to modify
-
-
-| File                                         | Change                                                |
-| -------------------------------------------- | ----------------------------------------------------- |
-| `src/contexts/AuthContext.tsx`               | Add `student_id_code` to student query                |
-| `src/pages/Dashboard.tsx`                    | Show Student ID and email in profile card             |
-| `src/components/admin/StudentManagement.tsx` | Add Student ID column + details                       |
-| `src/pages/ExamTaking.tsx`                   | Add celebratory score results screen after submission |
+### Student Dashboard Resit Flow
+1. Query `resit_openings` where `class_id = student's class` and `is_open = true`
+2. Cross-reference with student's completed attempts to show only exams they've taken
+3. Query `resit_requests` for the student to show current request status
+4. If no request yet: show "Apply for Resit" button
+5. If approved and no new pending attempt: show "Register for Resit" button (calls existing `handleRegisterExam`)
