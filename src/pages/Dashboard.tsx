@@ -9,7 +9,8 @@ import { Progress } from '@/components/ui/progress';
 import { 
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
-  Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle
+  Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle, RotateCcw,
+  XCircle, CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -68,6 +69,9 @@ export default function Dashboard() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [resendingCredentials, setResendingCredentials] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [resitOpenings, setResitOpenings] = useState<any[]>([]);
+  const [resitRequests, setResitRequests] = useState<any[]>([]);
+  const [applyingResit, setApplyingResit] = useState<string | null>(null);
 
   // Redirect logic — wait for auth to fully resolve before redirecting
   useEffect(() => {
@@ -83,7 +87,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && user && role === 'student' && profile?.id && !dataLoaded) {
       setDataLoaded(true);
-      Promise.all([loadDashboardData(), loadParentInfo(), checkOnboarding()]).finally(() => {
+      Promise.all([loadDashboardData(), loadParentInfo(), checkOnboarding(), loadResitData()]).finally(() => {
         setLoadingData(false);
       });
     }
@@ -268,6 +272,48 @@ export default function Dashboard() {
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error('An unexpected error occurred. Please try again.');
+    }
+  };
+
+  const loadResitData = async () => {
+    if (!profile?.class_id || !profile?.id) return;
+    try {
+      const [openingsRes, requestsRes] = await Promise.all([
+        supabase.from('resit_openings').select('*').eq('class_id', profile.class_id).eq('is_open', true),
+        supabase.from('resit_requests').select('*').eq('student_id', profile.id),
+      ]);
+      setResitOpenings(openingsRes.data || []);
+      setResitRequests(requestsRes.data || []);
+    } catch (error) {
+      console.error('Error loading resit data:', error);
+    }
+  };
+
+  const handleApplyResit = async (examId: string, classId: string) => {
+    if (!profile?.id) return;
+    setApplyingResit(examId);
+    try {
+      const { error } = await supabase.from('resit_requests').insert({
+        exam_id: examId,
+        class_id: classId,
+        student_id: profile.id,
+        status: 'pending',
+      });
+      if (error) {
+        if (error.code === '23505') {
+          toast.info('You have already applied for this resit');
+        } else {
+          throw error;
+        }
+        return;
+      }
+      toast.success('Resit application submitted! Awaiting admin approval.');
+      loadResitData();
+    } catch (error) {
+      console.error('Error applying for resit:', error);
+      toast.error('Failed to apply for resit');
+    } finally {
+      setApplyingResit(null);
     }
   };
 
@@ -748,6 +794,119 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* Resit Exams Section */}
+        {(() => {
+          // Show resit section if there are openings for this student's class
+          // that the student has already completed/graded
+          const completedExamIds = examAttempts
+            .filter(a => a.status === 'graded' || a.status === 'completed')
+            .map(a => a.exam_id);
+          
+          const relevantOpenings = resitOpenings.filter((o: any) => completedExamIds.includes(o.exam_id));
+          
+          if (relevantOpenings.length === 0) return null;
+
+          return (
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
+                  <RotateCcw className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold">Resit Exams</h2>
+                  <p className="text-muted-foreground">Apply for a chance to retake exams</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {relevantOpenings.map((opening: any) => {
+                  const exam = examAttempts.find(a => a.exam_id === opening.exam_id)?.exams;
+                  const originalAttempt = examAttempts.find(a => a.exam_id === opening.exam_id && (a.status === 'graded' || a.status === 'completed'));
+                  const existingRequest = resitRequests.find((r: any) => r.exam_id === opening.exam_id);
+                  const hasApprovedResitAttempt = examAttempts.some(a => a.exam_id === opening.exam_id && (a.status === 'pending' || a.status === 'in_progress'));
+                  
+                  if (!exam) return null;
+
+                  return (
+                    <Card key={opening.id} className="hover-lift overflow-hidden border-[hsl(var(--warning))]/30">
+                      <div className="h-2 bg-gradient-to-r from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))]" />
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle className="text-lg">{exam.title}</CardTitle>
+                            <div className="flex gap-2 mt-1">
+                              <Badge variant="secondary" className="text-xs">{exam.subject}</Badge>
+                              <Badge variant="outline" className="text-xs bg-[hsl(var(--warning))]/10">Resit</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {originalAttempt && originalAttempt.marks_obtained !== null && (
+                          <div className="p-3 rounded-lg bg-muted/50">
+                            <p className="text-xs text-muted-foreground">Original Score</p>
+                            <p className="font-bold text-lg">{originalAttempt.marks_obtained}/{exam.total_marks}</p>
+                          </div>
+                        )}
+                        
+                        {opening.deadline && (
+                          <p className="text-xs text-muted-foreground">
+                            Deadline: {new Date(opening.deadline).toLocaleString()}
+                          </p>
+                        )}
+
+                        {!existingRequest && !hasApprovedResitAttempt && (
+                          <Button 
+                            onClick={() => handleApplyResit(opening.exam_id, opening.class_id)}
+                            disabled={applyingResit === opening.exam_id}
+                            className="w-full"
+                            variant="outline"
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            {applyingResit === opening.exam_id ? 'Applying...' : 'Apply for Resit'}
+                          </Button>
+                        )}
+
+                        {existingRequest?.status === 'pending' && (
+                          <Badge variant="secondary" className="w-full justify-center py-2">
+                            <Clock className="mr-2 h-4 w-4" /> Awaiting Approval
+                          </Badge>
+                        )}
+
+                        {existingRequest?.status === 'approved' && !hasApprovedResitAttempt && (
+                          <Button 
+                            onClick={() => handleRegisterExam(opening.exam_id)}
+                            className="w-full bg-gradient-to-r from-[hsl(var(--success))] to-primary hover:opacity-90"
+                          >
+                            <Play className="mr-2 h-4 w-4" /> Take Resit Exam
+                          </Button>
+                        )}
+
+                        {existingRequest?.status === 'rejected' && (
+                          <div className="space-y-1">
+                            <Badge variant="destructive" className="w-full justify-center py-2">
+                              <XCircle className="mr-2 h-4 w-4" /> Rejected
+                            </Badge>
+                            {existingRequest.admin_note && (
+                              <p className="text-xs text-muted-foreground text-center">{existingRequest.admin_note}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {hasApprovedResitAttempt && (
+                          <Badge variant="default" className="w-full justify-center py-2 bg-primary">
+                            <CheckCircle className="mr-2 h-4 w-4" /> Resit Registered
+                          </Badge>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
       </main>
     </div>
   );

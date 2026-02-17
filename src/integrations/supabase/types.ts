@@ -490,6 +490,112 @@ export type Database = {
           },
         ]
       }
+      resit_openings: {
+        Row: {
+          class_id: string
+          created_at: string | null
+          deadline: string | null
+          exam_id: string
+          id: string
+          is_open: boolean | null
+          opened_by: string | null
+        }
+        Insert: {
+          class_id: string
+          created_at?: string | null
+          deadline?: string | null
+          exam_id: string
+          id?: string
+          is_open?: boolean | null
+          opened_by?: string | null
+        }
+        Update: {
+          class_id?: string
+          created_at?: string | null
+          deadline?: string | null
+          exam_id?: string
+          id?: string
+          is_open?: boolean | null
+          opened_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resit_openings_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resit_openings_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resit_requests: {
+        Row: {
+          admin_note: string | null
+          class_id: string
+          created_at: string | null
+          exam_id: string
+          id: string
+          requested_at: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          student_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          class_id: string
+          created_at?: string | null
+          exam_id: string
+          id?: string
+          requested_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          student_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          class_id?: string
+          created_at?: string | null
+          exam_id?: string
+          id?: string
+          requested_at?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resit_requests_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resit_requests_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resit_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schools: {
         Row: {
           address: string | null

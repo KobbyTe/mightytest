@@ -20,6 +20,7 @@ import ExamAssignment from '@/components/admin/ExamAssignment';
 import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
+import ResitManagement from '@/components/admin/ResitManagement';
 
 interface Exam {
   id: string;
@@ -228,13 +229,14 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
-          <TabsList className="grid w-full grid-cols-7 lg:w-[1050px]">
+          <TabsList className="grid w-full grid-cols-8 lg:w-[1200px]">
              <TabsTrigger value="exams">Exams</TabsTrigger>
              <TabsTrigger value="schools">Schools</TabsTrigger>
              <TabsTrigger value="assignments">Assignments</TabsTrigger>
              <TabsTrigger value="attempts">Attempts</TabsTrigger>
              <TabsTrigger value="students">Students</TabsTrigger>
              <TabsTrigger value="keys">Keys</TabsTrigger>
+             <TabsTrigger value="resits">Resits</TabsTrigger>
              <TabsTrigger value="analytics">Analytics</TabsTrigger>
            </TabsList>
 
@@ -590,6 +592,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="keys">
             <RegistrationKeyManagement />
+          </TabsContent>
+
+          <TabsContent value="resits">
+            <ResitManagement />
           </TabsContent>
 
           <TabsContent value="analytics">
