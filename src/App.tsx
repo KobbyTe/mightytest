@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { usePageTracking } from "@/hooks/usePageTracking";
 
 // Eager load critical routes
 import Index from "./pages/Index";
@@ -26,8 +27,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
       retry: 1,
     },
@@ -41,6 +42,30 @@ const PageLoader = () => (
   </div>
 );
 
+// Inner component to use hooks inside BrowserRouter
+function AppRoutes() {
+  usePageTracking();
+  
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin-setup" element={<AdminSetup />} />
+        <Route path="/admin/exam/:examId/questions" element={<ExamQuestions />} />
+        <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
+        <Route path="/admin/analytics" element={<ExamAnalytics />} />
+        <Route path="/exam/take" element={<ExamTaking />} />
+        <Route path="/exam/review/:attemptId" element={<ExamReview />} />
+        <Route path="/parent" element={<ParentDashboard />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider delayDuration={0}>
@@ -48,22 +73,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin-setup" element={<AdminSetup />} />
-              <Route path="/admin/exam/:examId/questions" element={<ExamQuestions />} />
-              <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
-              <Route path="/admin/analytics" element={<ExamAnalytics />} />
-              <Route path="/exam/take" element={<ExamTaking />} />
-              <Route path="/exam/review/:attemptId" element={<ExamReview />} />
-              <Route path="/parent" element={<ParentDashboard />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <AppRoutes />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
