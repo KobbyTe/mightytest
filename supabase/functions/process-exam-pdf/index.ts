@@ -26,11 +26,18 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
+        max_tokens: 65536,
         messages: [
           {
             role: 'system',
-            content: `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers. Extract EVERY question from the document.
+            content: `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers. You MUST extract EVERY SINGLE question from the ENTIRE document — do NOT stop early or summarize.
+
+CRITICAL RULES:
+- Extract ALL questions from ALL pages of the document. Documents may contain 50, 60, 100+ questions.
+- Do NOT stop after a few questions. Continue until you have processed every page and every question.
+- If the document has 60 questions, you must return exactly 60 questions. Missing even one is unacceptable.
+- Go through the document page by page, section by section, and extract every question you find.
 
 For each question, determine:
 - question_text: The full question text
@@ -39,14 +46,14 @@ For each question, determine:
 - correct_answer: The correct answer text. For multiple_choice, use the full text of the correct option. For true_false, use "True" or "False". For essay, use an empty string "".
 - marks: The marks/points for the question if specified, otherwise default to 1.
 
-Extract questions regardless of formatting style (numbered, lettered, bulleted, etc). Be thorough and extract ALL questions found in the document.`
+Extract questions regardless of formatting style (numbered, lettered, bulleted, etc).`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extract all exam questions from this PDF document. Return them using the extract_questions tool.'
+                text: 'Extract ALL exam questions from this PDF document. The document may contain many questions (50+). Make sure you go through EVERY page and extract EVERY question. Do NOT stop early. Return all of them using the extract_questions tool.'
               },
               {
                 type: 'image_url',
@@ -112,7 +119,7 @@ Extract questions regardless of formatting style (numbered, lettered, bulleted, 
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI response received');
+    console.log('AI response received, finish_reason:', aiData.choices?.[0]?.finish_reason);
 
     // Extract questions from tool call response
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
