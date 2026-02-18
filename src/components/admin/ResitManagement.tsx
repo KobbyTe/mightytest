@@ -54,6 +54,10 @@ export default function ResitManagement() {
   // Review state
   const [reviewNote, setReviewNote] = useState('');
 
+  // Edit deadline state
+  const [editingDeadlineId, setEditingDeadlineId] = useState<string | null>(null);
+  const [editDeadlineValue, setEditDeadlineValue] = useState('');
+
   useEffect(() => {
     loadData();
   }, []);
@@ -171,6 +175,21 @@ export default function ResitManagement() {
       loadData();
     } catch (error) {
       toast.error('Failed to update resit portal');
+    }
+  };
+
+  const handleUpdateDeadline = async (id: string) => {
+    try {
+      const { error } = await supabase.from('resit_openings')
+        .update({ deadline: editDeadlineValue || null })
+        .eq('id', id);
+      if (error) throw error;
+      toast.success('Deadline updated');
+      setEditingDeadlineId(null);
+      setEditDeadlineValue('');
+      loadData();
+    } catch (error) {
+      toast.error('Failed to update deadline');
     }
   };
 
@@ -314,7 +333,32 @@ export default function ResitManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {o.deadline ? new Date(o.deadline).toLocaleString() : 'No deadline'}
+                      {editingDeadlineId === o.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="datetime-local"
+                            className="h-8 w-44 text-xs"
+                            value={editDeadlineValue}
+                            onChange={e => setEditDeadlineValue(e.target.value)}
+                          />
+                          <Button size="sm" variant="default" className="h-8 px-2 text-xs" onClick={() => handleUpdateDeadline(o.id)}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setEditingDeadlineId(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <span
+                          className="cursor-pointer hover:underline"
+                          onClick={() => {
+                            setEditingDeadlineId(o.id);
+                            setEditDeadlineValue(o.deadline ? new Date(o.deadline).toISOString().slice(0, 16) : '');
+                          }}
+                        >
+                          {o.deadline ? new Date(o.deadline).toLocaleString() : 'No deadline (click to set)'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(o.created_at).toLocaleDateString()}
