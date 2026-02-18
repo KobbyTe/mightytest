@@ -234,6 +234,45 @@ export default function Dashboard() {
         return;
       }
 
+      // Check if student already has an attempt for this exam
+      const { data: existingAttempts } = await supabase
+        .from('exam_attempts')
+        .select('id, status')
+        .eq('student_id', profile.id)
+        .eq('exam_id', examId)
+        .order('attempted_at', { ascending: false });
+
+      const activeAttempt = existingAttempts?.find(a => a.status === 'pending' || a.status === 'in_progress');
+      if (activeAttempt) {
+        toast.info('Continuing your existing exam attempt');
+        navigate(`/exam/take?attempt=${activeAttempt.id}`);
+        return;
+      }
+
+      // If there are previous completed/graded attempts, check for an approved resit
+      const hasCompletedAttempt = existingAttempts?.some(a => a.status === 'completed' || a.status === 'graded');
+      if (hasCompletedAttempt) {
+        const { data: approvedResit } = await supabase
+          .from('resit_requests')
+          .select('id')
+          .eq('student_id', profile.id)
+          .eq('exam_id', examId)
+          .eq('status', 'approved')
+          .limit(1)
+          .maybeSingle();
+
+        if (!approvedResit) {
+          toast.error('You have already completed this exam. Apply for a resit if available.');
+          return;
+        }
+        // Approved resit found — mark it as used so it can't be reused
+        await supabase
+          .from('resit_requests')
+          .update({ status: 'used', reviewed_at: new Date().toISOString() })
+          .eq('id', approvedResit.id);
+      }
+
+      // Create a new attempt
       const { data, error } = await supabase
         .from('exam_attempts')
         .insert({
@@ -247,23 +286,7 @@ export default function Dashboard() {
 
       if (error) {
         console.error('Registration error:', error);
-        if (error.code === '23505') {
-          const { data: existingAttempt } = await supabase
-            .from('exam_attempts')
-            .select('id, status')
-            .eq('student_id', profile.id)
-            .eq('exam_id', examId)
-            .single();
-          
-          if (existingAttempt && (existingAttempt.status === 'pending' || existingAttempt.status === 'in_progress')) {
-            toast.info('Continuing your existing exam attempt');
-            navigate(`/exam/take?attempt=${existingAttempt.id}`);
-            return;
-          }
-          toast.error('You are already registered for this exam');
-        } else {
-          toast.error('Failed to register for exam. Please try again.');
-        }
+        toast.error('Failed to register for exam. Please try again.');
         return;
       }
 
