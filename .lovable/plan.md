@@ -1,141 +1,80 @@
 
-# Plan: Resit Exam System
 
-## Overview
-Add a resit (retake) exam system where the admin can reopen an exam for a specific class, students apply for the resit, and the admin approves individual students before they can retake the exam.
+# Fix: Parent Account Creation for Key-Based Registration
 
----
+## Problem
 
-## Database Changes
+Setor Enam Agbenu and Sedem Agbenu registered using the Student ID (key-based) flow. Their `parent_id` is NULL in the database, meaning their parent accounts were never created or linked. The root cause is in the `register-with-key` edge function: parent creation errors are treated as **non-fatal**, so when parent auth/profile creation fails for any reason, the student is still created but with `parent_id: null` and no parent account.
 
-### New Table: `resit_requests`
-Tracks which exams are open for resit per class, and individual student requests with admin approval status.
+## Solution
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | Primary key |
-| exam_id | uuid | References exams |
-| class_id | uuid | References classes |
-| student_id | uuid | References students |
-| status | text | `pending`, `approved`, `rejected` (default: `pending`) |
-| requested_at | timestamptz | Default: now() |
-| reviewed_at | timestamptz | Nullable |
-| reviewed_by | uuid | Nullable (admin who reviewed) |
-| admin_note | text | Optional rejection/approval reason |
-| created_at | timestamptz | Default: now() |
+### 1. Fix the `register-with-key` edge function
 
-### New Table: `resit_openings`
-Tracks which exam+class combos are open for resit applications.
+Make parent account creation **required** (fatal on failure), matching the behavior of the `register` function:
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | uuid | Primary key |
-| exam_id | uuid | References exams |
-| class_id | uuid | References classes |
-| opened_by | uuid | Admin who opened it |
-| is_open | boolean | Default: true |
-| deadline | timestamptz | Nullable, deadline to apply |
-| created_at | timestamptz | Default: now() |
+- If parent auth user creation fails (and it's not an "email already exists" case), return an error and do NOT proceed with student creation.
+- If parent profile insertion fails, clean up the student auth user and return an error.
+- Add a `user_roles` insert for the parent (currently missing in the "new parent" success path -- the role is only assigned if the parent email already exists and needs lookup, but NOT when a fresh parent is created).
+- Ensure the student row always has `parent_id` set.
 
-### RLS Policies
-- **resit_openings**: Admins can manage all. Students can SELECT openings for their class.
-- **resit_requests**: Admins can manage all. Students can INSERT their own requests and SELECT their own requests.
+### 2. Fix existing students (Setor and Sedem)
 
----
+Since these two students already exist without parent accounts, the admin needs to provide their parent emails so we can create the parent accounts and link them. To handle this gracefully, we'll add an **admin tool** in the `ResitManagement` or `StudentManagement` component that lets the admin manually create/link a parent account for a student who is missing one.
 
-## Admin Side (ExamAssignment or new tab)
-
-### "Resit Management" section added to Admin Dashboard
-A new tab called **"Resits"** in the admin dashboard with two sub-sections:
-
-1. **Open Resit Portal**: Admin selects a school, class, and exam, then clicks "Open for Resit". This creates a `resit_openings` row. Admin can also close the portal and set a deadline.
-
-2. **Review Resit Requests**: A table showing all pending resit requests with student name, exam title, class, original score, and approve/reject buttons. Bulk approve option included.
-
-When an admin approves a request:
-- The `resit_requests.status` is set to `approved`
-- This allows the student to register a new `exam_attempts` row for that exam
-
----
-
-## Student Side (Dashboard)
-
-### Resit Section on Student Dashboard
-Below the "Available Exams" section, a new **"Resit Exams"** section appears if there are any open resit portals for the student's class and the student has a completed/graded attempt for that exam.
-
-- Shows the exam name, original score, and deadline
-- Student clicks **"Apply for Resit"** which creates a `resit_requests` row with status `pending`
-- Once approved, the exam appears in available exams again with a "Resit" badge and the student can register a new attempt
-- If pending, shows "Awaiting Approval" status
-- If rejected, shows "Rejected" with admin note
-
-### Exam Registration Logic Update
-The `handleRegisterExam` function in Dashboard.tsx will be updated:
-- Before inserting a new attempt, check if the student already has a completed/graded attempt
-- If yes, verify there is an approved `resit_requests` entry for this student+exam combo
-- If no approved resit, block registration with a message
-- If approved, allow the new attempt (the existing unique constraint on exam_attempts may need to be relaxed -- currently there's no unique constraint based on the error handling code, so multiple attempts should work)
-
----
-
-## Files to Create/Modify
-
-| File | Action | Description |
-|------|--------|-------------|
-| Migration SQL | Create | New `resit_openings` and `resit_requests` tables with RLS |
-| `src/components/admin/ResitManagement.tsx` | Create | Admin UI for opening resits and approving requests |
-| `src/pages/AdminDashboard.tsx` | Modify | Add "Resits" tab |
-| `src/pages/Dashboard.tsx` | Modify | Add resit section and update exam registration logic |
-
----
+However, the simpler immediate fix is: add a section in the `StudentManagement` admin panel that shows students with missing parent accounts and lets the admin enter parent details to create and link them.
 
 ## Technical Details
 
-### Migration SQL
+### File: `supabase/functions/register-with-key/index.ts`
+
+Changes:
+- After successful parent auth creation (line 203), add `user_roles` insert for the parent role (currently missing -- this means fresh parents created via key registration never get the `parent` role assigned, which would block RLS access to the parent dashboard).
+- Make parent creation failure a **hard error**: if `parentId` is still null after the parent creation block, return an error response instead of continuing.
+- Add explicit error logging for each failure path.
+
+Key code change (pseudocode):
 ```text
--- resit_openings table
-CREATE TABLE public.resit_openings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exam_id UUID NOT NULL,
-  class_id UUID NOT NULL,
-  opened_by UUID,
-  is_open BOOLEAN DEFAULT true,
-  deadline TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(exam_id, class_id)
-);
-
-ALTER TABLE public.resit_openings ENABLE ROW LEVEL SECURITY;
-
--- resit_requests table
-CREATE TABLE public.resit_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  exam_id UUID NOT NULL,
-  class_id UUID NOT NULL,
-  student_id UUID NOT NULL,
-  status TEXT DEFAULT 'pending',
-  requested_at TIMESTAMPTZ DEFAULT now(),
-  reviewed_at TIMESTAMPTZ,
-  reviewed_by UUID,
-  admin_note TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(exam_id, student_id)
-);
-
-ALTER TABLE public.resit_requests ENABLE ROW LEVEL SECURITY;
+// After the parent creation block (line ~227), add:
+if (!parentId) {
+  // Clean up student auth user
+  await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+  return error response: "Failed to create parent account"
+}
 ```
 
-### Admin Resit Workflow
-1. Admin goes to "Resits" tab
-2. Clicks "Open Resit Portal" -- selects school, class, exam
-3. Students in that class who failed see the resit option
-4. Students apply -- request appears in admin's pending list
-5. Admin reviews original score, approves or rejects
-6. Approved students can re-register for the exam
+Also fix the missing role assignment on new parent creation:
+```text
+// Line ~206: Add after creating parent auth user
+await supabaseAdmin.from('user_roles').insert({ 
+  user_id: parentAuthData.user.id, role: 'parent' 
+});
+```
 
-### Student Dashboard Resit Flow
-1. Query `resit_openings` where `class_id = student's class` and `is_open = true`
-2. Cross-reference with student's completed attempts to show only exams they've taken
-3. Query `resit_requests` for the student to show current request status
-4. If no request yet: show "Apply for Resit" button
-5. If approved and no new pending attempt: show "Register for Resit" button (calls existing `handleRegisterExam`)
+### File: `src/components/admin/StudentManagement.tsx`
+
+Add a UI section or button for students with `parent_id = null`:
+- Show a warning badge next to students missing parent accounts
+- Allow admin to enter parent name, email, phone, and relationship
+- On submit, call a new edge function or directly use the admin client to:
+  1. Create auth user for parent
+  2. Create `parents` table row
+  3. Assign `parent` role in `user_roles`
+  4. Update student's `parent_id`
+  5. Send credential email to parent
+
+### File: New edge function `supabase/functions/create-parent-account/index.ts`
+
+A dedicated edge function for admins to create a parent account for an existing student:
+- Accepts: `studentId`, `parentName`, `parentEmail`, `parentPhone`, `parentRelationship`
+- Creates parent auth user, profile, role, and links to student
+- Sends credential email
+- Returns success with credentials
+
+### Summary of Changes
+
+| File | Action |
+|------|--------|
+| `supabase/functions/register-with-key/index.ts` | Fix: add parent role assignment, make parent creation fatal |
+| `supabase/functions/create-parent-account/index.ts` | Create: admin endpoint to create parent for existing student |
+| `src/components/admin/StudentManagement.tsx` | Update: add "Link Parent" button for students missing parents |
+
