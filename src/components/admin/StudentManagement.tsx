@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, ArrowRightLeft, Trash2, Users, Eye } from 'lucide-react';
+import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Student {
@@ -24,6 +24,7 @@ interface Student {
   date_of_birth: string;
   gender: string | null;
   phone_number: string | null;
+  parent_id: string | null;
   school: { id: string; name: string } | null;
   class: { id: string; name: string } | null;
   parent: { full_name: string; phone_number: string | null; relationship_to_student: string | null } | null;
@@ -65,6 +66,12 @@ export default function StudentManagement() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
 
+  // Link parent dialog
+  const [linkParentOpen, setLinkParentOpen] = useState(false);
+  const [linkParentStudent, setLinkParentStudent] = useState<Student | null>(null);
+  const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
+  const [linkingParent, setLinkingParent] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -74,7 +81,7 @@ export default function StudentManagement() {
       const [studentsRes, schoolsRes, classesRes] = await Promise.all([
         supabase
           .from('students')
-          .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
+          .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, parent_id, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
           .order('full_name')
           .limit(1000),
         supabase.from('schools').select('id, name').order('name'),
@@ -104,6 +111,8 @@ export default function StudentManagement() {
     const matchesSchool = schoolFilter === 'all' || s.school_id === schoolFilter;
     return matchesSearch && matchesSchool;
   });
+
+  const studentsWithoutParent = students.filter(s => !s.parent_id);
 
   const openChangeClass = (student: Student) => {
     setSelectedStudent(student);
@@ -164,6 +173,52 @@ export default function StudentManagement() {
     }
   };
 
+  const openLinkParent = (student: Student) => {
+    setLinkParentStudent(student);
+    setParentForm({ name: '', email: '', phone: '', relationship: '' });
+    setLinkParentOpen(true);
+  };
+
+  const handleLinkParent = async () => {
+    if (!linkParentStudent || !parentForm.name || !parentForm.email) {
+      toast.error('Parent name and email are required');
+      return;
+    }
+    setLinkingParent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-parent-account', {
+        body: {
+          studentId: linkParentStudent.id,
+          parentName: parentForm.name,
+          parentEmail: parentForm.email,
+          parentPhone: parentForm.phone || null,
+          parentRelationship: parentForm.relationship || null,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      if (data?.credentials) {
+        toast.success(
+          `Parent account created! Credentials sent to ${parentForm.email}. Password: ${data.credentials.password}`,
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(`Linked existing parent account to ${linkParentStudent.full_name}`);
+      }
+
+      setLinkParentOpen(false);
+      setLinkParentStudent(null);
+      loadData();
+    } catch (error: any) {
+      console.error('Error creating parent account:', error);
+      toast.error(error.message || 'Failed to create parent account');
+    } finally {
+      setLinkingParent(false);
+    }
+  };
+
   const filteredClasses = classes.filter((c) => c.school_id === selectedSchoolId);
 
   if (loading) {
@@ -176,6 +231,54 @@ export default function StudentManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Students Missing Parent Accounts */}
+      {studentsWithoutParent.length > 0 && (
+        <Card className="border-yellow-500/50 bg-yellow-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="h-5 w-5" />
+              Students Missing Parent Accounts ({studentsWithoutParent.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              These students don't have a linked parent account. Click "Link Parent" to create one.
+            </p>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>School</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentsWithoutParent.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell className="font-medium">{student.full_name}</TableCell>
+                      <TableCell>
+                        {student.student_id_code ? (
+                          <Badge variant="outline" className="font-mono text-xs">{student.student_id_code}</Badge>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>{student.school?.name || '—'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="outline" onClick={() => openLinkParent(student)}>
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Link Parent
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -234,7 +337,14 @@ export default function StudentManagement() {
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.full_name}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {student.full_name}
+                          {!student.parent_id && (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0">No Parent</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {student.student_id_code ? (
                           <Badge variant="outline" className="font-mono text-xs">{student.student_id_code}</Badge>
@@ -269,6 +379,18 @@ export default function StudentManagement() {
                             <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
+                          {!student.parent_id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openLinkParent(student)}
+                              title="Link Parent"
+                              className="text-yellow-600 hover:text-yellow-700"
+                            >
+                              <UserPlus className="h-4 w-4 mr-1" />
+                              Parent
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -379,6 +501,7 @@ export default function StudentManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       {/* View Student Details */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent className="max-w-md">
@@ -421,11 +544,81 @@ export default function StudentManagement() {
                     <span className="capitalize">{viewStudent.parent.relationship_to_student || '—'}</span>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No parent linked</p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-yellow-600 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      No parent linked
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }}>
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Create Parent Account
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Parent Dialog */}
+      <Dialog open={linkParentOpen} onOpenChange={setLinkParentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Parent Account</DialogTitle>
+            <DialogDescription>
+              Create and link a parent account for <strong>{linkParentStudent?.full_name}</strong>.
+              The parent will receive login credentials via email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <Label>Parent Full Name *</Label>
+              <Input
+                value={parentForm.name}
+                onChange={(e) => setParentForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. John Doe"
+              />
+            </div>
+            <div>
+              <Label>Parent Email *</Label>
+              <Input
+                type="email"
+                value={parentForm.email}
+                onChange={(e) => setParentForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="e.g. parent@example.com"
+              />
+            </div>
+            <div>
+              <Label>Phone Number</Label>
+              <Input
+                value={parentForm.phone}
+                onChange={(e) => setParentForm(p => ({ ...p, phone: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Relationship</Label>
+              <Select value={parentForm.relationship} onValueChange={(v) => setParentForm(p => ({ ...p, relationship: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select relationship" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="father">Father</SelectItem>
+                  <SelectItem value="mother">Mother</SelectItem>
+                  <SelectItem value="guardian">Guardian</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={handleLinkParent}
+              disabled={linkingParent || !parentForm.name || !parentForm.email}
+              className="w-full"
+            >
+              {linkingParent ? 'Creating...' : 'Create & Link Parent Account'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

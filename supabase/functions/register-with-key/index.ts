@@ -198,35 +198,61 @@ serve(async (req) => {
           console.error('Parent email exists but user not found in listing');
         }
       } else {
-        console.error('Parent auth creation error (non-fatal):', parentAuthError);
-      }
-    } else if (parentAuthData?.user) {
-      parentAuthUserId = parentAuthData.user.id;
-      // New parent account created successfully
-      await supabaseAdmin.from('user_roles').insert({ user_id: parentAuthData.user.id, role: 'parent' });
-
-      const { data: parentProfile, error: parentProfileError } = await supabaseAdmin
-        .from('parents')
-        .insert({
-          user_id: parentAuthData.user.id,
-          full_name: parentName,
-          email: parentEmail,
-          phone_number: parentPhone || null,
-          relationship_to_student: parentRelationship || null,
-          access_code: accessCode,
-        })
-        .select('id')
-        .single();
-
-      if (!parentProfileError && parentProfile) {
-        parentId = parentProfile.id;
-        parentCredentials = { email: parentEmail, password: parentPassword, accessCode };
-      } else {
-        console.error('Parent profile creation error:', parentProfileError);
-      }
+      console.error('Parent auth creation error (fatal):', parentAuthError);
+      // Clean up student auth user since parent creation failed
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return new Response(
+        JSON.stringify({ error: parentAuthError?.message || 'Failed to create parent account' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+  } else if (parentAuthData?.user) {
+    parentAuthUserId = parentAuthData.user.id;
+    // New parent account created successfully — assign role
+    await supabaseAdmin.from('user_roles').insert({ user_id: parentAuthData.user.id, role: 'parent' });
 
-    // Create student profile with retry for FK race condition
+    const { data: parentProfile, error: parentProfileError } = await supabaseAdmin
+      .from('parents')
+      .insert({
+        user_id: parentAuthData.user.id,
+        full_name: parentName,
+        email: parentEmail,
+        phone_number: parentPhone || null,
+        relationship_to_student: parentRelationship || null,
+        access_code: accessCode,
+      })
+      .select('id')
+      .single();
+
+    if (!parentProfileError && parentProfile) {
+      parentId = parentProfile.id;
+      parentCredentials = { email: parentEmail, password: parentPassword, accessCode };
+    } else {
+      console.error('Parent profile creation error (fatal):', parentProfileError);
+      // Clean up both auth users
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      await supabaseAdmin.auth.admin.deleteUser(parentAuthData.user.id);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create parent profile' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  // FATAL CHECK: if parentId is still null after all attempts, abort
+  if (!parentId) {
+    console.error('Parent ID is still null after parent creation block — aborting');
+    await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+    if (parentAuthUserId) {
+      await supabaseAdmin.auth.admin.deleteUser(parentAuthUserId);
+    }
+    return new Response(
+      JSON.stringify({ error: 'Failed to create or link parent account. Please try again.' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Create student profile with retry for FK race condition
     const studentInsertData = {
       user_id: authData.user.id,
       full_name: fullName,

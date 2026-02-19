@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.register-with-key]
 verify_jwt = false
+
+[functions.create-parent-account]
+verify_jwt = false
