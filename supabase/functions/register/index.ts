@@ -1,6 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
+// Reliably find an auth user by email using paginated listing (fixes listUsers() single-page bug)
+async function findAuthUserByEmail(supabaseAdmin: any, email: string): Promise<any | null> {
+  let page = 1;
+  while (true) {
+    const { data } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (!data?.users?.length) break;
+    const found = data.users.find((u: any) => u.email === email);
+    if (found) return found;
+    if (data.users.length < 1000) break;
+    page++;
+  }
+  return null;
+}
+
 type ResendSendResult = { id?: string };
 
 async function sendParentCredentialsEmail(params: {
@@ -138,9 +152,8 @@ serve(async (req) => {
    if (authError?.code === 'email_exists') {
      console.log('Student email exists in auth, checking for orphan user...');
      
-     // Find the existing auth user by email
-     const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-     const orphanUser = usersData?.users?.find(u => u.email === email);
+      // Find the existing auth user by email using paginated lookup (fixes single-page listUsers bug)
+      const orphanUser = await findAuthUserByEmail(supabaseAdmin, email);
      
      if (orphanUser) {
        // Check if there's a corresponding student profile
@@ -224,8 +237,8 @@ serve(async (req) => {
         // Delete the orphan auth account and re-create fresh.
         console.log('Parent email exists in auth but no profile found — handling orphan parent account');
         
-        const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-        const orphanParent = usersData?.users?.find(u => u.email === parentEmail);
+        // Find orphan auth user using paginated lookup (fixes single-page listUsers bug)
+        const orphanParent = await findAuthUserByEmail(supabaseAdmin, parentEmail);
         
         if (orphanParent) {
           console.log('Deleting orphan parent auth user:', orphanParent.id);
