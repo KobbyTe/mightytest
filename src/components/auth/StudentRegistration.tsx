@@ -227,10 +227,20 @@ export const StudentRegistration = () => {
         });
 
         // Auto-login the student
-        await supabase.auth.signInWithPassword({
+        const { error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password
         });
+
+        if (signInError) {
+          console.error('Auto-login failed after registration:', signInError);
+          toast({
+            title: "Account created!",
+            description: "Registration successful. Please log in with your new credentials.",
+          });
+          navigate('/auth');
+          return;
+        }
 
         navigate('/dashboard');
       } else {

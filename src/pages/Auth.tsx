@@ -397,6 +397,22 @@ const Auth = () => {
                        ) : verifiedKeyInfo ? (
                          <form onSubmit={async (e) => {
                            e.preventDefault();
+                           if (!studentIdForm.firstName.trim() || !studentIdForm.lastName.trim()) {
+                             toast({ title: "Name required", description: "Please enter your first and last name", variant: "destructive" });
+                             return;
+                           }
+                           if (!studentIdForm.dateOfBirth) {
+                             toast({ title: "Date of birth required", variant: "destructive" });
+                             return;
+                           }
+                           if (!studentIdForm.gender) {
+                             toast({ title: "Gender required", description: "Please select your gender", variant: "destructive" });
+                             return;
+                           }
+                           if (!studentIdForm.parentName.trim() || !studentIdForm.parentEmail.trim()) {
+                             toast({ title: "Parent info required", description: "Please enter parent name and email", variant: "destructive" });
+                             return;
+                           }
                            if (studentIdForm.password !== studentIdForm.confirmPassword) {
                              toast({ title: "Passwords don't match", variant: "destructive" });
                              return;
@@ -520,10 +536,10 @@ const Auth = () => {
                                 <Label htmlFor="sid-pname">Full Name</Label>
                                 <Input id="sid-pname" value={studentIdForm.parentName} onChange={e => setStudentIdForm(f => ({ ...f, parentName: e.target.value }))} required />
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="sid-pgender">Gender</Label>
-                                <select id="sid-pgender" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentGender} onChange={e => setStudentIdForm(f => ({ ...f, parentGender: e.target.value }))} required>
-                                  <option value="">Select</option>
+                               <div className="space-y-2">
+                                <Label htmlFor="sid-pgender">Gender (optional)</Label>
+                                <select id="sid-pgender" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentGender} onChange={e => setStudentIdForm(f => ({ ...f, parentGender: e.target.value }))}>
+                                  <option value="">Select (optional)</option>
                                   <option value="male">Male</option>
                                   <option value="female">Female</option>
                                   <option value="other">Other</option>
@@ -532,7 +548,7 @@ const Auth = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-2">
-                                <Label htmlFor="sid-pemail">Email</Label>
+                                <Label htmlFor="sid-pemail">Email *</Label>
                                 <Input id="sid-pemail" type="email" placeholder="parent@example.com" value={studentIdForm.parentEmail} onChange={e => setStudentIdForm(f => ({ ...f, parentEmail: e.target.value }))} required />
                               </div>
                               <div className="space-y-2">
@@ -542,8 +558,8 @@ const Auth = () => {
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="sid-prelation">Relationship to Student</Label>
-                              <select id="sid-prelation" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentRelationship} onChange={e => setStudentIdForm(f => ({ ...f, parentRelationship: e.target.value }))} required>
-                                <option value="">Select</option>
+                              <select id="sid-prelation" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={studentIdForm.parentRelationship} onChange={e => setStudentIdForm(f => ({ ...f, parentRelationship: e.target.value }))}>
+                                 <option value="">Select (optional)</option>
                                 <option value="father">Father</option>
                                 <option value="mother">Mother</option>
                                 <option value="guardian">Guardian</option>
