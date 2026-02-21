@@ -152,29 +152,49 @@ export const StudentRegistration = () => {
     return true;
   };
 
+  // Extract the real error message from a FunctionsHttpError (supabase-js wraps non-2xx bodies)
+  const extractErrorMessage = async (error: any): Promise<string> => {
+    try {
+      // FunctionsHttpError stores the Response in error.context
+      if (error?.context && typeof error.context.json === 'function') {
+        const body = await error.context.json();
+        return body?.error || body?.message || error.message || 'Unknown error';
+      }
+    } catch { /* ignore parse failures */ }
+    return error?.message || 'Unknown error';
+  };
+
   // Retry helper for transient network failures (e.g. Edge browser fetch issues)
   const invokeWithRetry = async (fnName: string, body: any, maxRetries = 2) => {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const { data, error } = await supabase.functions.invoke(fnName, { body });
         
-        // supabase-js wraps non-2xx responses as FunctionsHttpError with the response body
         if (error) {
-          const isNetworkError = error.message?.includes('Failed to send') || 
-                                  error.message?.includes('Failed to fetch') ||
-                                  error.message?.includes('NetworkError') ||
-                                  error.message?.includes('network');
+          const msg = error.message || '';
+          const isNetworkError = msg.includes('Failed to send') || 
+                                  msg.includes('Failed to fetch') ||
+                                  msg.includes('NetworkError') ||
+                                  msg.includes('network');
           
           if (isNetworkError && attempt < maxRetries) {
-            console.warn(`Network error on attempt ${attempt + 1}, retrying in ${(attempt + 1)}s...`, error.message);
+            console.warn(`Network error on attempt ${attempt + 1}, retrying in ${(attempt + 1)}s...`, msg);
             await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
             continue;
           }
-          return { data: null, error };
+          
+          // Extract the real error message from the response body
+          const realMessage = await extractErrorMessage(error);
+          return { data: null, error: new Error(realMessage) };
         }
+        
+        // Also check for error in the response body (function returned 200 but with error field)
+        if (data?.error) {
+          return { data: null, error: new Error(data.error) };
+        }
+        
         return { data, error: null };
       } catch (err: any) {
-        // Catch raw fetch failures that bypass the SDK error handling
         const isNetworkError = err.message?.includes('Failed to fetch') ||
                                 err.message?.includes('NetworkError') ||
                                 err.message?.includes('network') ||

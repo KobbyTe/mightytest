@@ -442,8 +442,18 @@ const Auth = () => {
                                   parentRelationship: studentIdForm.parentRelationship,
                                 },
                               });
-                             if (error) throw error;
-                             if (data?.error) throw new Error(data.error);
+                              if (error) {
+                                // Extract real error message from FunctionsHttpError response body
+                                let realMsg = error.message || 'Registration failed';
+                                try {
+                                  if (error.context && typeof error.context.json === 'function') {
+                                    const body = await error.context.json();
+                                    realMsg = body?.error || body?.message || realMsg;
+                                  }
+                                } catch { /* ignore parse failures */ }
+                                throw new Error(realMsg);
+                              }
+                              if (data?.error) throw new Error(data.error);
                               if (data?.session) {
                                 await supabase.auth.setSession({
                                   access_token: data.session.access_token,
