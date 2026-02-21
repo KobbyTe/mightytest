@@ -128,7 +128,14 @@ Extract questions regardless of formatting style (numbered, lettered, bulleted, 
       throw new Error('AI did not return structured question data');
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(toolCall.function.arguments);
+    } catch (parseErr) {
+      console.error('Failed to parse AI tool call arguments (likely truncated):', (parseErr as Error).message);
+      throw new Error('AI response was truncated. The PDF may be too large — try splitting it into smaller files.');
+    }
+
     const extractedQuestions = parsed.questions;
 
     if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
@@ -138,10 +145,33 @@ Extract questions regardless of formatting style (numbered, lettered, bulleted, 
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('Extracted', extractedQuestions.length, 'questions from AI');
+    // Check if AI response was truncated (finish_reason = "length")
+    const finishReason = aiData.choices?.[0]?.finish_reason;
+    if (finishReason === 'length') {
+      console.warn('AI response was truncated (finish_reason=length). Extracted', extractedQuestions.length, 'questions but there may be more.');
+    }
+
+    console.log('Raw extracted count:', extractedQuestions.length);
+
+    // --- DEDUPLICATION: remove repeated questions ---
+    const seen = new Set<string>();
+    const uniqueQuestions = extractedQuestions.filter((q: any) => {
+      // Normalize question text: trim, lowercase, collapse whitespace
+      const key = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const duplicatesRemoved = extractedQuestions.length - uniqueQuestions.length;
+    if (duplicatesRemoved > 0) {
+      console.warn(`Removed ${duplicatesRemoved} duplicate questions from AI output`);
+    }
+
+    console.log('Unique questions to insert:', uniqueQuestions.length);
 
     // Build database rows
-    const dbQuestions = extractedQuestions.map((q: any, i: number) => ({
+    const dbQuestions = uniqueQuestions.map((q: any, i: number) => ({
       exam_id: examId,
       question_text: q.question_text,
       question_type: q.question_type || 'essay',
@@ -155,6 +185,16 @@ Extract questions regardless of formatting style (numbered, lettered, bulleted, 
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // --- CLEANUP: delete any existing questions for this exam before inserting ---
+    const { error: deleteError } = await supabase
+      .from('exam_questions')
+      .delete()
+      .eq('exam_id', examId);
+    if (deleteError) {
+      console.error('Failed to clean up old questions:', deleteError.message);
+      // Non-fatal — continue with insert
+    }
 
     const { error } = await supabase.from('exam_questions').insert(dbQuestions);
     if (error) throw new Error('Database error: ' + error.message);
