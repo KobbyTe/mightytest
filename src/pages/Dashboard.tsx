@@ -368,8 +368,9 @@ export default function Dashboard() {
 
   const completedExams = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed');
   const passedExams = examAttempts.filter(a => a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks);
-  const avgScore = completedExams.length > 0
-    ? Math.round(completedExams.filter(a => a.marks_obtained !== null).reduce((sum, a) => sum + (a.marks_obtained || 0), 0) / completedExams.filter(a => a.marks_obtained !== null).length)
+  const gradedWithMarks = completedExams.filter(a => a.marks_obtained !== null);
+  const avgScore = gradedWithMarks.length > 0
+    ? Math.round(gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedWithMarks.length)
     : 0;
 
   const getSubjectIcon = (subject: string) => {
@@ -446,7 +447,7 @@ export default function Dashboard() {
               <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(var(--purple))]/20 flex items-center justify-center">
                 <Star className="h-6 w-6 text-[hsl(var(--purple))]" />
               </div>
-              <p className="text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}</p>
+              <p className="text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}%</p>
               <p className="text-sm text-muted-foreground">Avg Score</p>
             </CardContent>
           </Card>
@@ -461,6 +462,63 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* My Results Summary */}
+        {(() => {
+          const gradedExams = examAttempts
+            .filter(a => a.status === 'graded' && a.marks_obtained !== null)
+            .sort((a, b) => new Date(a.attempted_at).getTime() - new Date(b.attempted_at).getTime());
+          
+          if (gradedExams.length === 0) return null;
+
+          const avgPercent = gradedExams.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedExams.length;
+
+          return (
+            <Card className="hover-lift overflow-hidden">
+              <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--purple))] to-primary flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-primary-foreground" />
+                  </div>
+                  My Results Summary
+                </CardTitle>
+                <CardDescription>All your graded test results at a glance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {gradedExams.map((attempt, idx) => {
+                    const percent = (attempt.marks_obtained! / attempt.exams.total_marks) * 100;
+                    const passed = attempt.marks_obtained! >= attempt.exams.passing_marks;
+                    return (
+                      <div key={attempt.id} className="flex items-center justify-between p-3 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-muted-foreground w-16 shrink-0">Test {idx + 1}</span>
+                          <div>
+                            <p className="font-medium">{attempt.exams.title}</p>
+                            <p className="text-xs text-muted-foreground">{attempt.exams.subject || 'General'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
+                          <Badge variant={passed ? 'default' : 'destructive'} className={passed ? 'bg-[hsl(var(--success))]' : ''}>
+                            {passed ? 'Passed' : 'Failed'} ({percent.toFixed(0)}%)
+                          </Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 pt-4 border-t-2 border-primary/20">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
+                    <span className="text-lg font-bold">Overall Average</span>
+                    <span className="text-2xl font-bold text-primary">{avgPercent.toFixed(1)}%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Profile & Parent Info Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
