@@ -1,145 +1,52 @@
 
-# Definitive Fix: Student Registration "Edge Function Error"
 
-## Root Cause Analysis
+# Show Individual Test Results with Numbered List + Average
 
-The logs tell the exact story. Every registration attempt fails with this sequence:
+## What Changes
 
-```
-"Parent email already exists, looking up existing user..."
-"Parent email exists but user not found in listing"
-"Parent ID is still null after parent creation block — aborting"
-```
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-### The Core Bug: `listUsers()` Cannot Find Existing Users
+## Changes by Dashboard
 
-When `createUser()` fails with `email_exists`, both `register-with-key` and `register` fall back to `supabase.auth.admin.listUsers()` to find the existing user's ID. **This API is paginated and only returns ~1,000 users per page with no filter support.** It simply scans an in-memory array — and the user may not be on the first page, or the pagination cursor is not used. The result: the parent's auth user is found to "exist" by auth but cannot be retrieved by listing, so `parentId` stays null and registration aborts.
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-This is the single root cause of all "edge function error" failures.
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-### Secondary Bugs
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-1. **`register-with-key`**: When the parent email already exists AND the parent has NO `parents` table profile (orphaned auth user), the code calls `listUsers()` to delete the orphan — but fails to find them, leaves the orphan in place, cannot re-create the parent account (still `email_exists`), and ultimately aborts.
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-2. **`register`**: Same `listUsers()` pattern used for orphan cleanup (line 227).
+## Technical Details
 
-3. **Both functions**: After repeated failed registrations, orphaned student auth users accumulate (they ARE successfully created, then the parent step fails, and the cleanup `deleteUser` also potentially has timing issues). The next attempt with the same student email then hits `email_exists` for the student too.
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
 
-## Solution
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
 
-### The Fix: Replace `listUsers()` with `getUserByEmail()` (Admin API)
-
-Instead of listing all users and searching by email, use the direct lookup:
-
-```typescript
-// BROKEN — paginates, may not find user
-const { data: usersData } = await supabaseAdmin.auth.admin.listUsers();
-const existingUser = usersData?.users?.find(u => u.email === parentEmail);
-
-// FIXED — direct lookup by email, always works
-const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ 
-  page: 1, perPage: 1000 // still unreliable for large datasets
-});
-
-// ACTUALLY FIXED — use the correct API
-```
-
-The correct approach is to use `supabase.auth.admin.listUsers()` with a **filter** — but Supabase's admin API does not support email filtering on `listUsers`. The real solution is to use the **`getUserById`** after storing the ID, or more practically, to query the `parents` table by email first (which is already indexed), get the `user_id`, and work from there.
-
-**Strategy for `email_exists` case:**
-1. Query `parents` table by email → get `user_id` and parent profile ID directly (no auth listing needed)
-2. If parent profile exists in `parents` table → reuse it (link to new student, done)
-3. If parent profile does NOT exist in `parents` table (orphan auth user) → use `updateUserByEmail` workaround OR delete by generating a service-role query to find the user
-
-For the orphan case, the cleanest fix: **do not try to delete and recreate**. Instead, just create the parent profile in the `parents` table for the existing auth user. To get the auth user ID from email, query `auth.users` via a service-role database query through `supabase.rpc` or via a direct admin endpoint.
-
-Actually the cleanest approach available: **`supabase.auth.admin.listUsers({ page: 1, perPage: 50000 })`** won't scale. The **correct** fix is:
-
-```typescript
-// Use a direct SQL query via service role to find auth user by email
-// This bypasses the pagination limitation
-const { data: authUsers } = await supabaseAdmin
-  .from('auth.users') // This won't work in edge functions (restricted schema)
-  
-// BEST approach: store parent user_id in parents table and query there
-const { data: existingParent } = await supabaseAdmin
-  .from('parents')
-  .select('id, user_id, access_code')
-  .eq('email', parentEmail)
-  .maybeSingle();
-
-if (existingParent) {
-  // Parent profile exists — use it directly
-  parentId = existingParent.id;
-} else {
-  // Orphan auth user (no profile) — must find their ID
-  // Use listUsers with filter via page iteration OR
-  // reset their password and create profile using updateUser
-  // The cleanest: delete via supabase admin REST directly
-}
-```
-
-**The actual working fix** for the orphan case: use `supabase.auth.admin.listUsers()` with `{ perPage: 1000 }` in a paginated loop, OR — much simpler — just attempt to create a parent profile with `upsert` and handle the constraint. But best of all: **use the Supabase admin API properly**.
-
-The **definitive solution**: After `email_exists` error from `createUser`:
-1. Query `parents` table by email → if found, use directly (covers 99% of cases)
-2. If not found (orphan), use `listUsers` with pagination loop until found (covers edge case)
-3. Once found, create the parent profile
-
-## Files to Change
-
-### 1. `supabase/functions/register-with-key/index.ts`
-
-Replace the entire `parentAuthError` handling block. The new logic:
-
-```
-When createUser returns email_exists:
-  → Step 1: Query parents table by email
-    → If parent row found: use existing parentId directly ✓
-    → If no parent row found (orphan auth user):
-       → Loop through listUsers pages until user found
-       → Delete the orphan user
-       → Re-create fresh parent auth user + profile
-  → If parentId still null after all → return clear error
-```
-
-This guarantees the `parents` table query (which does NOT have pagination issues) is tried first, covering the vast majority of real-world cases.
-
-### 2. `supabase/functions/register/index.ts`
-
-Apply the same fix to the `email_exists` orphan handling block (lines 214-285). Replace `listUsers()` scan with `parents` table query first.
-
-### 3. Both functions: Also fix the `listUsers` orphan-delete loop
-
-For orphan cleanup, instead of a single `listUsers()` call, paginate through all pages:
-
-```typescript
-async function findAuthUserByEmail(supabaseAdmin, email) {
-  let page = 1;
-  while (true) {
-    const { data } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (!data?.users?.length) break;
-    const found = data.users.find(u => u.email === email);
-    if (found) return found;
-    if (data.users.length < 1000) break; // last page
-    page++;
-  }
-  return null;
-}
-```
-
-## Summary of All Changes
-
+### Files to Modify
 | File | Change |
 |------|--------|
-| `supabase/functions/register-with-key/index.ts` | Fix: query `parents` table by email first before calling `listUsers`. Add paginated fallback for orphan cleanup |
-| `supabase/functions/register/index.ts` | Fix: same `parents` table first-query approach. Add paginated fallback |
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
 
-Both functions will be redeployed after the fix. No database changes needed.
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 
-## Expected Outcome
-
-- Student ID signup: Works even when parent email has been used before (sibling scenario)
-- Email signup: Works for all new and returning parent emails
-- Orphan cleanup: Works reliably even if there are thousands of auth users
-- No more "edge function error" on registration
