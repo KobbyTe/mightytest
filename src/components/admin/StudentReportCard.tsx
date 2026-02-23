@@ -178,18 +178,27 @@ export default function StudentReportCard({
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {examAttempts.map((attempt, idx) => {
+              {[...examAttempts]
+                .sort((a, b) => {
+                  const dateA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                  const dateB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                  return dateA - dateB;
+                })
+                .map((attempt, idx) => {
                 const percentage = (attempt.marksObtained / attempt.totalMarks) * 100;
                 const passed = attempt.marksObtained >= attempt.passingMarks;
                 return (
                   <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div>
-                      <p className="font-medium">{attempt.examTitle}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {attempt.subject || 'General'} • {attempt.completedAt 
-                          ? format(new Date(attempt.completedAt), 'MMM d, yyyy')
-                          : 'Not completed'}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-muted-foreground w-14 shrink-0">Test {idx + 1}</span>
+                      <div>
+                        <p className="font-medium">{attempt.examTitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {attempt.subject || 'General'} • {attempt.completedAt 
+                            ? format(new Date(attempt.completedAt), 'MMM d, yyyy')
+                            : 'Not completed'}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">{attempt.marksObtained}/{attempt.totalMarks}</p>
@@ -200,6 +209,15 @@ export default function StudentReportCard({
                   </div>
                 );
               })}
+            </div>
+            {/* Average Summary */}
+            <div className="mt-4 pt-4 border-t-2 border-primary/20">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
+                <span className="text-lg font-bold">Overall Average</span>
+                <span className="text-2xl font-bold text-primary">
+                  {(examAttempts.reduce((sum, a) => sum + (a.marksObtained / a.totalMarks) * 100, 0) / examAttempts.length).toFixed(1)}%
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>

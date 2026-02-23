@@ -302,67 +302,64 @@ export default function ParentDashboard() {
                         </div>
                       </div>
 
-                      {/* Recent Exams */}
-                      {childAttempts.length > 0 && (
-                        <div>
-                          <h4 className="font-semibold mb-3 flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            Recent Exam Results
-                          </h4>
-                          <div className="space-y-3">
-                            {childAttempts.slice(0, 5).map((attempt) => {
-                              const isPassed = attempt.status === 'graded' && attempt.marks_obtained !== null && attempt.marks_obtained >= attempt.exams.passing_marks;
-                              const scorePercent = attempt.marks_obtained !== null ? (attempt.marks_obtained / attempt.exams.total_marks) * 100 : 0;
+                      {/* All Test Results - Numbered */}
+                      {(() => {
+                        const gradedAttemptsSorted = childAttempts
+                          .filter(a => a.status === 'graded' && a.marks_obtained !== null)
+                          .sort((a, b) => new Date(a.attempted_at).getTime() - new Date(b.attempted_at).getTime());
+                        
+                        if (gradedAttemptsSorted.length === 0) return null;
 
-                              return (
-                                <div key={attempt.id} className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-shadow">
-                                  <div className="text-2xl">{getSubjectIcon(attempt.exams.subject)}</div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <p className="font-medium truncate">{attempt.exams.title}</p>
-                                      <Badge variant="outline" className="text-xs shrink-0">{attempt.exams.subject}</Badge>
-                                    </div>
-                                    {attempt.status === 'graded' && attempt.marks_obtained !== null && (
-                                      <div className="mt-2">
-                                        <div className="flex items-center justify-between text-sm mb-1">
-                                          <span className="text-muted-foreground">Score</span>
-                                          <span className="font-medium">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
-                                        </div>
-                                        <Progress value={scorePercent} className="h-2" />
+                        const childAvgPercent = gradedAttemptsSorted.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedAttemptsSorted.length;
+
+                        return (
+                          <div>
+                            <h4 className="font-semibold mb-3 flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              Test Results
+                            </h4>
+                            <div className="space-y-2">
+                              {gradedAttemptsSorted.map((attempt, idx) => {
+                                const isPassed = attempt.marks_obtained !== null && attempt.marks_obtained >= attempt.exams.passing_marks;
+                                const scorePercent = (attempt.marks_obtained! / attempt.exams.total_marks) * 100;
+
+                                return (
+                                  <div key={attempt.id} className="flex items-center gap-4 p-3 rounded-xl border bg-card hover:shadow-md transition-shadow">
+                                    <span className="text-sm font-bold text-muted-foreground w-14 shrink-0">Test {idx + 1}</span>
+                                    <div className="text-xl">{getSubjectIcon(attempt.exams.subject)}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium truncate">{attempt.exams.title}</p>
+                                        <Badge variant="outline" className="text-xs shrink-0">{attempt.exams.subject}</Badge>
                                       </div>
-                                    )}
-                                  </div>
-                                  <div className="text-right shrink-0">
-                                    {attempt.status === 'graded' ? (
-                                      isPassed ? (
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                      <span className="font-semibold">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
+                                      {isPassed ? (
                                         <div className="flex items-center gap-1 text-[hsl(var(--success))]">
-                                          <CheckCircle className="h-5 w-5" />
-                                          <span className="font-medium">Passed</span>
+                                          <CheckCircle className="h-4 w-4" />
+                                          <span className="text-sm font-medium">Passed</span>
                                         </div>
                                       ) : (
                                         <div className="flex items-center gap-1 text-destructive">
-                                          <XCircle className="h-5 w-5" />
-                                          <span className="font-medium">Failed</span>
+                                          <XCircle className="h-4 w-4" />
+                                          <span className="text-sm font-medium">Failed</span>
                                         </div>
-                                      )
-                                    ) : (
-                                      <Badge variant="secondary" className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {attempt.status}
-                                      </Badge>
-                                    )}
-                                    {attempt.graded_at && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        {new Date(attempt.graded_at).toLocaleDateString()}
-                                      </p>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                            <div className="mt-3 pt-3 border-t-2 border-primary/20">
+                              <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
+                                <span className="text-lg font-bold">Overall Average</span>
+                                <span className="text-2xl font-bold text-primary">{childAvgPercent.toFixed(1)}%</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {childAttempts.length === 0 && (
                         <div className="text-center py-6 text-muted-foreground">
