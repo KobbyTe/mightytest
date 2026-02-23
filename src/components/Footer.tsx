@@ -20,13 +20,22 @@ const Footer = () => {
             </p>
             {/* Social Icons */}
             <div className="flex items-center gap-3 pt-2">
-              <a href="#" className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+              <a
+                href="#"
+                className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+              >
                 <Github className="w-4 h-4" />
               </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+              <a
+                href="#"
+                className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+              >
                 <Twitter className="w-4 h-4" />
               </a>
-              <a href="#" className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300">
+              <a
+                href="#"
+                className="p-2 rounded-lg bg-secondary-foreground/10 hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+              >
                 <Linkedin className="w-4 h-4" />
               </a>
             </div>
@@ -37,12 +46,18 @@ const Footer = () => {
             <h4 className="font-bold text-lg mb-4">Quick Links</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#features" className="text-secondary-foreground/70 hover:text-primary transition-colors text-sm">
+                <a
+                  href="#features"
+                  className="text-secondary-foreground/70 hover:text-primary transition-colors text-sm"
+                >
                   Features
                 </a>
               </li>
               <li>
-                <a href="#subjects" className="text-secondary-foreground/70 hover:text-primary transition-colors text-sm">
+                <a
+                  href="#subjects"
+                  className="text-secondary-foreground/70 hover:text-primary transition-colors text-sm"
+                >
                   Subjects
                 </a>
               </li>
@@ -73,11 +88,11 @@ const Footer = () => {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-secondary-foreground/70">
                 <Mail className="w-4 h-4 text-primary flex-shrink-0" />
-                <span className="text-sm">info@mightytest.com</span>
+                <span className="text-sm">kwabenatekyi19@gmail.com</span>
               </li>
               <li className="flex items-center gap-2 text-secondary-foreground/70">
                 <Phone className="w-4 h-4 text-primary flex-shrink-0" />
-                <span className="text-sm">+1 (555) 123-4567</span>
+                <span className="text-sm">+233 53 698 7839</span>
               </li>
               <li className="flex items-center gap-2 text-secondary-foreground/70">
                 <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
