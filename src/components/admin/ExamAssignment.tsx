@@ -156,7 +156,7 @@ export default function ExamAssignment() {
       toast.success('Exam assigned successfully');
       setShowAssignDialog(false);
       
-      // Automatically notify students via email (fire-and-forget)
+      // Automatically notify students via email & SMS (fire-and-forget)
       supabase.functions.invoke('notify-exam-assigned', {
         body: {
           exam_id: assignForm.exam_id,
@@ -167,9 +167,15 @@ export default function ExamAssignment() {
         if (error) {
           console.error('Failed to send notifications:', error);
         } else {
-          const sent = data?.emailsSent || 0;
-          if (sent > 0) {
-            toast.success(`Email notifications sent to ${sent} student${sent > 1 ? 's' : ''}`);
+          const emails = data?.emailsSent || 0;
+          const smsStudents = data?.smsStudentsSent || 0;
+          const smsParents = data?.smsParentsSent || 0;
+          const parts = [];
+          if (emails > 0) parts.push(`${emails} email${emails > 1 ? 's' : ''}`);
+          if (smsStudents > 0) parts.push(`${smsStudents} student SMS`);
+          if (smsParents > 0) parts.push(`${smsParents} parent SMS`);
+          if (parts.length > 0) {
+            toast.success(`Notifications sent: ${parts.join(', ')}`);
           }
         }
       });
