@@ -251,8 +251,10 @@ export default function ParentDashboard() {
                 const childAttempts = examAttempts.filter(a => a.student_id === child.id);
                 const gradedAttempts = childAttempts.filter(a => a.status === 'graded');
                 const passedCount = gradedAttempts.filter(a => a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks).length;
-                const childAvgScore = gradedAttempts.filter(a => a.marks_obtained !== null).length > 0
-                  ? Math.round(gradedAttempts.filter(a => a.marks_obtained !== null).reduce((sum, a) => sum + (a.marks_obtained || 0), 0) / gradedAttempts.filter(a => a.marks_obtained !== null).length)
+                // Bug #1 fix: Use percentage-based average
+                const gradedWithMarks = gradedAttempts.filter(a => a.marks_obtained !== null && a.exams?.total_marks > 0);
+                const childAvgScore = gradedWithMarks.length > 0
+                  ? Math.round(gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedWithMarks.length)
                   : 0;
                 const passRate = gradedAttempts.length > 0 ? Math.round((passedCount / gradedAttempts.length) * 100) : 0;
 
