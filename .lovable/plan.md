@@ -1,52 +1,112 @@
 
+# Fix All 14 Platform Bugs
 
-# Show Individual Test Results with Numbered List + Average
+## Bug #1 -- Parent Dashboard "Avg Score" uses raw marks instead of percentages
+**File:** `src/pages/ParentDashboard.tsx`
+- Lines 131-136: Change overall `avgScore` to use percentage-based calculation: `sum((marks_obtained / total_marks) * 100) / count`
+- Lines 252-253: Change per-child `childAvgScore` to use the same percentage formula
 
-## What Changes
+## Bug #2 -- Exam timer resets on page refresh
+**File:** `src/pages/ExamTaking.tsx`
+- Line 308: After loading attempt data, calculate remaining time as `duration_minutes * 60 - elapsed` where `elapsed = (Date.now() - started_at) / 1000`, instead of always using full `duration_minutes * 60`
+- If remaining time is <= 0, auto-submit immediately
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+## Bug #3 -- `started_at` overwritten on every load
+**File:** `src/pages/ExamTaking.tsx`
+- Lines 350-353: Only update `started_at` if `attemptData.started_at` is null. Wrap the update in a conditional check.
 
-## Changes by Dashboard
+## Bug #4 -- ExamGrading overwrites auto-graded answers
+**File:** `src/pages/ExamGrading.tsx`
+- Lines 281-296: Disable the "Marks Awarded" input for auto-graded questions (multiple_choice, true_false) so the admin cannot accidentally overwrite them. Show a "Auto-graded" label instead.
+- The save function already iterates all `answerGrades`, so locking the UI is sufficient.
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+## Bug #5 -- No centralized route protection
+**File:** `src/App.tsx`
+- Create a lightweight `ProtectedRoute` wrapper component that checks `useAuth()` role before rendering children, showing a loading spinner during auth resolution instead of briefly flashing the wrong dashboard.
+- Wrap `/dashboard`, `/parent`, `/admin`, `/exam/*`, `/grading/*` routes with it.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+## Bug #6 -- Stale closures in Dashboard useEffect
+**File:** `src/pages/Dashboard.tsx`
+- The `dataLoaded` flag already prevents re-execution. This is a theoretical concern, not a runtime bug. No change needed -- the existing guard is sufficient.
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+## Bug #7 -- Delete-then-insert answer saving is not atomic
+**File:** `src/pages/ExamTaking.tsx`
+- Lines 238-268: Replace the delete-all + insert-all pattern with upsert. Use `supabase.from('exam_answers').upsert(answersToSave, { onConflict: 'attempt_id,question_id' })` so individual answers are updated in place without deleting first.
+- This requires adding a unique constraint on `(attempt_id, question_id)` via a database migration.
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+**Database Migration:**
+```sql
+ALTER TABLE public.exam_answers
+ADD CONSTRAINT exam_answers_attempt_question_unique
+UNIQUE (attempt_id, question_id);
+```
 
-## Technical Details
+## Bug #8 -- send-grade-notification uses Resend SDK import
+**File:** `supabase/functions/send-grade-notification/index.ts`
+- Replace `import { Resend } from "https://esm.sh/resend@2.0.0"` and `resend.emails.send(...)` with raw `fetch('https://api.resend.com/emails', ...)` calls, matching the pattern used in `notify-exam-assigned`.
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+## Bug #9 -- Exam deletion doesn't cascade
+**Database Migration:** Add `ON DELETE CASCADE` to all foreign keys referencing `exams.id`:
+```sql
+-- exam_questions
+ALTER TABLE public.exam_questions DROP CONSTRAINT IF EXISTS exam_questions_exam_id_fkey;
+ALTER TABLE public.exam_questions ADD CONSTRAINT exam_questions_exam_id_fkey
+  FOREIGN KEY (exam_id) REFERENCES public.exams(id) ON DELETE CASCADE;
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+-- exam_class_assignments
+ALTER TABLE public.exam_class_assignments DROP CONSTRAINT IF EXISTS exam_class_assignments_exam_id_fkey;
+ALTER TABLE public.exam_class_assignments ADD CONSTRAINT exam_class_assignments_exam_id_fkey
+  FOREIGN KEY (exam_id) REFERENCES public.exams(id) ON DELETE CASCADE;
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+-- resit_openings
+ALTER TABLE public.resit_openings DROP CONSTRAINT IF EXISTS resit_openings_exam_id_fkey;
+ALTER TABLE public.resit_openings ADD CONSTRAINT resit_openings_exam_id_fkey
+  FOREIGN KEY (exam_id) REFERENCES public.exams(id) ON DELETE CASCADE;
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+-- resit_requests
+ALTER TABLE public.resit_requests DROP CONSTRAINT IF EXISTS resit_requests_exam_id_fkey;
+ALTER TABLE public.resit_requests ADD CONSTRAINT resit_requests_exam_id_fkey
+  FOREIGN KEY (exam_id) REFERENCES public.exams(id) ON DELETE CASCADE;
+```
 
+Note: `exam_attempts` and `exam_answers` cascade will also be handled (attempts -> answers).
+
+## Bug #10 -- ExamReview auto-generates AI reviews on every visit
+**File:** `src/pages/ExamReview.tsx`
+- Lines 156-185: Before calling `generateReviews()`, check if the loaded answers already have non-generic `review_text` on all of them. Only regenerate if there are answers with null `review_text` (not generic pattern matching). Remove the "clear generic reviews" logic that wipes existing review text.
+- Add a simple check: if all answers have `review_text !== null`, skip generation entirely.
+
+## Bug #11 -- Parent dashboard data loads multiple times
+**File:** `src/pages/ParentDashboard.tsx`
+- Add a `dataLoaded` ref/state guard (like the student dashboard has) to prevent `loadDashboardData` from firing again when `profile` reference changes.
+
+## Bug #12 -- Admin tabs overflow on small screens
+**File:** `src/pages/AdminDashboard.tsx`
+- Line 232: Change `grid-cols-8 lg:w-[1200px]` to a scrollable horizontal layout: use `flex overflow-x-auto` on the TabsList so tabs scroll horizontally on smaller screens instead of overflowing.
+
+## Bug #13 -- Fire-and-forget toast on unmounted component
+**File:** `src/components/admin/ExamAssignment.tsx`
+- This is a non-issue in practice since `sonner` toasts are global and not tied to component lifecycle. No change needed.
+
+## Bug #14 -- Missing null check on exam in handleManualSubmit
+**File:** `src/pages/ExamTaking.tsx`
+- Line 448-455: Add an early return if `exam` is null before building `resultData`. Show a toast error: "Exam data not available."
+
+## Summary of Changes
+
+| Priority | Bug | File(s) | Type |
+|----------|-----|---------|------|
+| Critical | #2, #3 | ExamTaking.tsx | Code fix |
+| Critical | #1 | ParentDashboard.tsx | Code fix |
+| Critical | #4 | ExamGrading.tsx | Code fix |
+| Moderate | #7 | ExamTaking.tsx + DB migration | Code + DB |
+| Moderate | #8 | send-grade-notification/index.ts | Edge function |
+| Moderate | #9 | DB migration | Database |
+| Moderate | #10 | ExamReview.tsx | Code fix |
+| Moderate | #5 | App.tsx + new component | Code fix |
+| Moderate | #11 | ParentDashboard.tsx | Code fix |
+| Minor | #12 | AdminDashboard.tsx | CSS fix |
+| Minor | #14 | ExamTaking.tsx | Code fix |
+| Skip | #6, #13 | -- | No change needed |
+
+**Database migrations required:** 2 (unique constraint for upsert, cascade foreign keys for exam deletion)
