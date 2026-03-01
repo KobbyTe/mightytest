@@ -241,15 +241,15 @@ export default function ExamTaking() {
     const saveDebounced = setTimeout(async () => {
       try {
         // Save current answers to database
+        // Bug #7 fix: Use upsert instead of delete-then-insert
         const answersToSave = Object.entries(answers).map(([question_id, answer_text]) => ({
           attempt_id: attemptId,
           question_id,
           answer_text
         }));
 
-        await supabase.from('exam_answers').delete().eq('attempt_id', attemptId);
         if (answersToSave.length > 0) {
-          await supabase.from('exam_answers').insert(answersToSave);
+          await supabase.from('exam_answers').upsert(answersToSave, { onConflict: 'attempt_id,question_id' });
         }
 
         await supabase
