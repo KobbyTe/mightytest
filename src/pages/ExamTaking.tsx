@@ -241,15 +241,15 @@ export default function ExamTaking() {
     const saveDebounced = setTimeout(async () => {
       try {
         // Save current answers to database
+        // Bug #7 fix: Use upsert instead of delete-then-insert
         const answersToSave = Object.entries(answers).map(([question_id, answer_text]) => ({
           attempt_id: attemptId,
           question_id,
           answer_text
         }));
 
-        await supabase.from('exam_answers').delete().eq('attempt_id', attemptId);
         if (answersToSave.length > 0) {
-          await supabase.from('exam_answers').insert(answersToSave);
+          await supabase.from('exam_answers').upsert(answersToSave, { onConflict: 'attempt_id,question_id' });
         }
 
         await supabase
@@ -305,7 +305,25 @@ export default function ExamTaking() {
       }
 
       setExam(attemptData.exams);
-      setTotalTimeRemaining((attemptData.exams.duration_minutes || 60) * 60);
+      
+      // Bug #2 fix: Calculate remaining time based on started_at
+      const durationSeconds = (attemptData.exams.duration_minutes || 60) * 60;
+      if (attemptData.started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
+        const remaining = Math.max(0, durationSeconds - elapsed);
+        if (remaining <= 0) {
+          // Time already expired, auto-submit immediately
+          toast.warning('Time has expired for this exam');
+          setTotalTimeRemaining(0);
+          setExamStarted(true);
+          setLoading(false);
+          autoSubmitExam('time_expired');
+          return;
+        }
+        setTotalTimeRemaining(remaining);
+      } else {
+        setTotalTimeRemaining(durationSeconds);
+      }
 
       const { data: questionsData, error: questionsError } = await supabase
         .from('exam_questions')
@@ -346,11 +364,13 @@ export default function ExamTaking() {
         setCurrentQuestionIndex(attemptData.current_question_index);
       }
 
-      // Mark exam as started
-      await supabase
-        .from('exam_attempts')
-        .update({ started_at: new Date().toISOString() })
-        .eq('id', attemptId);
+      // Bug #3 fix: Only set started_at if not already set
+      if (!attemptData.started_at) {
+        await supabase
+          .from('exam_attempts')
+          .update({ started_at: new Date().toISOString() })
+          .eq('id', attemptId);
+      }
 
       setExamStarted(true);
     } catch (error: any) {
@@ -368,6 +388,13 @@ export default function ExamTaking() {
 
   const handleManualSubmit = async () => {
     if (submitting) return;
+    
+    // Bug #14 fix: Null check on exam
+    if (!exam) {
+      toast.error('Exam data not available. Please try again.');
+      return;
+    }
+    
     setSubmitting(true);
     isSubmittingRef.current = true;
 

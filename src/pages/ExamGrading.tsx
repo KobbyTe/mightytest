@@ -278,22 +278,40 @@ export default function ExamGrading() {
                     </span>
                   </div>
                 )}
-                <div className="flex gap-4 items-end">
-                  <div className="flex-1">
-                    <Label htmlFor={`marks-${answer.id}`}>Marks Awarded</Label>
-                    <Input
-                      id={`marks-${answer.id}`}
-                      type="number"
-                      min={0}
-                      max={answer.question.marks}
-                      value={answerGrades[answer.id]?.marks || 0}
-                      onChange={(e) => handleGradeChange(answer.id, parseInt(e.target.value) || 0)}
-                    />
+                {/* Bug #4 fix: Lock auto-graded answers from editing */}
+                {(answer.question.question_type === 'multiple_choice' || answer.question.question_type === 'true_false') ? (
+                  <div className="flex gap-4 items-end">
+                    <div className="flex-1">
+                      <Label>Marks Awarded (Auto-graded)</Label>
+                      <Input
+                        type="number"
+                        value={answerGrades[answer.id]?.marks || 0}
+                        disabled
+                        className="bg-muted cursor-not-allowed"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground pb-2">
+                      out of {answer.question.marks}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted-foreground pb-2">
-                    out of {answer.question.marks}
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex gap-4 items-end">
+                    <div className="flex-1">
+                      <Label htmlFor={`marks-${answer.id}`}>Marks Awarded</Label>
+                      <Input
+                        id={`marks-${answer.id}`}
+                        type="number"
+                        min={0}
+                        max={answer.question.marks}
+                        value={answerGrades[answer.id]?.marks || 0}
+                        onChange={(e) => handleGradeChange(answer.id, parseInt(e.target.value) || 0)}
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground pb-2">
+                      out of {answer.question.marks}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

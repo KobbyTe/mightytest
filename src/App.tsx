@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { usePageTracking } from "@/hooks/usePageTracking";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Eager load critical routes
 import Index from "./pages/Index";
@@ -51,15 +52,15 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin-setup" element={<AdminSetup />} />
-        <Route path="/admin/exam/:examId/questions" element={<ExamQuestions />} />
-        <Route path="/admin/exam/grade/:attemptId" element={<ExamGrading />} />
-        <Route path="/admin/analytics" element={<ExamAnalytics />} />
-        <Route path="/exam/take" element={<ExamTaking />} />
-        <Route path="/exam/review/:attemptId" element={<ExamReview />} />
-        <Route path="/parent" element={<ParentDashboard />} />
+        <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['student']}><Dashboard /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin-setup" element={<ProtectedRoute allowedRoles={['admin']}><AdminSetup /></ProtectedRoute>} />
+        <Route path="/admin/exam/:examId/questions" element={<ProtectedRoute allowedRoles={['admin']}><ExamQuestions /></ProtectedRoute>} />
+        <Route path="/admin/exam/grade/:attemptId" element={<ProtectedRoute allowedRoles={['admin']}><ExamGrading /></ProtectedRoute>} />
+        <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin']}><ExamAnalytics /></ProtectedRoute>} />
+        <Route path="/exam/take" element={<ProtectedRoute allowedRoles={['student']}><ExamTaking /></ProtectedRoute>} />
+        <Route path="/exam/review/:attemptId" element={<ProtectedRoute allowedRoles={['student']}><ExamReview /></ProtectedRoute>} />
+        <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
