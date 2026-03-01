@@ -153,32 +153,16 @@ export default function ExamReview() {
     }
   }, [attemptId]);
 
+  // Bug #10 fix: Only generate reviews if answers have null review_text
   useEffect(() => {
     if (attemptId && user) {
       loadReviewData().then((loadedAnswers) => {
-        // Part 3: Detect generic/stale cached reviews that need regeneration
-        const genericPatterns = [/^Correct!/i, /^The correct answer is/i, /^Well done!/i, /^You did not answer/i];
-        const isGeneric = (text: string | null) => {
-          if (!text) return true;
-          return genericPatterns.some(p => p.test(text.trim()));
-        };
-
-        const needsGeneration = loadedAnswers.some((a: Answer) => isGeneric(a.review_text));
-        if (needsGeneration && loadedAnswers.length > 0) {
-          // Clear generic review_text so edge function regenerates them
-          const genericAnswerIds = loadedAnswers
-            .filter((a: Answer) => a.review_text && isGeneric(a.review_text))
-            .map((a: Answer) => a.id);
-
-          if (genericAnswerIds.length > 0) {
-            supabase
-              .from('exam_answers')
-              .update({ review_text: null })
-              .in('id', genericAnswerIds)
-              .then(() => generateReviews());
-          } else {
-            generateReviews();
-          }
+        if (loadedAnswers.length === 0) return;
+        
+        // Only regenerate if there are answers with null review_text
+        const hasNullReviews = loadedAnswers.some((a: Answer) => a.review_text === null);
+        if (hasNullReviews) {
+          generateReviews();
         }
       });
     }

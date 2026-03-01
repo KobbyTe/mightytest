@@ -388,6 +388,13 @@ export default function ExamTaking() {
 
   const handleManualSubmit = async () => {
     if (submitting) return;
+    
+    // Bug #14 fix: Null check on exam
+    if (!exam) {
+      toast.error('Exam data not available. Please try again.');
+      return;
+    }
+    
     setSubmitting(true);
     isSubmittingRef.current = true;
 

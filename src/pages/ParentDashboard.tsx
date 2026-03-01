@@ -90,6 +90,7 @@ export default function ParentDashboard() {
       toast.error('Failed to load dashboard data');
     } finally {
       setLoadingData(false);
+      setDataLoaded(true);
     }
   };
 

@@ -229,7 +229,8 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
-          <TabsList className="grid w-full grid-cols-8 lg:w-[1200px]">
+          {/* Bug #12 fix: Scrollable tabs on small screens */}
+          <TabsList className="flex w-full overflow-x-auto">
              <TabsTrigger value="exams">Exams</TabsTrigger>
              <TabsTrigger value="schools">Schools</TabsTrigger>
              <TabsTrigger value="assignments">Assignments</TabsTrigger>
