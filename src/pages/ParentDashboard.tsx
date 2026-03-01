@@ -45,7 +45,9 @@ export default function ParentDashboard() {
   const [children, setChildren] = useState<Student[]>([]);
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
+  // Bug #11 fix: Add dataLoaded guard to prevent multiple loads
   useEffect(() => {
     if (loading) return;
     
@@ -55,10 +57,10 @@ export default function ParentDashboard() {
       navigate('/dashboard');
     } else if (role === 'admin') {
       navigate('/admin');
-    } else if (role === 'parent' && profile?.id) {
+    } else if (role === 'parent' && profile?.id && !dataLoaded) {
       loadDashboardData();
     }
-  }, [user, loading, role, profile, navigate]);
+  }, [user, loading, role, profile, navigate, dataLoaded]);
 
   const loadDashboardData = async () => {
     try {
