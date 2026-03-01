@@ -305,7 +305,25 @@ export default function ExamTaking() {
       }
 
       setExam(attemptData.exams);
-      setTotalTimeRemaining((attemptData.exams.duration_minutes || 60) * 60);
+      
+      // Bug #2 fix: Calculate remaining time based on started_at
+      const durationSeconds = (attemptData.exams.duration_minutes || 60) * 60;
+      if (attemptData.started_at) {
+        const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
+        const remaining = Math.max(0, durationSeconds - elapsed);
+        if (remaining <= 0) {
+          // Time already expired, auto-submit immediately
+          toast.warning('Time has expired for this exam');
+          setTotalTimeRemaining(0);
+          setExamStarted(true);
+          setLoading(false);
+          autoSubmitExam('time_expired');
+          return;
+        }
+        setTotalTimeRemaining(remaining);
+      } else {
+        setTotalTimeRemaining(durationSeconds);
+      }
 
       const { data: questionsData, error: questionsError } = await supabase
         .from('exam_questions')
