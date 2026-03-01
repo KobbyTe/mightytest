@@ -364,11 +364,13 @@ export default function ExamTaking() {
         setCurrentQuestionIndex(attemptData.current_question_index);
       }
 
-      // Mark exam as started
-      await supabase
-        .from('exam_attempts')
-        .update({ started_at: new Date().toISOString() })
-        .eq('id', attemptId);
+      // Bug #3 fix: Only set started_at if not already set
+      if (!attemptData.started_at) {
+        await supabase
+          .from('exam_attempts')
+          .update({ started_at: new Date().toISOString() })
+          .eq('id', attemptId);
+      }
 
       setExamStarted(true);
     } catch (error: any) {
