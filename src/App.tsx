@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 // Lazy load other routes for faster initial load
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const NewAdminDashboard = lazy(() => import("./pages/NewAdminDashboard"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const ExamTaking = lazy(() => import("./pages/ExamTaking"));
