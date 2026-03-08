@@ -557,36 +557,44 @@ export function ChatBubble() {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    placeholder="Search students..."
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    placeholder="Search students & parents..."
                     className="text-sm h-8 pl-8"
                     autoFocus
                   />
                 </div>
               </div>
               <ScrollArea className="flex-1">
-                {loadingStudents ? (
+                {loadingRecipients ? (
                   <p className="text-xs text-muted-foreground text-center py-6">Loading...</p>
-                ) : studentOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">No students found</p>
+                ) : recipientOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">No recipients found</p>
                 ) : (
                   <div className="divide-y">
-                    {studentOptions.map((s) => (
+                    {recipientOptions.map((r) => (
                       <button
-                        key={s.user_id}
-                        onClick={() => selectRecipient(s)}
+                        key={r.user_id}
+                        onClick={() => selectRecipient(r)}
                         className="w-full px-4 py-2.5 text-left hover:bg-muted/50 transition-colors flex items-center gap-3"
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shrink-0">
+                        <div className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                          r.type === 'parent'
+                            ? 'bg-gradient-to-br from-accent/20 to-secondary/20'
+                            : 'bg-gradient-to-br from-primary/20 to-secondary/20'
+                        )}>
                           <User className="h-3.5 w-3.5 text-primary" />
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{s.full_name}</p>
-                          {s.student_id_code && (
-                            <p className="text-xs text-muted-foreground">{s.student_id_code}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{r.full_name}</p>
+                          {r.identifier && (
+                            <p className="text-xs text-muted-foreground truncate">{r.identifier}</p>
                           )}
                         </div>
+                        <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
+                          {r.type}
+                        </Badge>
                       </button>
                     ))}
                   </div>
