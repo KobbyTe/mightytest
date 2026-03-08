@@ -1,30 +1,52 @@
 
 
-# Plan: Admin-Initiated Messaging + Notification Permission Prompt
+# Show Individual Test Results with Numbered List + Average
 
-## Changes
+## What Changes
 
-### 1. Admin "New Message" Flow (`src/components/ChatBubble.tsx`)
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-Currently only students/parents can start new conversations. Add an admin flow:
+## Changes by Dashboard
 
-- When admin clicks "New", show a **recipient picker** — a searchable list of students fetched from the `students` table, displaying `full_name` and `student_id_code`.
-- Once admin selects a student, create a new conversation using that student's `user_id` as the conversation partner.
-- Set `recipient_role: 'student'` on the inserted message.
-- The student (and their linked parent, since parents share conversation visibility via RLS) will see the message in their chat.
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-**UI**: Replace the empty state for admin with a "New Message" button. On click, show a mini search/select overlay inside the chat panel listing students. Selecting one opens a new thread.
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-### 2. Notification Permission Prompt
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-- Add a `notificationPromptShown` state backed by `localStorage` key `chat_notification_prompted`.
-- On first chat bubble open, if `Notification.permission === 'default'` and prompt hasn't been shown, display a friendly banner at the top of the chat panel:
-  > "Enable notifications to get alerted when new messages arrive."
-  > [Enable] [Not now]
-- "Enable" calls `Notification.requestPermission()`. "Not now" dismisses and sets the localStorage flag.
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-### Files Modified
-- **`src/components/ChatBubble.tsx`**: Add admin recipient picker, notification prompt banner, and update `startNewConversation` logic for admin role.
+## Technical Details
 
-No database changes needed — the existing `messages` table and RLS policies already support admin sending messages.
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

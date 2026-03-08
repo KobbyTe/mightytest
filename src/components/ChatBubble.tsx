@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, ChevronLeft, User } from 'lucide-react';
+import { MessageCircle, X, Send, ChevronLeft, User, Search, Bell, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,12 @@ interface Conversation {
   unread_count: number;
 }
 
+interface StudentOption {
+  user_id: string;
+  full_name: string;
+  student_id_code: string | null;
+}
+
 const playNotificationSound = () => {
   try {
     const ctx = new AudioContext();
@@ -50,10 +56,6 @@ const showBrowserNotification = (content: string) => {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'granted') {
     new Notification('New Message', { body: content.slice(0, 100), icon: '/favicon.png' });
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then((p) => {
-      if (p === 'granted') new Notification('New Message', { body: content.slice(0, 100), icon: '/favicon.png' });
-    });
   }
 };
 
@@ -70,6 +72,38 @@ export function ChatBubble() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAdmin = role === 'admin';
 
+  // Admin recipient picker state
+  const [showRecipientPicker, setShowRecipientPicker] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // Notification permission prompt
+  const [showNotifPrompt, setShowNotifPrompt] = useState(false);
+
+  // Check notification prompt on open
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return;
+    const prompted = localStorage.getItem('chat_notification_prompted');
+    if (!prompted) {
+      setShowNotifPrompt(true);
+    }
+  }, [isOpen]);
+
+  const handleEnableNotifications = () => {
+    Notification.requestPermission().then(() => {
+      setShowNotifPrompt(false);
+      localStorage.setItem('chat_notification_prompted', 'true');
+    });
+  };
+
+  const handleDismissNotifPrompt = () => {
+    setShowNotifPrompt(false);
+    localStorage.setItem('chat_notification_prompted', 'true');
+  };
+
   // Load conversations/messages
   useEffect(() => {
     if (!user || !isOpen) return;
@@ -83,19 +117,16 @@ export function ChatBubble() {
       .channel('chat-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as Message;
-        // Play notification sound + browser notification for incoming messages
         if (msg.sender_id !== user.id) {
           playNotificationSound();
           showBrowserNotification(msg.content);
         }
-        // Update messages if in active conversation
         if (msg.conversation_id === activeConversationId) {
           setMessages((prev) => [...prev, msg]);
           if (msg.sender_id !== user.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then();
           }
         }
-        // Refresh conversations
         loadConversations();
       })
       .subscribe();
@@ -145,7 +176,6 @@ export function ChatBubble() {
       return;
     }
 
-    // Group by conversation_id
     const convMap = new Map<string, Message[]>();
     for (const msg of allMessages) {
       const existing = convMap.get(msg.conversation_id) || [];
@@ -153,7 +183,6 @@ export function ChatBubble() {
       convMap.set(msg.conversation_id, existing);
     }
 
-    // Build conversation summaries
     const convPromises = Array.from(convMap.entries()).map(async ([convId, msgs]) => {
       const sorted = msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const lastMsg = sorted[0];
@@ -161,7 +190,6 @@ export function ChatBubble() {
       const otherRole = msgs.find((m) => m.sender_id !== user!.id)?.sender_role || 'admin';
       const unread = msgs.filter((m) => m.sender_id !== user!.id && !m.is_read).length;
 
-      // Try to get the other user's name
       let otherName = otherRole === 'admin' ? 'Admin' : 'User';
       if (otherUserId !== user!.id) {
         if (otherRole === 'student') {
@@ -193,6 +221,7 @@ export function ChatBubble() {
   const openConversation = async (convId: string) => {
     setActiveConversationId(convId);
     setShowConversations(false);
+    setShowRecipientPicker(false);
 
     const { data } = await supabase
       .from('messages')
@@ -202,7 +231,6 @@ export function ChatBubble() {
 
     setMessages(data || []);
 
-    // Mark all as read
     await supabase
       .from('messages')
       .update({ is_read: true })
@@ -213,12 +241,49 @@ export function ChatBubble() {
   };
 
   const startNewConversation = () => {
-    // For students/parents: start a new conversation with admin
+    if (isAdmin) {
+      setShowRecipientPicker(true);
+      setStudentSearch('');
+      loadStudents('');
+    } else {
+      const newConvId = crypto.randomUUID();
+      setActiveConversationId(newConvId);
+      setMessages([]);
+      setShowConversations(false);
+    }
+  };
+
+  const loadStudents = async (search: string) => {
+    setLoadingStudents(true);
+    let query = supabase.from('students').select('user_id, full_name, student_id_code').eq('account_status', 'active').order('full_name').limit(50);
+    if (search.trim()) {
+      query = query.or(`full_name.ilike.%${search.trim()}%,student_id_code.ilike.%${search.trim()}%`);
+    }
+    const { data } = await query;
+    setStudentOptions(data || []);
+    setLoadingStudents(false);
+  };
+
+  const selectRecipient = (student: StudentOption) => {
+    // Check if there's an existing conversation with this student
+    const existing = conversations.find((c) => c.other_user_id === student.user_id);
+    if (existing) {
+      openConversation(existing.conversation_id);
+      return;
+    }
     const newConvId = crypto.randomUUID();
     setActiveConversationId(newConvId);
     setMessages([]);
     setShowConversations(false);
+    setShowRecipientPicker(false);
   };
+
+  // Debounced student search
+  useEffect(() => {
+    if (!showRecipientPicker) return;
+    const t = setTimeout(() => loadStudents(studentSearch), 300);
+    return () => clearTimeout(t);
+  }, [studentSearch, showRecipientPicker]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !user || !activeConversationId) return;
@@ -288,33 +353,98 @@ export function ChatBubble() {
           {/* Header */}
           <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center gap-2">
             {!showConversations && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setShowConversations(true); setActiveConversationId(null); }}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setShowConversations(true); setActiveConversationId(null); setShowRecipientPicker(false); }}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
             <MessageCircle className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-sm flex-1">
-              {showConversations ? (isAdmin ? 'Messages' : 'Chat with Admin') : 'Conversation'}
+              {showRecipientPicker ? 'New Message' : showConversations ? (isAdmin ? 'Messages' : 'Chat with Admin') : 'Conversation'}
             </h3>
-            {!isAdmin && showConversations && (
-              <Button size="sm" variant="ghost" onClick={startNewConversation} className="text-xs h-7">
-                New
+            {showConversations && !showRecipientPicker && (
+              <Button size="sm" variant="ghost" onClick={startNewConversation} className="text-xs h-7 gap-1">
+                <Plus className="h-3 w-3" /> New
               </Button>
             )}
           </div>
 
-          {showConversations ? (
+          {/* Notification Permission Prompt */}
+          {showNotifPrompt && (
+            <div className="px-4 py-3 border-b bg-accent/10 flex items-start gap-3">
+              <Bell className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs text-foreground font-medium">Enable notifications</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Get alerted when new messages arrive.</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" variant="default" className="h-6 text-xs px-3" onClick={handleEnableNotifications}>
+                    Enable
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-xs px-3" onClick={handleDismissNotifPrompt}>
+                    Not now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Admin Recipient Picker */}
+          {showRecipientPicker ? (
+            <div className="flex flex-col flex-1 max-h-[400px]">
+              <div className="px-3 py-2 border-b">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    placeholder="Search students..."
+                    className="text-sm h-8 pl-8"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <ScrollArea className="flex-1">
+                {loadingStudents ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">Loading...</p>
+                ) : studentOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">No students found</p>
+                ) : (
+                  <div className="divide-y">
+                    {studentOptions.map((s) => (
+                      <button
+                        key={s.user_id}
+                        onClick={() => selectRecipient(s)}
+                        className="w-full px-4 py-2.5 text-left hover:bg-muted/50 transition-colors flex items-center gap-3"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shrink-0">
+                          <User className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{s.full_name}</p>
+                          {s.student_id_code && (
+                            <p className="text-xs text-muted-foreground">{s.student_id_code}</p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <div className="px-3 py-2 border-t">
+                <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => setShowRecipientPicker(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : showConversations ? (
             /* Conversation List */
             <ScrollArea className="flex-1 max-h-[400px]">
               {conversations.length === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No conversations yet</p>
-                  {!isAdmin && (
-                    <Button size="sm" variant="outline" onClick={startNewConversation} className="mt-3">
-                      Start a conversation
-                    </Button>
-                  )}
+                  <Button size="sm" variant="outline" onClick={startNewConversation} className="mt-3">
+                    Start a conversation
+                  </Button>
                 </div>
               ) : (
                 <div className="divide-y">
