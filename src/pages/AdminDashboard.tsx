@@ -274,7 +274,7 @@ export default function AdminDashboard() {
     navigate('/');
   };
 
-  if (loading || loadingData) {
+  if (loading || loadingData || scopeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="animate-pulse text-lg">Loading...</div>
