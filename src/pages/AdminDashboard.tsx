@@ -605,6 +605,7 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
       </main>
+      <ChatBubble />
     </div>
   );
 }

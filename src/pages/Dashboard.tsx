@@ -974,6 +974,7 @@ export default function Dashboard() {
           );
         })()}
       </main>
+      <ChatBubble />
     </div>
   );
 }
