@@ -309,6 +309,39 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          recipient_role: string
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          content: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_role?: string
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_role?: string
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: []
+      }
       page_views: {
         Row: {
           browser: string | null

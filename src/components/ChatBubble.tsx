@@ -1,0 +1,367 @@
+import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MessageCircle, X, Send, ChevronLeft, User } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_role: string;
+  recipient_role: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+interface Conversation {
+  conversation_id: string;
+  other_user_id: string;
+  other_name: string;
+  other_role: string;
+  last_message: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
+export function ChatBubble() {
+  const { user, role } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [unreadTotal, setUnreadTotal] = useState(0);
+  const [showConversations, setShowConversations] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isAdmin = role === 'admin';
+
+  // Load conversations/messages
+  useEffect(() => {
+    if (!user || !isOpen) return;
+    loadConversations();
+  }, [user, isOpen]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('chat-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const msg = payload.new as Message;
+        // Update messages if in active conversation
+        if (msg.conversation_id === activeConversationId) {
+          setMessages((prev) => [...prev, msg]);
+          // Mark as read if it's not from us
+          if (msg.sender_id !== user.id) {
+            supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then();
+          }
+        }
+        // Refresh conversations
+        loadConversations();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, activeConversationId]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Count unread on load
+  useEffect(() => {
+    if (!user) return;
+    countUnread();
+  }, [user]);
+
+  const countUnread = async () => {
+    const { count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .neq('sender_id', user!.id)
+      .eq('is_read', false);
+    setUnreadTotal(count || 0);
+  };
+
+  const loadConversations = async () => {
+    if (!user) return;
+
+    const { data: allMessages, error } = await supabase
+      .from('messages')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (error) {
+      console.error('Error loading messages:', error);
+      return;
+    }
+
+    if (!allMessages || allMessages.length === 0) {
+      setConversations([]);
+      countUnread();
+      return;
+    }
+
+    // Group by conversation_id
+    const convMap = new Map<string, Message[]>();
+    for (const msg of allMessages) {
+      const existing = convMap.get(msg.conversation_id) || [];
+      existing.push(msg);
+      convMap.set(msg.conversation_id, existing);
+    }
+
+    // Build conversation summaries
+    const convPromises = Array.from(convMap.entries()).map(async ([convId, msgs]) => {
+      const sorted = msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const lastMsg = sorted[0];
+      const otherUserId = msgs.find((m) => m.sender_id !== user!.id)?.sender_id || user!.id;
+      const otherRole = msgs.find((m) => m.sender_id !== user!.id)?.sender_role || 'admin';
+      const unread = msgs.filter((m) => m.sender_id !== user!.id && !m.is_read).length;
+
+      // Try to get the other user's name
+      let otherName = otherRole === 'admin' ? 'Admin' : 'User';
+      if (otherUserId !== user!.id) {
+        if (otherRole === 'student') {
+          const { data } = await supabase.from('students').select('full_name').eq('user_id', otherUserId).maybeSingle();
+          if (data) otherName = data.full_name;
+        } else if (otherRole === 'parent') {
+          const { data } = await supabase.from('parents').select('full_name').eq('user_id', otherUserId).maybeSingle();
+          if (data) otherName = data.full_name;
+        }
+      }
+
+      return {
+        conversation_id: convId,
+        other_user_id: otherUserId,
+        other_name: otherName,
+        other_role: otherRole,
+        last_message: lastMsg.content,
+        last_message_at: lastMsg.created_at,
+        unread_count: unread,
+      } as Conversation;
+    });
+
+    const convs = await Promise.all(convPromises);
+    convs.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+    setConversations(convs);
+    countUnread();
+  };
+
+  const openConversation = async (convId: string) => {
+    setActiveConversationId(convId);
+    setShowConversations(false);
+
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true });
+
+    setMessages(data || []);
+
+    // Mark all as read
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', convId)
+      .neq('sender_id', user!.id);
+
+    countUnread();
+  };
+
+  const startNewConversation = () => {
+    // For students/parents: start a new conversation with admin
+    const newConvId = crypto.randomUUID();
+    setActiveConversationId(newConvId);
+    setMessages([]);
+    setShowConversations(false);
+  };
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || !user || !activeConversationId) return;
+    setSending(true);
+
+    try {
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: activeConversationId,
+        sender_id: user.id,
+        sender_role: role || 'student',
+        recipient_role: isAdmin ? 'student' : 'admin',
+        content: newMessage.trim(),
+        is_read: false,
+      });
+
+      if (error) throw error;
+      setNewMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+      toast.error('Failed to send message');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const formatTime = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
+  if (!user) return null;
+
+  return (
+    <>
+      {/* Floating Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110',
+          'bg-gradient-to-br from-primary to-secondary text-primary-foreground',
+          isOpen && 'rotate-90'
+        )}
+      >
+        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {!isOpen && unreadTotal > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-bold">
+            {unreadTotal > 9 ? '9+' : unreadTotal}
+          </span>
+        )}
+      </button>
+
+      {/* Chat Panel */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-h-[500px] bg-background border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
+          {/* Header */}
+          <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center gap-2">
+            {!showConversations && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setShowConversations(true); setActiveConversationId(null); }}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <MessageCircle className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold text-sm flex-1">
+              {showConversations ? (isAdmin ? 'Messages' : 'Chat with Admin') : 'Conversation'}
+            </h3>
+            {!isAdmin && showConversations && (
+              <Button size="sm" variant="ghost" onClick={startNewConversation} className="text-xs h-7">
+                New
+              </Button>
+            )}
+          </div>
+
+          {showConversations ? (
+            /* Conversation List */
+            <ScrollArea className="flex-1 max-h-[400px]">
+              {conversations.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No conversations yet</p>
+                  {!isAdmin && (
+                    <Button size="sm" variant="outline" onClick={startNewConversation} className="mt-3">
+                      Start a conversation
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {conversations.map((conv) => (
+                    <button
+                      key={conv.conversation_id}
+                      onClick={() => openConversation(conv.conversation_id)}
+                      className="w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm truncate">{conv.other_name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(conv.last_message_at)}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-xs text-muted-foreground truncate">{conv.last_message}</p>
+                          {conv.unread_count > 0 && (
+                            <Badge className="ml-2 h-5 min-w-[20px] flex items-center justify-center text-[10px] shrink-0">
+                              {conv.unread_count}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          ) : (
+            /* Message Thread */
+            <>
+              <div ref={scrollRef} className="flex-1 overflow-y-auto max-h-[350px] p-3 space-y-2">
+                {messages.length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground py-8">Send a message to start the conversation</p>
+                )}
+                {messages.map((msg) => {
+                  const isMe = msg.sender_id === user.id;
+                  return (
+                    <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+                      <div
+                        className={cn(
+                          'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
+                          isMe
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-muted text-foreground rounded-bl-md'
+                        )}
+                      >
+                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        <p className={cn('text-[10px] mt-1', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
+                          {formatTime(msg.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Input */}
+              <div className="p-3 border-t flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message..."
+                  className="text-sm h-9"
+                  disabled={sending}
+                />
+                <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={sending || !newMessage.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  );
+}

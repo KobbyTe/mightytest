@@ -12,6 +12,8 @@ import {
   CheckCircle, XCircle, Clock, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChatBubble } from '@/components/ChatBubble';
+import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
 
 interface Student {
   id: string;
@@ -113,32 +115,13 @@ export default function ParentDashboard() {
     );
   }
 
-  const getSubjectIcon = (subject: string) => {
-    const icons: Record<string, string> = {
-      'Science': '🔬',
-      'Technology': '💻',
-      'Engineering': '⚙️',
-      'Mathematics': '📐',
-      'Robotics': '🤖',
-      'AI': '🧠',
-    };
-    return icons[subject] || '📚';
-  };
-
   // Overall stats across all children
   const totalAttempts = examAttempts.length;
   const completedAttempts = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed').length;
   const passedAttempts = examAttempts.filter(a => 
     a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks
   ).length;
-  // Bug #1 fix: Use percentage-based average instead of raw marks
-  const gradedWithMarks = examAttempts.filter(a => a.marks_obtained !== null && a.exams?.total_marks > 0);
-  const avgScore = gradedWithMarks.length > 0
-    ? Math.round(
-        gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / 
-        gradedWithMarks.length
-      )
-    : 0;
+  const avgScore = calcAvgScore(examAttempts);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
@@ -255,10 +238,7 @@ export default function ParentDashboard() {
                 const gradedAttempts = childAttempts.filter(a => a.status === 'graded');
                 const passedCount = gradedAttempts.filter(a => a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks).length;
                 // Bug #1 fix: Use percentage-based average
-                const gradedWithMarks = gradedAttempts.filter(a => a.marks_obtained !== null && a.exams?.total_marks > 0);
-                const childAvgScore = gradedWithMarks.length > 0
-                  ? Math.round(gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedWithMarks.length)
-                  : 0;
+                const childAvgScore = calcAvgScore(gradedAttempts);
                 const passRate = gradedAttempts.length > 0 ? Math.round((passedCount / gradedAttempts.length) * 100) : 0;
 
                 return (
@@ -382,6 +362,7 @@ export default function ParentDashboard() {
           )}
         </div>
       </main>
+      <ChatBubble />
     </div>
   );
 }

@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
+import { ChatBubble } from '@/components/ChatBubble';
+import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 
 interface Exam {
   id: string;
@@ -368,24 +370,7 @@ export default function Dashboard() {
 
   const completedExams = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed');
   const passedExams = examAttempts.filter(a => a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks);
-  const gradedWithMarks = completedExams.filter(a => a.marks_obtained !== null);
-  const avgScore = gradedWithMarks.length > 0
-    ? Math.round(gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedWithMarks.length)
-    : 0;
-
-  const getSubjectIcon = (subject: string) => {
-    const icons: Record<string, string> = { 'Science': '🔬', 'Technology': '💻', 'Engineering': '⚙️', 'Mathematics': '📐', 'Robotics': '🤖', 'AI': '🧠' };
-    return icons[subject] || '📚';
-  };
-
-  const getSubjectColor = (subject: string) => {
-    const colors: Record<string, string> = {
-      'Science': 'bg-[hsl(var(--stem-science))]', 'Technology': 'bg-[hsl(var(--stem-technology))]',
-      'Engineering': 'bg-[hsl(var(--stem-engineering))]', 'Mathematics': 'bg-[hsl(var(--stem-mathematics))]',
-      'Robotics': 'bg-[hsl(var(--stem-robotics))]', 'AI': 'bg-[hsl(var(--stem-ai))]',
-    };
-    return colors[subject] || 'bg-primary';
-  };
+  const avgScore = calcAvgScore(completedExams);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -989,6 +974,7 @@ export default function Dashboard() {
           );
         })()}
       </main>
+      <ChatBubble />
     </div>
   );
 }
