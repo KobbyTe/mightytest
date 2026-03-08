@@ -57,20 +57,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       // Optimized parallel queries with minimal field selection
-      const [roleRes, studentRes, parentRes, prefsRes] = await Promise.all([
+      const [roleRes, studentRes, parentRes, teacherRes, prefsRes] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
         supabase.from('students').select('id,user_id,full_name,email,grade,school_name,parent_id,class_id,student_id_code').eq('user_id', userId).maybeSingle(),
         supabase.from('parents').select('id,user_id,full_name,email,access_code').eq('user_id', userId).maybeSingle(),
+        supabase.from('teachers').select('id,user_id,full_name,email,status,subject_specialty,school_id').eq('user_id', userId).maybeSingle(),
         supabase.from('user_preferences').select('theme,language,notifications_enabled').eq('user_id', userId).maybeSingle()
       ]);
 
-      const userRole = roleRes.data?.role as 'student' | 'parent' | 'admin' | null;
+      const userRole = roleRes.data?.role as UserRole;
       let userProfile = null;
 
       if (userRole === 'student' && studentRes.data) {
         userProfile = studentRes.data;
       } else if (userRole === 'parent' && parentRes.data) {
         userProfile = parentRes.data;
+      } else if (userRole === 'teacher' && teacherRes.data) {
+        userProfile = teacherRes.data;
       }
 
       // Update cache
