@@ -27,7 +27,7 @@ const Contact = () => {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.from("contact_submissions").insert(result.data);
+    const { error } = await supabase.from("contact_submissions").insert([result.data]);
     setLoading(false);
     if (error) {
       toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" });
