@@ -300,14 +300,21 @@ export default function ExamTaking() {
     }
   }, [currentQuestionIndex, timePerQuestion, examStarted]);
 
-  // Real-time answer saving
+  // Real-time answer saving (with offline fallback)
   useEffect(() => {
     if (!attemptId || !examStarted || Object.keys(answers).length === 0) return;
 
     const saveDebounced = setTimeout(async () => {
+      // Always cache locally first
+      cacheAnswers(attemptId, answers, currentQuestionIndex);
+
+      if (!isOnline()) {
+        // Queue for sync when back online
+        queuePendingSync(attemptId, answers, currentQuestionIndex);
+        return;
+      }
+
       try {
-        // Save current answers to database
-        // Bug #7 fix: Use upsert instead of delete-then-insert
         const answersToSave = Object.entries(answers).map(([question_id, answer_text]) => ({
           attempt_id: attemptId,
           question_id,
@@ -325,8 +332,12 @@ export default function ExamTaking() {
             current_question_index: currentQuestionIndex
           })
           .eq('id', attemptId);
+        
+        // Clear pending sync since we just saved successfully
+        clearPendingSync();
       } catch (e) {
-        console.error('Failed to save answers:', e);
+        console.error('Failed to save answers to server, queuing for later:', e);
+        queuePendingSync(attemptId, answers, currentQuestionIndex);
       }
     }, 1500);
 
