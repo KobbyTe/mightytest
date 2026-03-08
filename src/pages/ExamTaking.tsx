@@ -8,9 +8,21 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award, WifiOff, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
+import {
+  cacheExamData,
+  getCachedExamData,
+  cacheAnswers,
+  getCachedAnswers,
+  queuePendingSync,
+  getPendingSync,
+  clearPendingSync,
+  clearExamCache,
+  isOnline,
+  onNetworkRestore,
+} from '@/lib/examOfflineCache';
 
 interface Question {
   id: string;
@@ -39,6 +51,7 @@ export default function ExamTaking() {
   const [submitting, setSubmitting] = useState(false);
   const [examStarted, setExamStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [networkOnline, setNetworkOnline] = useState(navigator.onLine);
   const [resultData, setResultData] = useState<{
     marks: number;
     totalMarks: number;
@@ -55,11 +68,57 @@ export default function ExamTaking() {
   // Keep refs updated for async operations
   useEffect(() => {
     answersRef.current = answers;
-  }, [answers]);
+    // Also cache answers locally on every change
+    if (attemptId && examStarted) {
+      cacheAnswers(attemptId, answers, currentQuestionIndex);
+    }
+  }, [answers, attemptId, examStarted, currentQuestionIndex]);
 
   useEffect(() => {
     questionsRef.current = questions;
   }, [questions]);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setNetworkOnline(true);
+      toast.success('Connection restored — syncing your answers…', { icon: <Wifi className="h-4 w-4" /> });
+      syncPendingAnswers();
+    };
+    const handleOffline = () => {
+      setNetworkOnline(false);
+      toast.warning('You\'re offline — answers are saved locally', { icon: <WifiOff className="h-4 w-4" />, duration: 5000 });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync pending answers when back online
+  const syncPendingAnswers = useCallback(async () => {
+    const pending = getPendingSync();
+    if (!pending) return;
+    try {
+      const answersToSave = Object.entries(pending.answers).map(([question_id, answer_text]) => ({
+        attempt_id: pending.attemptId,
+        question_id,
+        answer_text,
+      }));
+      if (answersToSave.length > 0) {
+        await supabase.from('exam_answers').upsert(answersToSave, { onConflict: 'attempt_id,question_id' });
+      }
+      await supabase
+        .from('exam_attempts')
+        .update({ last_activity_at: new Date().toISOString(), current_question_index: pending.currentQuestionIndex })
+        .eq('id', pending.attemptId);
+      clearPendingSync();
+    } catch (e) {
+      console.error('Failed to sync pending answers:', e);
+    }
+  }, []);
 
   // Calculate time per question
   const timePerQuestion = exam?.duration_minutes && questions.length > 0 
@@ -241,14 +300,21 @@ export default function ExamTaking() {
     }
   }, [currentQuestionIndex, timePerQuestion, examStarted]);
 
-  // Real-time answer saving
+  // Real-time answer saving (with offline fallback)
   useEffect(() => {
     if (!attemptId || !examStarted || Object.keys(answers).length === 0) return;
 
     const saveDebounced = setTimeout(async () => {
+      // Always cache locally first
+      cacheAnswers(attemptId, answers, currentQuestionIndex);
+
+      if (!isOnline()) {
+        // Queue for sync when back online
+        queuePendingSync(attemptId, answers, currentQuestionIndex);
+        return;
+      }
+
       try {
-        // Save current answers to database
-        // Bug #7 fix: Use upsert instead of delete-then-insert
         const answersToSave = Object.entries(answers).map(([question_id, answer_text]) => ({
           attempt_id: attemptId,
           question_id,
@@ -266,8 +332,12 @@ export default function ExamTaking() {
             current_question_index: currentQuestionIndex
           })
           .eq('id', attemptId);
+        
+        // Clear pending sync since we just saved successfully
+        clearPendingSync();
       } catch (e) {
-        console.error('Failed to save answers:', e);
+        console.error('Failed to save answers to server, queuing for later:', e);
+        queuePendingSync(attemptId, answers, currentQuestionIndex);
       }
     }, 1500);
 
@@ -276,7 +346,6 @@ export default function ExamTaking() {
 
   const loadExamData = async () => {
     try {
-      // Add retry logic for transient issues (especially on Vercel deployments)
       let attemptData = null;
       let retryCount = 0;
       const maxRetries = 3;
@@ -295,6 +364,25 @@ export default function ExamTaking() {
             await new Promise(resolve => setTimeout(resolve, 500));
             continue;
           }
+          // Fall back to cached data if offline
+          const cached = getCachedExamData(attemptId!);
+          if (cached) {
+            toast.info('Loaded exam from offline cache', { icon: <WifiOff className="h-4 w-4" /> });
+            setExam(cached.exam);
+            setQuestions(cached.questions);
+            const cachedAns = getCachedAnswers(attemptId!);
+            if (cachedAns) {
+              setAnswers(cachedAns.answers);
+              setCurrentQuestionIndex(cachedAns.currentQuestionIndex);
+            }
+            const durationSeconds = (cached.exam.duration_minutes || 60) * 60;
+            setTotalTimeRemaining(durationSeconds);
+            const tpq = Math.floor(durationSeconds / cached.questions.length);
+            setQuestionTimeRemaining(tpq);
+            setExamStarted(true);
+            setLoading(false);
+            return;
+          }
           throw new Error('Unable to load exam. Please try again.');
         }
 
@@ -306,6 +394,7 @@ export default function ExamTaking() {
       }
 
       if (attemptData.status === 'completed' || attemptData.status === 'graded') {
+        clearExamCache(attemptId!);
         toast.error('This exam has already been completed');
         navigate('/dashboard');
         return;
@@ -313,13 +402,13 @@ export default function ExamTaking() {
 
       setExam(attemptData.exams);
       
-      // Bug #2 fix: Calculate remaining time based on started_at
+      // Calculate remaining time based on started_at
       const durationSeconds = (attemptData.exams.duration_minutes || 60) * 60;
       if (attemptData.started_at) {
         const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
         const remaining = Math.max(0, durationSeconds - elapsed);
         if (remaining <= 0) {
-          // Time already expired, auto-submit immediately
+          clearExamCache(attemptId!);
           toast.warning('Time has expired for this exam');
           setTotalTimeRemaining(0);
           setExamStarted(true);
@@ -348,22 +437,32 @@ export default function ExamTaking() {
       
       setQuestions(questionsData);
 
+      // Cache exam data for offline use
+      cacheExamData(attemptId!, attemptData.exams, questionsData);
+
       // Initialize question timer
       const tpq = Math.floor(((attemptData.exams.duration_minutes || 60) * 60) / questionsData.length);
       setQuestionTimeRemaining(tpq);
 
-      // Restore previous progress if any
+      // Restore answers: prefer server data, fall back to local cache
       const { data: existingAnswers } = await supabase
         .from('exam_answers')
         .select('*')
         .eq('attempt_id', attemptId);
 
-      if (existingAnswers) {
+      if (existingAnswers && existingAnswers.length > 0) {
         const answersMap: Record<string, string> = {};
         existingAnswers.forEach(ans => {
           answersMap[ans.question_id] = ans.answer_text || '';
         });
         setAnswers(answersMap);
+      } else {
+        // Check localStorage for cached answers
+        const cachedAns = getCachedAnswers(attemptId!);
+        if (cachedAns && Object.keys(cachedAns.answers).length > 0) {
+          setAnswers(cachedAns.answers);
+          toast.info('Restored answers from local cache');
+        }
       }
 
       // Restore current question index
@@ -371,13 +470,16 @@ export default function ExamTaking() {
         setCurrentQuestionIndex(attemptData.current_question_index);
       }
 
-      // Bug #3 fix: Only set started_at if not already set
+      // Only set started_at if not already set
       if (!attemptData.started_at) {
         await supabase
           .from('exam_attempts')
           .update({ started_at: new Date().toISOString() })
           .eq('id', attemptId);
       }
+
+      // Sync any pending offline answers
+      syncPendingAnswers();
 
       setExamStarted(true);
     } catch (error: any) {
@@ -416,6 +518,8 @@ export default function ExamTaking() {
         examTitle: exam.title || 'Exam',
       });
       setShowResults(true);
+      // Clear offline cache on successful submission
+      clearExamCache(attemptId!);
     } catch (error) {
       console.error('Error submitting exam:', error);
       toast.error('Failed to submit exam');
@@ -577,6 +681,13 @@ export default function ExamTaking() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Network Status */}
+              {!networkOnline && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/20 text-secondary border border-secondary/50 animate-pulse">
+                  <WifiOff className="h-4 w-4" />
+                  <span className="text-xs font-semibold">Offline</span>
+                </div>
+              )}
               {/* Question Timer */}
               <div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-mono ${
                 questionTimeRemaining < 10 
