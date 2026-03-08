@@ -709,14 +709,14 @@ export function ChatBubble() {
                           <div className="flex-1 h-px bg-border" />
                         </div>
                       )}
-                      <div className={cn('flex items-end gap-1 group', isMe ? 'justify-end' : 'justify-start')}>
+                      <div className={cn('flex items-end gap-1.5 group', isMe ? 'justify-end' : 'justify-start')}>
                         {isMe && (
                           <button
                             onClick={() => handleDeleteMessage(msg.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
                             title="Delete message"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
                         <div
@@ -728,17 +728,22 @@ export function ChatBubble() {
                           )}
                         >
                           <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                          <p className={cn('text-[10px] mt-1', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
-                            {formatTime(msg.created_at)}
-                          </p>
+                          <div className={cn('flex items-center gap-1 mt-1 justify-end', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
+                            <span className="text-[10px]">{formatTime(msg.created_at)}</span>
+                            {isMe && (
+                              msg.is_read
+                                ? <CheckCheck className="h-3.5 w-3.5 text-sky-400" />
+                                : <Check className="h-3 w-3" />
+                            )}
+                          </div>
                         </div>
-                        {!isMe && (isAdmin || msg.sender_id === user.id) && (
+                        {!isMe && isAdmin && (
                           <button
                             onClick={() => handleDeleteMessage(msg.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
                             title="Delete message"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </div>
