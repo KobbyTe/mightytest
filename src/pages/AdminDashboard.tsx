@@ -86,7 +86,7 @@ export default function AdminDashboard() {
   const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || scopeLoading) return;
     
     if (!user) {
       navigate('/auth');
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
         checkTeacherOnboarding();
       }
     }
-  }, [user, loading, role, navigate]);
+  }, [user, loading, scopeLoading, role, navigate]);
 
   const checkTeacherOnboarding = async () => {
     if (!user) return;
