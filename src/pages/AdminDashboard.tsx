@@ -253,7 +253,7 @@ export default function AdminDashboard() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" id="teacher-tour-welcome">
             <GraduationCap className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
