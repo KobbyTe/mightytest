@@ -451,6 +451,9 @@ export default function Dashboard() {
           </Card>
         </div>
 
+        {/* Gamification Section */}
+        <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
+
         {/* My Results Summary */}
         {(() => {
           const gradedExams = examAttempts
