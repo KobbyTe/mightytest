@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, ChevronLeft, User, Search, Bell, Plus, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, ChevronLeft, User, Search, Bell, Plus, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -358,15 +358,23 @@ export function ChatBubble() {
     setLoadingMore(false);
   };
 
-  const startNewConversation = () => {
+  const startNewConversation = async () => {
     if (isAdmin) {
       setShowRecipientPicker(true);
       setRecipientSearch('');
       loadRecipients('');
     } else {
+      // Find an admin user_id to set as recipient
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
-      setActiveRecipientUserId(null);
+      setActiveRecipientUserId(adminRole?.user_id || null);
       setActiveRecipientRole('admin');
       setMessages([]);
       setShowConversations(false);
@@ -453,6 +461,18 @@ export function ChatBubble() {
       toast.error('Failed to send message');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const { error } = await supabase.from('messages').delete().eq('id', msgId);
+      if (error) throw error;
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      toast.success('Message deleted');
+      loadConversations();
+    } catch {
+      toast.error('Failed to delete message');
     }
   };
 
@@ -689,7 +709,16 @@ export function ChatBubble() {
                           <div className="flex-1 h-px bg-border" />
                         </div>
                       )}
-                      <div className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+                      <div className={cn('flex items-end gap-1 group', isMe ? 'justify-end' : 'justify-start')}>
+                        {isMe && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                            title="Delete message"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                         <div
                           className={cn(
                             'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
@@ -703,6 +732,15 @@ export function ChatBubble() {
                             {formatTime(msg.created_at)}
                           </p>
                         </div>
+                        {!isMe && (isAdmin || msg.sender_id === user.id) && (
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+                            title="Delete message"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
