@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.create-parent-account]
 verify_jwt = false
+
+[functions.register-teacher]
+verify_jwt = false
+
+[functions.approve-teacher]
+verify_jwt = false
