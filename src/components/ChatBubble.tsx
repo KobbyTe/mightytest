@@ -298,6 +298,10 @@ export function ChatBubble() {
     setShowConversations(false);
     setShowRecipientPicker(false);
 
+    // Set recipient from conversation list
+    const conv = conversations.find(c => c.conversation_id === convId);
+    if (conv) setActiveRecipientUserId(conv.other_user_id);
+
     const { data, count } = await supabase
       .from('messages')
       .select('*', { count: 'exact' })
