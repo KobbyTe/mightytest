@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatBubble } from '@/components/ChatBubble';
+import { NotificationBell } from '@/components/NotificationBell';
 import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
 
 interface Student {
