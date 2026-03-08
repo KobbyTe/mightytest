@@ -92,8 +92,42 @@ export default function AdminDashboard() {
       navigate('/dashboard');
     } else {
       loadExams();
+      // Check if teacher needs onboarding tour
+      if (role === 'teacher') {
+        checkTeacherOnboarding();
+      }
     }
   }, [user, loading, role, navigate]);
+
+  const checkTeacherOnboarding = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('onboarding_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!data || !data.onboarding_completed) {
+        // Delay slightly so the UI renders first
+        setTimeout(() => setShowTour(true), 1000);
+      }
+    } catch (err) {
+      console.error('Error checking onboarding:', err);
+    }
+  };
+
+  const handleTourComplete = async () => {
+    setShowTour(false);
+    if (!user) return;
+    try {
+      await supabase
+        .from('user_preferences')
+        .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: 'user_id' });
+    } catch (err) {
+      console.error('Error saving onboarding status:', err);
+    }
+  };
 
   const loadExams = async () => {
     try {
