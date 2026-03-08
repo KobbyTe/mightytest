@@ -221,10 +221,17 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Analytics
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Analytics
+              </Button>
+            )}
+            <Button variant="ghost" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
             </Button>
+          </div>
             <Button variant="ghost" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
