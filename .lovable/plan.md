@@ -1,52 +1,51 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+# Fix Redundancy in ExamTaking.tsx
 
-## What Changes
+After reviewing the file, there are three major areas of redundancy:
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+## 1. Duplicated Grading Logic (autoSubmitExam vs handleManualSubmit)
 
-## Changes by Dashboard
+Both `autoSubmitExam` (lines 78-142) and `handleManualSubmit` (lines 389-491) contain nearly identical code:
+- Iterate over answers, find matching questions
+- Grade MCQ/true_false by comparing to `correct_answer`
+- Mark essays as `is_correct: null, marks_awarded: null`
+- Calculate `totalMarks` / `hasEssay`
+- Delete all answers then re-insert graded ones
+- Update attempt status, send notification
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+**Fix:** Extract a shared `gradeAndSubmitExam(submissionType)` function that both call.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+## 2. autoSubmitExam and handleManualSubmit Still Use Delete-Then-Insert
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+Bug #7 was only fixed for the real-time auto-save (line 252). Both submission functions (lines 84 and 408) still use `delete` + `insert`. These should use upsert too, for consistency and atomicity.
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+**Fix:** Use upsert in the shared submission function.
 
-## Technical Details
+## 3. Unused useQuestionTimer Hook
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+There's a fully-built `src/hooks/useQuestionTimer.ts` with timer logic and formatting functions, but ExamTaking.tsx reimplements everything inline:
+- `formatTotalTime` (line 493) duplicates the hook's `formatTotalTime`
+- `formatQuestionTime` (line 500) duplicates the hook's `formatQuestionTime`
+- Question timer effect (lines 208-228) and total timer effect (lines 190-205) duplicate the hook's timers
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+**Fix:** This hook has different semantics (it auto-advances internally), so rather than adopting it, remove the unused hook file to avoid confusion. The inline implementation is better suited since it needs access to `autoSubmitExam`.
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+## Changes
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+### `src/pages/ExamTaking.tsx`
+1. Create a shared `gradeAndSubmitExam(submissionType: string)` helper that:
+   - Grades all answers (MCQ/true_false auto-grade, essay null)
+   - Upserts graded answers (not delete+insert)
+   - Updates attempt status
+   - Sends notification
+   - Returns result data for the overlay
+2. Refactor `autoSubmitExam` to call `gradeAndSubmitExam` then show toast + navigate
+3. Refactor `handleManualSubmit` to call `gradeAndSubmitExam` then show results overlay
+4. Remove duplicated local `formatTotalTime` and `formatQuestionTime` (keep them, but now only one copy exists)
+
+### `src/hooks/useQuestionTimer.ts`
+- Delete this unused file
+
+This reduces ~100 lines of duplicated grading/submission logic into a single shared function.
 
