@@ -5,10 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 // Storage key for Supabase auth - must match the project ID
 const SUPABASE_AUTH_KEY = 'sb-kzxqhtdxjyuktrghzmsp-auth-token';
 
+type UserRole = 'student' | 'parent' | 'admin' | 'teacher' | null;
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  role: 'student' | 'parent' | 'admin' | null;
+  role: UserRole;
   profile: any;
   preferences: any;
   loading: boolean;
