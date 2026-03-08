@@ -378,11 +378,13 @@ export function ChatBubble() {
   const selectRecipient = (student: StudentOption) => {
     const existing = conversations.find((c) => c.other_user_id === student.user_id);
     if (existing) {
+      setActiveRecipientUserId(student.user_id);
       openConversation(existing.conversation_id);
       return;
     }
     const newConvId = crypto.randomUUID();
     setActiveConversationId(newConvId);
+    setActiveRecipientUserId(student.user_id);
     setMessages([]);
     setShowConversations(false);
     setShowRecipientPicker(false);
