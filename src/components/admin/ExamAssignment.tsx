@@ -122,8 +122,20 @@ export default function ExamAssignment() {
 
       setExams(examsRes.data || []);
       setSchools(schoolsRes.data || []);
-      setClasses(classesRes.data || []);
-      setAssignments(assignmentsRes.data || []);
+
+      // Scope classes if teacher
+      let allClasses = classesRes.data || [];
+      if (scopedClassIds !== null) {
+        allClasses = allClasses.filter((c: any) => scopedClassIds.includes(c.id));
+      }
+      setClasses(allClasses);
+
+      // Scope assignments if teacher
+      let allAssignments = assignmentsRes.data || [];
+      if (scopedClassIds !== null) {
+        allAssignments = allAssignments.filter((a: any) => scopedClassIds.includes(a.class_id));
+      }
+      setAssignments(allAssignments);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load data');

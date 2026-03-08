@@ -75,12 +75,23 @@ export default function StudentManagement() {
 
   const loadData = async () => {
     try {
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, parent_id, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
+        .order('full_name')
+        .limit(1000);
+
+      // Scope to teacher's assigned classes
+      if (scopedClassIds !== null) {
+        if (scopedClassIds.length > 0) {
+          studentsQuery = studentsQuery.in('class_id', scopedClassIds);
+        } else {
+          studentsQuery = studentsQuery.eq('class_id', '00000000-0000-0000-0000-000000000000');
+        }
+      }
+
       const [studentsRes, schoolsRes, classesRes] = await Promise.all([
-        supabase
-          .from('students')
-          .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, parent_id, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
-          .order('full_name')
-          .limit(1000),
+        studentsQuery,
         supabase.from('schools').select('id, name').order('name'),
         supabase.from('classes').select('id, name, school_id, grade_level').order('name'),
       ]);
