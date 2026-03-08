@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageCircle, X, Send, ChevronLeft, User, Search, Bell, Plus } from 'lucide-react';
+import { MessageCircle, X, Send, ChevronLeft, User, Search, Bell, Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
+const MESSAGES_PER_PAGE = 30;
 
 interface Message {
   id: string;
@@ -81,6 +83,15 @@ export function ChatBubble() {
   // Notification permission prompt
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
 
+  // Typing indicator state
+  const [otherTyping, setOtherTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Chat history / pagination state
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Check notification prompt on open
   useEffect(() => {
     if (!isOpen) return;
@@ -110,7 +121,7 @@ export function ChatBubble() {
     loadConversations();
   }, [user, isOpen]);
 
-  // Realtime subscription
+  // Realtime subscription for new messages
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -133,6 +144,46 @@ export function ChatBubble() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user, activeConversationId]);
+
+  // Typing indicator broadcast channel
+  useEffect(() => {
+    if (!user || !activeConversationId) {
+      if (broadcastChannelRef.current) {
+        supabase.removeChannel(broadcastChannelRef.current);
+        broadcastChannelRef.current = null;
+      }
+      setOtherTyping(false);
+      return;
+    }
+
+    const channel = supabase.channel(`typing:${activeConversationId}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload?.user_id !== user.id) {
+          setOtherTyping(true);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 2500);
+        }
+      })
+      .subscribe();
+
+    broadcastChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastChannelRef.current = null;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      setOtherTyping(false);
+    };
+  }, [user, activeConversationId]);
+
+  const emitTyping = useCallback(() => {
+    if (!broadcastChannelRef.current || !user) return;
+    broadcastChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { user_id: user.id },
+    });
+  }, [user]);
 
   // Auto-scroll
   useEffect(() => {
@@ -223,13 +274,16 @@ export function ChatBubble() {
     setShowConversations(false);
     setShowRecipientPicker(false);
 
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from('messages')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('conversation_id', convId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(MESSAGES_PER_PAGE);
 
-    setMessages(data || []);
+    const sorted = (data || []).reverse();
+    setMessages(sorted);
+    setHasMoreMessages((count || 0) > MESSAGES_PER_PAGE);
 
     await supabase
       .from('messages')
@@ -238,6 +292,37 @@ export function ChatBubble() {
       .neq('sender_id', user!.id);
 
     countUnread();
+  };
+
+  const loadOlderMessages = async () => {
+    if (!activeConversationId || loadingMore || messages.length === 0) return;
+    setLoadingMore(true);
+
+    const oldestMsg = messages[0];
+    const { data, count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact' })
+      .eq('conversation_id', activeConversationId)
+      .lt('created_at', oldestMsg.created_at)
+      .order('created_at', { ascending: false })
+      .limit(MESSAGES_PER_PAGE);
+
+    if (data && data.length > 0) {
+      const older = data.reverse();
+      // Preserve scroll position
+      const scrollEl = scrollRef.current;
+      const prevScrollHeight = scrollEl?.scrollHeight || 0;
+      setMessages((prev) => [...older, ...prev]);
+      // After render, adjust scroll to keep position
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+        }
+      });
+    }
+
+    setHasMoreMessages((data?.length || 0) === MESSAGES_PER_PAGE);
+    setLoadingMore(false);
   };
 
   const startNewConversation = () => {
@@ -250,6 +335,7 @@ export function ChatBubble() {
       setActiveConversationId(newConvId);
       setMessages([]);
       setShowConversations(false);
+      setHasMoreMessages(false);
     }
   };
 
@@ -265,7 +351,6 @@ export function ChatBubble() {
   };
 
   const selectRecipient = (student: StudentOption) => {
-    // Check if there's an existing conversation with this student
     const existing = conversations.find((c) => c.other_user_id === student.user_id);
     if (existing) {
       openConversation(existing.conversation_id);
@@ -276,6 +361,7 @@ export function ChatBubble() {
     setMessages([]);
     setShowConversations(false);
     setShowRecipientPicker(false);
+    setHasMoreMessages(false);
   };
 
   // Debounced student search
@@ -316,6 +402,11 @@ export function ChatBubble() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    emitTyping();
+  };
+
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     const now = new Date();
@@ -325,6 +416,17 @@ export function ChatBubble() {
     if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
+
+  const formatDateSeparator = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  const getDateKey = (dateStr: string) => new Date(dateStr).toDateString();
 
   if (!user) return null;
 
@@ -480,36 +582,80 @@ export function ChatBubble() {
             /* Message Thread */
             <>
               <div ref={scrollRef} className="flex-1 overflow-y-auto max-h-[350px] p-3 space-y-2">
+                {/* Load older messages button */}
+                {hasMoreMessages && (
+                  <div className="text-center pb-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs h-7 gap-1.5 text-muted-foreground"
+                      onClick={loadOlderMessages}
+                      disabled={loadingMore}
+                    >
+                      {loadingMore ? (
+                        <><Loader2 className="h-3 w-3 animate-spin" /> Loading...</>
+                      ) : (
+                        'Load older messages'
+                      )}
+                    </Button>
+                  </div>
+                )}
+
                 {messages.length === 0 && (
                   <p className="text-center text-xs text-muted-foreground py-8">Send a message to start the conversation</p>
                 )}
-                {messages.map((msg) => {
+
+                {messages.map((msg, idx) => {
                   const isMe = msg.sender_id === user.id;
+                  // Date separator
+                  const prevMsg = idx > 0 ? messages[idx - 1] : null;
+                  const showDateSep = !prevMsg || getDateKey(msg.created_at) !== getDateKey(prevMsg.created_at);
+
                   return (
-                    <div key={msg.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
-                      <div
-                        className={cn(
-                          'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
-                          isMe
-                            ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-muted text-foreground rounded-bl-md'
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                        <p className={cn('text-[10px] mt-1', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
-                          {formatTime(msg.created_at)}
-                        </p>
+                    <div key={msg.id}>
+                      {showDateSep && (
+                        <div className="flex items-center gap-2 py-2">
+                          <div className="flex-1 h-px bg-border" />
+                          <span className="text-[10px] text-muted-foreground font-medium px-2">{formatDateSeparator(msg.created_at)}</span>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                      )}
+                      <div className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
+                        <div
+                          className={cn(
+                            'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
+                            isMe
+                              ? 'bg-primary text-primary-foreground rounded-br-md'
+                              : 'bg-muted text-foreground rounded-bl-md'
+                          )}
+                        >
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p className={cn('text-[10px] mt-1', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
+                            {formatTime(msg.created_at)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
+
+                {/* Typing indicator */}
+                {otherTyping && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-4 py-2.5 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:150ms]" />
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:300ms]" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Input */}
               <div className="p-3 border-t flex gap-2">
                 <Input
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Type a message..."
                   className="text-sm h-9"
