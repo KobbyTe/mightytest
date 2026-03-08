@@ -23,6 +23,11 @@ const ExamGrading = lazy(() => import("./pages/ExamGrading"));
 const ExamAnalytics = lazy(() => import("./pages/ExamAnalytics"));
 const ExamReview = lazy(() => import("./pages/ExamReview"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 // Optimized QueryClient with aggressive caching
 const queryClient = new QueryClient({
