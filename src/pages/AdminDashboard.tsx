@@ -133,19 +133,51 @@ export default function AdminDashboard() {
 
   const loadExams = async () => {
     try {
-      // Optimized parallel queries with field selection and limits
-      const [examsRes, attemptsRes] = await Promise.all([
-        supabase
-          .from('exams')
-          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('exam_attempts')
-          .select('id,exam_id,student_id,attempted_at,completed_at,status,marks_obtained,student:students(full_name,email,grade),exam:exams(title,total_marks)')
-          .order('attempted_at', { ascending: false })
-          .limit(200)
-      ]);
+      // If teacher is scoped to specific classes, only load relevant exams
+      let examIds: string[] | null = null;
+
+      if (scopedClassIds !== null && scopedClassIds.length > 0) {
+        // Get exam IDs assigned to the teacher's classes
+        const { data: classExams } = await supabase
+          .from('exam_class_assignments')
+          .select('exam_id')
+          .in('class_id', scopedClassIds);
+        examIds = [...new Set((classExams || []).map(ce => ce.exam_id))];
+      }
+
+      // Build exam query
+      let examsQuery = supabase
+        .from('exams')
+        .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // If scoped, filter by exam IDs or created_by
+      if (scopedClassIds !== null) {
+        if (examIds && examIds.length > 0) {
+          // Show exams assigned to teacher's classes OR created by this teacher
+          examsQuery = examsQuery.or(`id.in.(${examIds.join(',')}),created_by.eq.${user?.id}`);
+        } else {
+          // No class assignments yet — only show exams created by this teacher
+          examsQuery = examsQuery.eq('created_by', user?.id || '');
+        }
+      }
+
+      // Build attempts query
+      let attemptsQuery = supabase
+        .from('exam_attempts')
+        .select('id,exam_id,student_id,attempted_at,completed_at,status,marks_obtained,student:students(full_name,email,grade),exam:exams(title,total_marks)')
+        .order('attempted_at', { ascending: false })
+        .limit(200);
+
+      if (scopedClassIds !== null && examIds && examIds.length > 0) {
+        attemptsQuery = attemptsQuery.in('exam_id', examIds);
+      } else if (scopedClassIds !== null) {
+        // No exams → no attempts
+        attemptsQuery = attemptsQuery.eq('exam_id', '00000000-0000-0000-0000-000000000000');
+      }
+
+      const [examsRes, attemptsRes] = await Promise.all([examsQuery, attemptsQuery]);
 
       if (examsRes.error) throw examsRes.error;
       if (attemptsRes.error) throw attemptsRes.error;
