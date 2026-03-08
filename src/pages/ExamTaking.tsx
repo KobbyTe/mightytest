@@ -346,7 +346,6 @@ export default function ExamTaking() {
 
   const loadExamData = async () => {
     try {
-      // Add retry logic for transient issues (especially on Vercel deployments)
       let attemptData = null;
       let retryCount = 0;
       const maxRetries = 3;
@@ -365,6 +364,25 @@ export default function ExamTaking() {
             await new Promise(resolve => setTimeout(resolve, 500));
             continue;
           }
+          // Fall back to cached data if offline
+          const cached = getCachedExamData(attemptId!);
+          if (cached) {
+            toast.info('Loaded exam from offline cache', { icon: <WifiOff className="h-4 w-4" /> });
+            setExam(cached.exam);
+            setQuestions(cached.questions);
+            const cachedAns = getCachedAnswers(attemptId!);
+            if (cachedAns) {
+              setAnswers(cachedAns.answers);
+              setCurrentQuestionIndex(cachedAns.currentQuestionIndex);
+            }
+            const durationSeconds = (cached.exam.duration_minutes || 60) * 60;
+            setTotalTimeRemaining(durationSeconds);
+            const tpq = Math.floor(durationSeconds / cached.questions.length);
+            setQuestionTimeRemaining(tpq);
+            setExamStarted(true);
+            setLoading(false);
+            return;
+          }
           throw new Error('Unable to load exam. Please try again.');
         }
 
@@ -376,6 +394,7 @@ export default function ExamTaking() {
       }
 
       if (attemptData.status === 'completed' || attemptData.status === 'graded') {
+        clearExamCache(attemptId!);
         toast.error('This exam has already been completed');
         navigate('/dashboard');
         return;
@@ -383,13 +402,13 @@ export default function ExamTaking() {
 
       setExam(attemptData.exams);
       
-      // Bug #2 fix: Calculate remaining time based on started_at
+      // Calculate remaining time based on started_at
       const durationSeconds = (attemptData.exams.duration_minutes || 60) * 60;
       if (attemptData.started_at) {
         const elapsed = Math.floor((Date.now() - new Date(attemptData.started_at).getTime()) / 1000);
         const remaining = Math.max(0, durationSeconds - elapsed);
         if (remaining <= 0) {
-          // Time already expired, auto-submit immediately
+          clearExamCache(attemptId!);
           toast.warning('Time has expired for this exam');
           setTotalTimeRemaining(0);
           setExamStarted(true);
@@ -418,22 +437,32 @@ export default function ExamTaking() {
       
       setQuestions(questionsData);
 
+      // Cache exam data for offline use
+      cacheExamData(attemptId!, attemptData.exams, questionsData);
+
       // Initialize question timer
       const tpq = Math.floor(((attemptData.exams.duration_minutes || 60) * 60) / questionsData.length);
       setQuestionTimeRemaining(tpq);
 
-      // Restore previous progress if any
+      // Restore answers: prefer server data, fall back to local cache
       const { data: existingAnswers } = await supabase
         .from('exam_answers')
         .select('*')
         .eq('attempt_id', attemptId);
 
-      if (existingAnswers) {
+      if (existingAnswers && existingAnswers.length > 0) {
         const answersMap: Record<string, string> = {};
         existingAnswers.forEach(ans => {
           answersMap[ans.question_id] = ans.answer_text || '';
         });
         setAnswers(answersMap);
+      } else {
+        // Check localStorage for cached answers
+        const cachedAns = getCachedAnswers(attemptId!);
+        if (cachedAns && Object.keys(cachedAns.answers).length > 0) {
+          setAnswers(cachedAns.answers);
+          toast.info('Restored answers from local cache');
+        }
       }
 
       // Restore current question index
@@ -441,13 +470,16 @@ export default function ExamTaking() {
         setCurrentQuestionIndex(attemptData.current_question_index);
       }
 
-      // Bug #3 fix: Only set started_at if not already set
+      // Only set started_at if not already set
       if (!attemptData.started_at) {
         await supabase
           .from('exam_attempts')
           .update({ started_at: new Date().toISOString() })
           .eq('id', attemptId);
       }
+
+      // Sync any pending offline answers
+      syncPendingAnswers();
 
       setExamStarted(true);
     } catch (error: any) {
