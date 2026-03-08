@@ -408,9 +408,10 @@ export function ChatBubble() {
         sender_id: user.id,
         sender_role: role || 'student',
         recipient_role: isAdmin ? 'student' : 'admin',
+        recipient_id: activeRecipientUserId || null,
         content: newMessage.trim(),
         is_read: false,
-      });
+      } as any);
 
       if (error) throw error;
       setNewMessage('');
