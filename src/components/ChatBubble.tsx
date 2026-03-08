@@ -361,51 +361,75 @@ export function ChatBubble() {
   const startNewConversation = () => {
     if (isAdmin) {
       setShowRecipientPicker(true);
-      setStudentSearch('');
-      loadStudents('');
+      setRecipientSearch('');
+      loadRecipients('');
     } else {
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
-      setActiveRecipientUserId(null); // admin-bound; recipient_id not needed (admin ALL policy)
+      setActiveRecipientUserId(null);
+      setActiveRecipientRole('admin');
       setMessages([]);
       setShowConversations(false);
       setHasMoreMessages(false);
     }
   };
 
-  const loadStudents = async (search: string) => {
-    setLoadingStudents(true);
-    let query = supabase.from('students').select('user_id, full_name, student_id_code').eq('account_status', 'active').order('full_name').limit(50);
+  const loadRecipients = async (search: string) => {
+    setLoadingRecipients(true);
+    const results: RecipientOption[] = [];
+
+    // Load students
+    let studentQuery = supabase.from('students').select('user_id, full_name, student_id_code').eq('account_status', 'active').order('full_name').limit(30);
     if (search.trim()) {
-      query = query.or(`full_name.ilike.%${search.trim()}%,student_id_code.ilike.%${search.trim()}%`);
+      studentQuery = studentQuery.or(`full_name.ilike.%${search.trim()}%,student_id_code.ilike.%${search.trim()}%`);
     }
-    const { data } = await query;
-    setStudentOptions(data || []);
-    setLoadingStudents(false);
+    const { data: students } = await studentQuery;
+    if (students) {
+      for (const s of students) {
+        results.push({ user_id: s.user_id, full_name: s.full_name, identifier: s.student_id_code, type: 'student' });
+      }
+    }
+
+    // Load parents
+    let parentQuery = supabase.from('parents').select('user_id, full_name, email').order('full_name').limit(30);
+    if (search.trim()) {
+      parentQuery = parentQuery.or(`full_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
+    }
+    const { data: parents } = await parentQuery;
+    if (parents) {
+      for (const p of parents) {
+        results.push({ user_id: p.user_id, full_name: p.full_name, identifier: p.email, type: 'parent' });
+      }
+    }
+
+    setRecipientOptions(results);
+    setLoadingRecipients(false);
   };
 
-  const selectRecipient = (student: StudentOption) => {
-    const existing = conversations.find((c) => c.other_user_id === student.user_id);
+  const selectRecipient = (recipient: RecipientOption) => {
+    const existing = conversations.find((c) => c.other_user_id === recipient.user_id);
     if (existing) {
-      setActiveRecipientUserId(student.user_id);
+      setActiveRecipientUserId(recipient.user_id);
+      setActiveRecipientRole(recipient.type);
       openConversation(existing.conversation_id);
       return;
     }
     const newConvId = crypto.randomUUID();
     setActiveConversationId(newConvId);
-    setActiveRecipientUserId(student.user_id);
+    setActiveRecipientUserId(recipient.user_id);
+    setActiveRecipientRole(recipient.type);
     setMessages([]);
     setShowConversations(false);
     setShowRecipientPicker(false);
     setHasMoreMessages(false);
   };
 
-  // Debounced student search
+  // Debounced recipient search
   useEffect(() => {
     if (!showRecipientPicker) return;
-    const t = setTimeout(() => loadStudents(studentSearch), 300);
+    const t = setTimeout(() => loadRecipients(recipientSearch), 300);
     return () => clearTimeout(t);
-  }, [studentSearch, showRecipientPicker]);
+  }, [recipientSearch, showRecipientPicker]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !user || !activeConversationId) return;
