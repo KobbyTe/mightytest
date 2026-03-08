@@ -86,6 +86,9 @@ export default function ClassPerformancePortal({
   const [selectedStudent, setSelectedStudent] = useState<StudentPerformance | null>(null);
   const [adminRemarks, setAdminRemarks] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'students' | 'performance' | 'reports'>('students');
+
+  const REPORT_EXPORT_ID = 'class-assessment-report-export';
 
   const classInfo: ClassInfo = {
     id: classId,
@@ -163,8 +166,8 @@ export default function ClassPerformancePortal({
         const totalMarks = attempts.reduce((sum, a) => sum + (a.exam?.total_marks || 0), 0);
         const marksObtained = attempts.reduce((sum, a) => sum + (a.marks_obtained || 0), 0);
         const averagePercentage = totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0;
-        
-        const passedExams = attempts.filter(a => 
+
+        const passedExams = attempts.filter(a =>
           (a.marks_obtained || 0) >= (a.exam?.passing_marks || 0)
         ).length;
         const passRate = examsTaken > 0 ? (passedExams / examsTaken) * 100 : 0;
@@ -224,10 +227,22 @@ export default function ClassPerformancePortal({
     }
   };
 
+  const waitForReportMount = () =>
+    new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      await exportToPDF('class-assessment-report', `${className}-assessment-report`, classInfo);
+      if (activeTab !== 'reports') {
+        setActiveTab('reports');
+      }
+
+      await waitForReportMount();
+      await exportToPDF(REPORT_EXPORT_ID, `${className}-assessment-report`, classInfo);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Export error:', error);

@@ -43,6 +43,7 @@ interface ClassAssessmentReportProps {
   examData: ExamData[];
   adminRemarks?: string;
   onRemarksChange?: (remarks: string) => void;
+  reportId?: string;
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
@@ -52,7 +53,8 @@ export default function ClassAssessmentReport({
   students,
   examData,
   adminRemarks = '',
-  onRemarksChange
+  onRemarksChange,
+  reportId = 'class-assessment-report'
 }: ClassAssessmentReportProps) {
   // Calculate class-wide statistics
   const totalStudents = students.length;
