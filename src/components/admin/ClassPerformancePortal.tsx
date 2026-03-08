@@ -237,6 +237,10 @@ export default function ClassPerformancePortal({
   const handleExportPDF = async () => {
     setExporting(true);
     try {
+      if (selectedStudent) {
+        setSelectedStudent(null);
+      }
+
       if (activeTab !== 'reports') {
         setActiveTab('reports');
       }
