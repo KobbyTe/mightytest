@@ -18,6 +18,7 @@ import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 
 interface Exam {
@@ -449,6 +450,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Gamification Section */}
+        <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
 
         {/* My Results Summary */}
         {(() => {

@@ -237,20 +237,87 @@ export default function ClassPerformancePortal({
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      if (selectedStudent) {
-        setSelectedStudent(null);
+      // Use server-side report generation for reliability
+      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+        body: { class_id: classId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const report = data.report;
+
+      // Generate PDF from structured data (no html2canvas needed)
+      const { default: jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pw = pdf.internal.pageSize.getWidth();
+      const margin = 15;
+      let y = 20;
+
+      // Header
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(report.schoolName, pw / 2, y, { align: 'center' });
+      y += 8;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Class: ${report.className} (${report.gradeLevel || 'N/A'})`, pw / 2, y, { align: 'center' });
+      y += 7;
+      pdf.setFontSize(10);
+      pdf.text(`Report Generated: ${new Date(report.generatedAt).toLocaleDateString()}`, pw / 2, y, { align: 'center' });
+      y += 5;
+      pdf.text(`Class Average: ${report.classAverage}% | Total Students: ${report.totalStudents}`, pw / 2, y, { align: 'center' });
+      y += 8;
+
+      // AI Summary
+      if (report.aiSummary) {
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'italic');
+        const summaryLines = pdf.splitTextToSize(report.aiSummary, pw - margin * 2);
+        pdf.text(summaryLines, margin, y);
+        y += summaryLines.length * 4 + 5;
       }
 
-      if (activeTab !== 'reports') {
-        setActiveTab('reports');
+      // Separator
+      pdf.setDrawColor(200);
+      pdf.line(margin, y, pw - margin, y);
+      y += 6;
+
+      // Table header
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      const cols = [margin, margin + 45, margin + 80, margin + 100, margin + 120, margin + 145];
+      pdf.text('Student Name', cols[0], y);
+      pdf.text('Student ID', cols[1], y);
+      pdf.text('Exams', cols[2], y);
+      pdf.text('Average', cols[3], y);
+      pdf.text('Pass Rate', cols[4], y);
+      pdf.text('Status', cols[5], y);
+      y += 2;
+      pdf.line(margin, y, pw - margin, y);
+      y += 4;
+
+      // Table rows
+      pdf.setFont('helvetica', 'normal');
+      for (const student of report.students) {
+        if (y > pdf.internal.pageSize.getHeight() - 20) {
+          pdf.addPage();
+          y = 20;
+        }
+        pdf.text(student.name.substring(0, 25), cols[0], y);
+        pdf.text(student.studentId.substring(0, 15), cols[1], y);
+        pdf.text(String(student.examsTaken), cols[2], y);
+        pdf.text(`${student.averagePercentage}%`, cols[3], y);
+        pdf.text(`${student.passRate}%`, cols[4], y);
+        pdf.text(student.status, cols[5], y);
+        y += 5;
       }
 
-      await waitForReportMount();
-      await exportToPDF(REPORT_EXPORT_ID, `${className}-assessment-report`, classInfo);
+      pdf.save(`${className}-assessment-report.pdf`);
       toast.success('PDF exported successfully');
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export PDF');
+      toast.error('Failed to export PDF. Please try again.');
     } finally {
       setExporting(false);
     }
