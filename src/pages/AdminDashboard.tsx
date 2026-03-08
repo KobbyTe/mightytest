@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [showTour, setShowTour] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
