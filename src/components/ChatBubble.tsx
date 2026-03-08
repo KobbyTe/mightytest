@@ -30,6 +30,33 @@ interface Conversation {
   unread_count: number;
 }
 
+const playNotificationSound = () => {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 800;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch { /* silent fallback */ }
+};
+
+const showBrowserNotification = (content: string) => {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification('New Message', { body: content.slice(0, 100), icon: '/favicon.png' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((p) => {
+      if (p === 'granted') new Notification('New Message', { body: content.slice(0, 100), icon: '/favicon.png' });
+    });
+  }
+};
+
 export function ChatBubble() {
   const { user, role } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
