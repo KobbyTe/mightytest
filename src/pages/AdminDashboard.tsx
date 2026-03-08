@@ -25,6 +25,7 @@ import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
+import { useTeacherScope } from '@/hooks/useTeacherScope';
 
 interface Exam {
   id: string;
