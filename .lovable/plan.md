@@ -1,52 +1,120 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+# Add Teacher/Educator Role with Admin Approval System
 
-## What Changes
+## Overview
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+Introduce a 4-role hierarchy: **Admin** (super-admin, existing account) > **Teacher/Educator** (needs approval) > **Student** > **Parent**. The existing admin account (kwabenatekyi19@gmail.com) and all its data remain completely untouched.
 
-## Changes by Dashboard
+---
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+## Architecture
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+```text
+Admin (super-admin)
+  ├── Approves/manages teachers
+  ├── Full platform control
+  └── All current admin capabilities
+  
+Teacher/Educator (new role)
+  ├── Must be approved by admin before login
+  ├── Gets current admin-like capabilities (exams, students, grading)
+  └── Cannot manage other teachers or admin settings
+```
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+---
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+## Database Changes
 
-## Technical Details
+### 1. Add `teacher` to `app_role` enum
+```sql
+ALTER TYPE public.app_role ADD VALUE 'teacher';
+```
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+### 2. Create `teachers` profile table
+- Columns: `id`, `user_id`, `full_name`, `email`, `phone_number`, `school_id`, `subject_specialty`, `status` (pending/approved/rejected), `approved_by`, `approved_at`, `created_at`
+- RLS: admin can manage all, teachers can view own profile, teachers can insert own profile
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+### 3. Update RLS policies
+- All existing `has_role(auth.uid(), 'admin'::app_role)` policies need companion policies for teachers (or update the `has_role` checks to also include teacher where appropriate)
+- Create a helper function `is_admin_or_teacher()` to avoid duplicating logic
+- Tables teachers should access: `exams`, `exam_questions`, `exam_attempts`, `exam_answers`, `students`, `classes`, `schools`, `exam_class_assignments`, `messages`, `resit_openings`, `resit_requests`, `registration_keys`
+- Tables only admin should access: `teachers` (management), `user_roles`, `page_views`, `newsletter_subscribers`, `contact_submissions`
 
-### Files to Modify
-| File | Change |
+---
+
+## Frontend Changes
+
+### Auth Page (`Auth.tsx`)
+- Rename "Admin" tab to "Teacher/Educator" with a new icon
+- Add a **Teacher Registration** form (name, email, password, school, subject specialty)
+- Show message after registration: "Your account is pending admin approval"
+- Add a separate hidden/minimal "Admin" login (small link below tabs, or a dedicated `/admin-login` route)
+- Teachers with `status = 'pending'` see a "pending approval" screen after login instead of the dashboard
+
+### New: Teacher Registration Edge Function
+- Creates auth user, assigns `teacher` role, creates `teachers` profile row with `status = 'pending'`
+
+### Auth Context (`AuthContext.tsx`)
+- Add `'teacher'` to the role union type
+- Load teacher profile when role is `teacher`
+- Check teacher approval status
+
+### Protected Routes (`ProtectedRoute.tsx` & `App.tsx`)
+- Add `'teacher'` to allowed roles alongside `'admin'` for dashboard routes
+- Teacher routes: `/teacher` dashboard (reuse AdminDashboard or create TeacherDashboard)
+- Add pending-approval redirect for unapproved teachers
+
+### Admin Dashboard Updates
+- Add **Teacher Management** tab (for admin only): list pending/approved/rejected teachers, approve/reject buttons
+- Admin sees everything teachers see, plus teacher management
+- When role is `teacher`, hide admin-only tabs (teacher management, website analytics)
+
+### Navigation
+- Teacher dashboard header shows "Teacher/Educator Dashboard" instead of "Admin Dashboard"
+
+---
+
+## Edge Functions
+
+### `register-teacher/index.ts` (new)
+- Accepts: name, email, password, school_id, subject_specialty
+- Creates auth user with `email_confirm: true`
+- Assigns `teacher` role in `user_roles`
+- Creates `teachers` row with `status: 'pending'`
+
+### `approve-teacher/index.ts` (new)
+- Admin-only: updates teacher `status` to `approved` or `rejected`
+- Sends notification to teacher
+
+### Update `login/index.ts`
+- Handle `teacher` userType
+- Check teacher approval status; reject login if pending/rejected
+
+---
+
+## Files to Create/Edit
+
+| File | Action |
 |------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+| Migration SQL | Add enum value, create `teachers` table, update RLS |
+| `supabase/functions/register-teacher/index.ts` | New edge function |
+| `supabase/functions/approve-teacher/index.ts` | New edge function |
+| `supabase/functions/login/index.ts` | Add teacher type handling |
+| `src/contexts/AuthContext.tsx` | Add teacher role support |
+| `src/components/ProtectedRoute.tsx` | Add teacher to allowed roles |
+| `src/pages/Auth.tsx` | Rename admin tab, add teacher registration |
+| `src/pages/AdminDashboard.tsx` | Add teacher management tab, conditional tabs |
+| `src/components/admin/TeacherManagement.tsx` | New component |
+| `src/App.tsx` | Add teacher routes |
+| `src/components/ChatBubble.tsx` | Add teacher as sender/recipient role |
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+---
+
+## Safety Guarantees
+
+- The existing admin account's `user_roles` row (`role = 'admin'`) is never modified
+- No existing RLS policies are removed -- only new companion policies added
+- All existing data relationships remain intact
+- The `admin` role retains full access to everything
 
