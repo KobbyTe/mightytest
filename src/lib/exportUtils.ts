@@ -89,75 +89,111 @@ export async function exportToPDF(
     throw new Error('Element not found for PDF export');
   }
 
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    logging: false,
-    backgroundColor: '#ffffff'
-  });
+  // Clone the element outside the dialog to avoid html2canvas issues
+  // with backdrop-filter, transforms, and dialog overlays
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.style.position = 'absolute';
+  clone.style.left = '-9999px';
+  clone.style.top = '0';
+  clone.style.width = `${element.scrollWidth}px`;
+  clone.style.backgroundColor = '#ffffff';
+  clone.style.padding = '24px';
+  clone.style.zIndex = '-1';
+  document.body.appendChild(clone);
 
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4'
-  });
+  try {
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      allowTaint: true,
+      // Ignore SVG chart elements that html2canvas can't render well
+      onclone: (clonedDoc) => {
+        // Force all text to be visible
+        const allElements = clonedDoc.querySelectorAll('*');
+        allElements.forEach((el) => {
+          const htmlEl = el as HTMLElement;
+          if (htmlEl.style) {
+            htmlEl.style.backdropFilter = 'none';
+            htmlEl.style.webkitBackdropFilter = 'none';
+          }
+        });
+      }
+    });
 
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 10;
-  
-  // Add header
-  pdf.setFontSize(18);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text(classInfo.schoolName, pageWidth / 2, 15, { align: 'center' });
-  
-  pdf.setFontSize(14);
-  pdf.setFont('helvetica', 'normal');
-  pdf.text(`Class: ${classInfo.name} (${classInfo.gradeLevel || 'N/A'})`, pageWidth / 2, 23, { align: 'center' });
-  
-  pdf.setFontSize(10);
-  pdf.text(`Report Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 30, { align: 'center' });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-  // Calculate image dimensions
-  const imgWidth = pageWidth - (margin * 2);
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  
-  // Add the captured content
-  const startY = 35;
-  let remainingHeight = imgHeight;
-  let sourceY = 0;
-  let pageNum = 1;
-  const maxContentHeight = pageHeight - startY - margin;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    
+    // Add header
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(classInfo.schoolName, pageWidth / 2, 15, { align: 'center' });
+    
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Class: ${classInfo.name} (${classInfo.gradeLevel || 'N/A'})`, pageWidth / 2, 23, { align: 'center' });
+    
+    pdf.setFontSize(10);
+    pdf.text(`Report Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 30, { align: 'center' });
 
-  while (remainingHeight > 0) {
-    if (pageNum > 1) {
-      pdf.addPage();
+    // Calculate image dimensions
+    const imgWidth = pageWidth - (margin * 2);
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    const startY = 35;
+    const maxContentHeight = pageHeight - startY - margin;
+
+    // Multi-page support
+    if (imgHeight <= maxContentHeight) {
+      // Fits on one page
+      pdf.addImage(imgData, 'PNG', margin, startY, imgWidth, imgHeight, undefined, 'FAST');
+    } else {
+      // Split across multiple pages
+      let currentY = 0;
+      let pageNum = 0;
+      const totalSourceHeight = canvas.height;
+      const sourceWidth = canvas.width;
+
+      while (currentY < totalSourceHeight) {
+        if (pageNum > 0) {
+          pdf.addPage();
+        }
+
+        const availableHeight = pageNum === 0 ? maxContentHeight : pageHeight - margin * 2;
+        const sourceSliceHeight = (availableHeight / imgWidth) * sourceWidth;
+        const sliceHeight = Math.min(sourceSliceHeight, totalSourceHeight - currentY);
+
+        // Create a slice canvas
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = sourceWidth;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(canvas, 0, currentY, sourceWidth, sliceHeight, 0, 0, sourceWidth, sliceHeight);
+          const sliceData = sliceCanvas.toDataURL('image/png');
+          const sliceImgHeight = (sliceHeight * imgWidth) / sourceWidth;
+          pdf.addImage(sliceData, 'PNG', margin, pageNum === 0 ? startY : margin, imgWidth, sliceImgHeight, undefined, 'FAST');
+        }
+
+        currentY += sliceHeight;
+        pageNum++;
+      }
     }
-    
-    const sliceHeight = Math.min(remainingHeight, pageNum === 1 ? maxContentHeight : pageHeight - (margin * 2));
-    
-    pdf.addImage(
-      imgData,
-      'PNG',
-      margin,
-      pageNum === 1 ? startY : margin,
-      imgWidth,
-      imgHeight,
-      undefined,
-      'FAST',
-      0
-    );
-    
-    remainingHeight -= sliceHeight;
-    sourceY += sliceHeight;
-    pageNum++;
-    
-    // Break after first page for simplicity in this implementation
-    break;
-  }
 
-  pdf.save(`${filename}.pdf`);
+    pdf.save(`${filename}.pdf`);
+  } finally {
+    // Always clean up the clone
+    document.body.removeChild(clone);
+  }
 }
 
 export function exportToCSV(
