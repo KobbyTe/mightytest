@@ -87,13 +87,20 @@ const Navbar = () => {
             >
               Subjects
             </a>
-            <a 
-              href="#about" 
+            <Link 
+              to="/about" 
               className="block py-2 text-sm font-medium hover:text-primary transition-colors"
               onClick={() => setIsOpen(false)}
             >
               About
-            </a>
+            </Link>
+            <Link 
+              to="/contact" 
+              className="block py-2 text-sm font-medium hover:text-primary transition-colors"
+              onClick={() => setIsOpen(false)}
+            >
+              Contact
+            </Link>
             <div className="space-y-2 pt-4">
               {user ? (
                 <Link to={getDashboardPath()} onClick={() => setIsOpen(false)}>

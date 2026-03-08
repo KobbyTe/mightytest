@@ -66,6 +66,11 @@ function AppRoutes() {
         <Route path="/exam/take" element={<ProtectedRoute allowedRoles={['student']}><ExamTaking /></ProtectedRoute>} />
         <Route path="/exam/review/:attemptId" element={<ProtectedRoute allowedRoles={['student']}><ExamReview /></ProtectedRoute>} />
         <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
