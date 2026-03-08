@@ -21,6 +21,7 @@ import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import ResitManagement from '@/components/admin/ResitManagement';
+import { ChatBubble } from '@/components/ChatBubble';
 
 interface Exam {
   id: string;
