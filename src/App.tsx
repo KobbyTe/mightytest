@@ -59,7 +59,7 @@ function AppRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/dashboard" element={<ProtectedRoute allowedRoles={['student']}><Dashboard /></ProtectedRoute>} />
-        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><NewAdminDashboard /></ProtectedRoute>} />
         <Route path="/admin-setup" element={<ProtectedRoute allowedRoles={['admin']}><AdminSetup /></ProtectedRoute>} />
         <Route path="/admin/exam/:examId/questions" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ExamQuestions /></ProtectedRoute>} />
         <Route path="/admin/exam/grade/:attemptId" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ExamGrading /></ProtectedRoute>} />

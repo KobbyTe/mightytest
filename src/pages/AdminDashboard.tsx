@@ -608,17 +608,6 @@ export default function AdminDashboard() {
             <ResitManagement />
           </TabsContent>
 
-          {isAdmin && (
-            <TabsContent value="teachers">
-              <TeacherManagement />
-            </TabsContent>
-          )}
-
-          {isAdmin && (
-            <TabsContent value="analytics">
-              <WebsiteAnalytics />
-            </TabsContent>
-          )}
         </Tabs>
       </main>
       <ChatBubble />
