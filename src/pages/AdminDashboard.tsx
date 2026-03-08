@@ -259,6 +259,11 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
+            {isTeacher && (
+              <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+                <HelpCircle className="h-4 w-4" />
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
                 <BarChart3 className="mr-2 h-4 w-4" />
@@ -277,12 +282,12 @@ export default function AdminDashboard() {
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
            <TabsList className="flex w-full overflow-x-auto">
-              <TabsTrigger value="exams">Exams</TabsTrigger>
-              <TabsTrigger value="schools">Schools</TabsTrigger>
-              <TabsTrigger value="assignments">Assignments</TabsTrigger>
-              <TabsTrigger value="attempts">Attempts</TabsTrigger>
-              <TabsTrigger value="students">Students</TabsTrigger>
-              <TabsTrigger value="keys">Keys</TabsTrigger>
+              <TabsTrigger value="exams" id="teacher-tour-exams">Exams</TabsTrigger>
+              <TabsTrigger value="schools" id="teacher-tour-schools">Schools</TabsTrigger>
+              <TabsTrigger value="assignments" id="teacher-tour-assignments">Assignments</TabsTrigger>
+              <TabsTrigger value="attempts" id="teacher-tour-attempts">Attempts</TabsTrigger>
+              <TabsTrigger value="students" id="teacher-tour-students">Students</TabsTrigger>
+              <TabsTrigger value="keys" id="teacher-tour-keys">Keys</TabsTrigger>
               <TabsTrigger value="resits">Resits</TabsTrigger>
             </TabsList>
 
