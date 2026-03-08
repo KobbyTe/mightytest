@@ -358,15 +358,23 @@ export function ChatBubble() {
     setLoadingMore(false);
   };
 
-  const startNewConversation = () => {
+  const startNewConversation = async () => {
     if (isAdmin) {
       setShowRecipientPicker(true);
       setRecipientSearch('');
       loadRecipients('');
     } else {
+      // Find an admin user_id to set as recipient
+      const { data: adminRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
-      setActiveRecipientUserId(null);
+      setActiveRecipientUserId(adminRole?.user_id || null);
       setActiveRecipientRole('admin');
       setMessages([]);
       setShowConversations(false);
