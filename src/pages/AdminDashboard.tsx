@@ -652,6 +652,9 @@ export default function AdminDashboard() {
         </Tabs>
       </main>
       <ChatBubble />
+      {isTeacher && (
+        <TeacherOnboardingTour isActive={showTour} onComplete={handleTourComplete} />
+      )}
     </div>
   );
 }
