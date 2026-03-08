@@ -32,9 +32,12 @@ const Navbar = () => {
             <a href="#subjects" className="text-sm font-medium hover:text-primary transition-colors">
               Subjects
             </a>
-            <a href="#about" className="text-sm font-medium hover:text-primary transition-colors">
+            <Link to="/about" className="text-sm font-medium hover:text-primary transition-colors">
               About
-            </a>
+            </Link>
+            <Link to="/contact" className="text-sm font-medium hover:text-primary transition-colors">
+              Contact
+            </Link>
             {user ? (
               <Link to={getDashboardPath()}>
                 <Button className="shadow-primary hover:shadow-glow transition-all">
