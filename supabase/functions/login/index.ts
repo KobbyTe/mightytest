@@ -58,6 +58,28 @@ serve(async (req) => {
       );
     }
 
+    // For teachers, check approval status
+    if (userType === 'teacher') {
+      const { data: teacherProfile } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (!teacherProfile || teacherProfile.status !== 'approved') {
+        await supabase.auth.signOut();
+        const statusMsg = teacherProfile?.status === 'pending'
+          ? 'Your account is pending admin approval. You will be notified once approved.'
+          : teacherProfile?.status === 'rejected'
+          ? 'Your account registration was not approved. Please contact the administrator.'
+          : 'Teacher profile not found.';
+        return new Response(
+          JSON.stringify({ error: statusMsg }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Get user profile based on type
     let profile = null;
     if (userType === 'student') {
@@ -70,6 +92,13 @@ serve(async (req) => {
     } else if (userType === 'parent') {
       const { data } = await supabase
         .from('parents')
+        .select('*')
+        .eq('user_id', authData.user.id)
+        .single();
+      profile = data;
+    } else if (userType === 'teacher') {
+      const { data } = await supabase
+        .from('teachers')
         .select('*')
         .eq('user_id', authData.user.id)
         .single();

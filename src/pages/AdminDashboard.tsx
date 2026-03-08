@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key } from 'lucide-react';
+import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +21,7 @@ import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import ResitManagement from '@/components/admin/ResitManagement';
+import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 
 interface Exam {
@@ -75,12 +76,16 @@ export default function AdminDashboard() {
     status: 'active'
   });
 
+  const isAdmin = role === 'admin';
+  const isTeacher = role === 'teacher';
+  const dashboardTitle = isAdmin ? 'Admin Dashboard' : 'Teacher/Educator Dashboard';
+
   useEffect(() => {
     if (loading) return;
     
     if (!user) {
       navigate('/auth');
-    } else if (role !== 'admin') {
+    } else if (role !== 'admin' && role !== 'teacher') {
       navigate('/dashboard');
     } else {
       loadExams();
@@ -213,13 +218,15 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Analytics
-            </Button>
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Analytics
+              </Button>
+            )}
             <Button variant="ghost" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign Out
@@ -231,16 +238,17 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
-          <TabsList className="flex w-full overflow-x-auto">
-             <TabsTrigger value="exams">Exams</TabsTrigger>
-             <TabsTrigger value="schools">Schools</TabsTrigger>
-             <TabsTrigger value="assignments">Assignments</TabsTrigger>
-             <TabsTrigger value="attempts">Attempts</TabsTrigger>
-             <TabsTrigger value="students">Students</TabsTrigger>
-             <TabsTrigger value="keys">Keys</TabsTrigger>
-             <TabsTrigger value="resits">Resits</TabsTrigger>
-             <TabsTrigger value="analytics">Analytics</TabsTrigger>
-           </TabsList>
+           <TabsList className="flex w-full overflow-x-auto">
+              <TabsTrigger value="exams">Exams</TabsTrigger>
+              <TabsTrigger value="schools">Schools</TabsTrigger>
+              <TabsTrigger value="assignments">Assignments</TabsTrigger>
+              <TabsTrigger value="attempts">Attempts</TabsTrigger>
+              <TabsTrigger value="students">Students</TabsTrigger>
+              <TabsTrigger value="keys">Keys</TabsTrigger>
+              <TabsTrigger value="resits">Resits</TabsTrigger>
+              {isAdmin && <TabsTrigger value="teachers">Teachers</TabsTrigger>}
+              {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
+            </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
             {/* Stats Cards */}
@@ -600,9 +608,17 @@ export default function AdminDashboard() {
             <ResitManagement />
           </TabsContent>
 
-          <TabsContent value="analytics">
-            <WebsiteAnalytics />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="teachers">
+              <TeacherManagement />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="analytics">
+              <WebsiteAnalytics />
+            </TabsContent>
+          )}
         </Tabs>
       </main>
       <ChatBubble />

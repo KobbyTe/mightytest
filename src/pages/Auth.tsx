@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, Shield, Loader2, Mail, ArrowLeft, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GraduationCap, Users, BookOpen, Loader2, Mail, ArrowLeft, Eye, EyeOff, KeyRound, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { StudentRegistration } from "@/components/auth/StudentRegistration";
@@ -21,6 +22,16 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  // Teacher registration state
+  const [showTeacherRegistration, setShowTeacherRegistration] = useState(false);
+  const [teacherRegData, setTeacherRegData] = useState({
+    fullName: '', email: '', password: '', confirmPassword: '',
+    phoneNumber: '', schoolId: '', subjectSpecialty: '',
+  });
+  const [teacherRegLoading, setTeacherRegLoading] = useState(false);
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
   // Student forgot password state
   const [showStudentForgotPassword, setShowStudentForgotPassword] = useState(false);
@@ -64,16 +75,24 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Load schools for teacher registration
+  useEffect(() => {
+    supabase.from('schools').select('id, name').eq('status', 'active').then(({ data }) => {
+      if (data) setSchools(data);
+    });
+  }, []);
+
   // Redirect authenticated users — but NOT during an active login or password reset
   useEffect(() => {
     if (!authLoading && user && role && !loginInProgressRef.current && !showResetPassword) {
       if (role === 'admin') navigate('/admin');
+      else if (role === 'teacher') navigate('/teacher');
       else if (role === 'parent') navigate('/parent');
       else navigate('/dashboard');
     }
   }, [user, role, authLoading, navigate, showResetPassword]);
 
-  const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin') => {
+  const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin' | 'teacher') => {
     e.preventDefault();
     loginInProgressRef.current = true;
     setLoading(true);
@@ -142,6 +161,7 @@ const Auth = () => {
       });
       
       if (userType === 'admin') navigate('/admin');
+      else if (userType === 'teacher') navigate('/teacher');
       else if (userType === 'parent') navigate('/parent');
       else navigate('/dashboard');
     } catch (error: any) {
@@ -319,7 +339,7 @@ const Auth = () => {
             </Link>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setShowAdminLogin(false); }} className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-auto p-1">
               <TabsTrigger value="student" className="flex items-center gap-2 py-3">
                 <GraduationCap className="w-4 h-4" />
@@ -329,9 +349,9 @@ const Auth = () => {
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Parent</span>
               </TabsTrigger>
-              <TabsTrigger value="admin" className="flex items-center gap-2 py-3">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
+              <TabsTrigger value="teacher" className="flex items-center gap-2 py-3">
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">Teacher</span>
               </TabsTrigger>
             </TabsList>
 
@@ -735,36 +755,183 @@ const Auth = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="admin" className="mt-6">
-              <Card className="border-2">
-                <CardHeader>
-                  <CardTitle className="text-2xl">Admin Login</CardTitle>
-                  <CardDescription>Manage STEM exams and students</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <form onSubmit={(e) => handleLogin(e, 'admin')}>
-                    <div className="space-y-2">
-                      <Label htmlFor="admin-email">Email</Label>
-                      <Input id="admin-email" type="email" placeholder="admin@mightytest.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
-                    </div>
-                    <div className="space-y-2 mt-4">
-                      <Label htmlFor="admin-password">Password</Label>
-                      <div className="relative">
-                        <Input id="admin-password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} required className="pr-10" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+            <TabsContent value="teacher" className="mt-6">
+              {showTeacherRegistration ? (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-2xl">Teacher/Educator Registration</CardTitle>
+                    <CardDescription>Create your educator account (requires admin approval)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <button onClick={() => setShowTeacherRegistration(false)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      <ArrowLeft className="h-3 w-3" /> Back to login
+                    </button>
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (teacherRegData.password !== teacherRegData.confirmPassword) {
+                        toast({ title: "Passwords don't match", variant: "destructive" });
+                        return;
+                      }
+                      if (teacherRegData.password.length < 6) {
+                        toast({ title: "Password too short", description: "At least 6 characters required", variant: "destructive" });
+                        return;
+                      }
+                      setTeacherRegLoading(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke('register-teacher', {
+                          body: {
+                            fullName: teacherRegData.fullName,
+                            email: teacherRegData.email,
+                            password: teacherRegData.password,
+                            phoneNumber: teacherRegData.phoneNumber,
+                            schoolId: teacherRegData.schoolId || null,
+                            subjectSpecialty: teacherRegData.subjectSpecialty,
+                          },
+                        });
+                        if (error) {
+                          let realMsg = error.message || 'Registration failed';
+                          try {
+                            if (error.context && typeof error.context.json === 'function') {
+                              const body = await error.context.json();
+                              realMsg = body?.error || body?.message || realMsg;
+                            }
+                          } catch { /* ignore */ }
+                          throw new Error(realMsg);
+                        }
+                        if (data?.error) throw new Error(data.error);
+                        toast({
+                          title: "Registration submitted! 📝",
+                          description: data?.message || "Your account is pending admin approval.",
+                          duration: 10000,
+                        });
+                        setShowTeacherRegistration(false);
+                        setTeacherRegData({ fullName: '', email: '', password: '', confirmPassword: '', phoneNumber: '', schoolId: '', subjectSpecialty: '' });
+                      } catch (err: any) {
+                        toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+                      } finally {
+                        setTeacherRegLoading(false);
+                      }
+                    }} className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2 col-span-2">
+                          <Label htmlFor="teacher-name">Full Name</Label>
+                          <Input id="teacher-name" value={teacherRegData.fullName} onChange={e => setTeacherRegData(f => ({ ...f, fullName: e.target.value }))} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-reg-email">Email</Label>
+                          <Input id="teacher-reg-email" type="email" value={teacherRegData.email} onChange={e => setTeacherRegData(f => ({ ...f, email: e.target.value }))} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-phone">Phone (optional)</Label>
+                          <Input id="teacher-phone" type="tel" value={teacherRegData.phoneNumber} onChange={e => setTeacherRegData(f => ({ ...f, phoneNumber: e.target.value }))} />
+                        </div>
                       </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-school">School</Label>
+                          <Select value={teacherRegData.schoolId} onValueChange={v => setTeacherRegData(f => ({ ...f, schoolId: v }))}>
+                            <SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger>
+                            <SelectContent>
+                              {schools.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-subject">Subject Specialty</Label>
+                          <Select value={teacherRegData.subjectSpecialty} onValueChange={v => setTeacherRegData(f => ({ ...f, subjectSpecialty: v }))}>
+                            <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Science">Science</SelectItem>
+                              <SelectItem value="Technology">Technology</SelectItem>
+                              <SelectItem value="Engineering">Engineering</SelectItem>
+                              <SelectItem value="Mathematics">Mathematics</SelectItem>
+                              <SelectItem value="Robotics">Robotics</SelectItem>
+                              <SelectItem value="AI">Artificial Intelligence</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-password">Password</Label>
+                          <Input id="teacher-password" type="password" placeholder="••••••••" value={teacherRegData.password} onChange={e => setTeacherRegData(f => ({ ...f, password: e.target.value }))} required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teacher-confirm">Confirm Password</Label>
+                          <Input id="teacher-confirm" type="password" placeholder="••••••••" value={teacherRegData.confirmPassword} onChange={e => setTeacherRegData(f => ({ ...f, confirmPassword: e.target.value }))} required />
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={teacherRegLoading}>
+                        {teacherRegLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting...</> : 'Register as Teacher'}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border-2">
+                  <CardHeader>
+                    <CardTitle className="text-2xl">Teacher/Educator Login</CardTitle>
+                    <CardDescription>Access your teaching dashboard</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <form onSubmit={(e) => handleLogin(e, 'teacher')}>
+                      <div className="space-y-2">
+                        <Label htmlFor="teacher-email">Email</Label>
+                        <Input id="teacher-email" type="email" placeholder="teacher@example.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
+                      </div>
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="teacher-password-login">Password</Label>
+                        <div className="relative">
+                          <Input id="teacher-password-login" type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} required className="pr-10" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <Button type="submit" className="w-full shadow-primary hover:shadow-glow transition-all mt-4" disabled={loading}>
+                        {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
+                      </Button>
+                    </form>
+                    <div className="text-center space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Don't have an account?{" "}
+                        <button onClick={() => setShowTeacherRegistration(true)} className="text-primary hover:underline font-medium">Register as Teacher</button>
+                      </p>
                     </div>
-                    <Button type="submit" className="w-full shadow-primary hover:shadow-glow transition-all mt-4" disabled={loading}>
-                      {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In"}
-                    </Button>
-                  </form>
-                  <div className="text-center text-sm text-muted-foreground">Admin access only</div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
+
+          {/* Admin login - small link below */}
+          {showAdminLogin ? (
+            <Card className="border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2"><Shield className="h-4 w-4" /> Admin Login</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <form onSubmit={(e) => handleLogin(e, 'admin')}>
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-email">Email</Label>
+                    <Input id="admin-email" type="email" placeholder="admin@mightytest.com" value={loginData.email} onChange={(e) => setLoginData({ ...loginData, email: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2 mt-3">
+                    <Label htmlFor="admin-password">Password</Label>
+                    <Input id="admin-password" type="password" placeholder="••••••••" value={loginData.password} onChange={(e) => setLoginData({ ...loginData, password: e.target.value })} required />
+                  </div>
+                  <Button type="submit" className="w-full mt-3" disabled={loading} variant="outline">
+                    {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</>) : "Sign In as Admin"}
+                  </Button>
+                </form>
+                <button onClick={() => setShowAdminLogin(false)} className="text-xs text-muted-foreground hover:text-foreground w-full text-center">Hide</button>
+              </CardContent>
+            </Card>
+          ) : (
+            <button onClick={() => setShowAdminLogin(true)} className="text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-center">
+              Admin access →
+            </button>
+          )}
 
           <div className="text-center text-sm text-muted-foreground">
             <Link to="/" className="hover:text-primary transition-colors">← Back to home</Link>
