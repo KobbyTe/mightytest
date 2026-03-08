@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -75,6 +76,7 @@ export default function ExamAssignment() {
   const [loading, setLoading] = useState(true);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,17 +91,20 @@ export default function ExamAssignment() {
   const [filteredClasses, setFilteredClasses] = useState<Class[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!scopeLoading) loadData();
+  }, [scopeLoading]);
 
   useEffect(() => {
+    const baseClasses = scopedClassIds !== null
+      ? classes.filter(c => scopedClassIds.includes(c.id))
+      : classes;
     if (assignForm.school_id) {
-      setFilteredClasses(classes.filter(c => c.school_id === assignForm.school_id));
+      setFilteredClasses(baseClasses.filter(c => c.school_id === assignForm.school_id));
       setAssignForm(prev => ({ ...prev, class_id: '' }));
     } else {
       setFilteredClasses([]);
     }
-  }, [assignForm.school_id, classes]);
+  }, [assignForm.school_id, classes, scopedClassIds]);
 
   const loadData = async () => {
     try {
@@ -117,8 +122,20 @@ export default function ExamAssignment() {
 
       setExams(examsRes.data || []);
       setSchools(schoolsRes.data || []);
-      setClasses(classesRes.data || []);
-      setAssignments(assignmentsRes.data || []);
+
+      // Scope classes if teacher
+      let allClasses = classesRes.data || [];
+      if (scopedClassIds !== null) {
+        allClasses = allClasses.filter((c: any) => scopedClassIds.includes(c.id));
+      }
+      setClasses(allClasses);
+
+      // Scope assignments if teacher
+      let allAssignments = assignmentsRes.data || [];
+      if (scopedClassIds !== null) {
+        allAssignments = allAssignments.filter((a: any) => scopedClassIds.includes(a.class_id));
+      }
+      setAssignments(allAssignments);
     } catch (error) {
       console.error('Error loading data:', error);
       toast.error('Failed to load data');

@@ -25,6 +25,7 @@ import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
+import { useTeacherScope } from '@/hooks/useTeacherScope';
 
 interface Exam {
   id: string;
@@ -82,9 +83,10 @@ export default function AdminDashboard() {
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
   const dashboardTitle = isAdmin ? 'Admin Dashboard' : 'Teacher/Educator Dashboard';
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || scopeLoading) return;
     
     if (!user) {
       navigate('/auth');
@@ -97,7 +99,7 @@ export default function AdminDashboard() {
         checkTeacherOnboarding();
       }
     }
-  }, [user, loading, role, navigate]);
+  }, [user, loading, scopeLoading, role, navigate]);
 
   const checkTeacherOnboarding = async () => {
     if (!user) return;
@@ -131,19 +133,51 @@ export default function AdminDashboard() {
 
   const loadExams = async () => {
     try {
-      // Optimized parallel queries with field selection and limits
-      const [examsRes, attemptsRes] = await Promise.all([
-        supabase
-          .from('exams')
-          .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('exam_attempts')
-          .select('id,exam_id,student_id,attempted_at,completed_at,status,marks_obtained,student:students(full_name,email,grade),exam:exams(title,total_marks)')
-          .order('attempted_at', { ascending: false })
-          .limit(200)
-      ]);
+      // If teacher is scoped to specific classes, only load relevant exams
+      let examIds: string[] | null = null;
+
+      if (scopedClassIds !== null && scopedClassIds.length > 0) {
+        // Get exam IDs assigned to the teacher's classes
+        const { data: classExams } = await supabase
+          .from('exam_class_assignments')
+          .select('exam_id')
+          .in('class_id', scopedClassIds);
+        examIds = [...new Set((classExams || []).map(ce => ce.exam_id))];
+      }
+
+      // Build exam query
+      let examsQuery = supabase
+        .from('exams')
+        .select('id,title,description,subject,grade_level,duration_minutes,total_marks,passing_marks,exam_date,status')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // If scoped, filter by exam IDs or created_by
+      if (scopedClassIds !== null) {
+        if (examIds && examIds.length > 0) {
+          // Show exams assigned to teacher's classes OR created by this teacher
+          examsQuery = examsQuery.or(`id.in.(${examIds.join(',')}),created_by.eq.${user?.id}`);
+        } else {
+          // No class assignments yet — only show exams created by this teacher
+          examsQuery = examsQuery.eq('created_by', user?.id || '');
+        }
+      }
+
+      // Build attempts query
+      let attemptsQuery = supabase
+        .from('exam_attempts')
+        .select('id,exam_id,student_id,attempted_at,completed_at,status,marks_obtained,student:students(full_name,email,grade),exam:exams(title,total_marks)')
+        .order('attempted_at', { ascending: false })
+        .limit(200);
+
+      if (scopedClassIds !== null && examIds && examIds.length > 0) {
+        attemptsQuery = attemptsQuery.in('exam_id', examIds);
+      } else if (scopedClassIds !== null) {
+        // No exams → no attempts
+        attemptsQuery = attemptsQuery.eq('exam_id', '00000000-0000-0000-0000-000000000000');
+      }
+
+      const [examsRes, attemptsRes] = await Promise.all([examsQuery, attemptsQuery]);
 
       if (examsRes.error) throw examsRes.error;
       if (attemptsRes.error) throw attemptsRes.error;
@@ -240,7 +274,7 @@ export default function AdminDashboard() {
     navigate('/');
   };
 
-  if (loading || loadingData) {
+  if (loading || loadingData || scopeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="animate-pulse text-lg">Loading...</div>

@@ -1,97 +1,52 @@
 
 
-# Teacher-Class Scoping System
+# Show Individual Test Results with Numbered List + Average
 
-## Problem
-Currently, all teachers see all exams, students, and classes across the entire platform. With multiple teachers per school (teaching different subjects in the same class), each teacher should only see and manage their own assigned classes and subjects.
+## What Changes
 
-## Database Changes
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-### 1. New `teacher_class_assignments` table
-Links teachers to specific classes with a subject scope:
+## Changes by Dashboard
 
-```sql
-CREATE TABLE public.teacher_class_assignments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  teacher_id uuid NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
-  class_id uuid NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
-  subject text NOT NULL,
-  assigned_at timestamptz DEFAULT now(),
-  assigned_by uuid,
-  UNIQUE (teacher_id, class_id, subject)
-);
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-ALTER TABLE public.teacher_class_assignments ENABLE ROW LEVEL SECURITY;
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
--- Admins full access
-CREATE POLICY "Admins can manage teacher_class_assignments"
-  ON public.teacher_class_assignments FOR ALL
-  USING (has_role(auth.uid(), 'admin'));
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
--- Teachers can view their own assignments
-CREATE POLICY "Teachers can view own assignments"
-  ON public.teacher_class_assignments FOR SELECT
-  USING (teacher_id IN (
-    SELECT id FROM public.teachers WHERE user_id = auth.uid()
-  ));
-```
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-### 2. New helper function
-```sql
-CREATE OR REPLACE FUNCTION public.get_teacher_class_ids(_user_id uuid)
-RETURNS SETOF uuid
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT tca.class_id
-  FROM teacher_class_assignments tca
-  JOIN teachers t ON t.id = tca.teacher_id
-  WHERE t.user_id = _user_id;
-$$;
-```
+## Technical Details
 
-## Admin UI — Assign Teachers to Classes
-In the **TeacherManagement** component, add an "Assign Classes" action per teacher:
-- Dialog showing school → class → subject dropdowns
-- Creates rows in `teacher_class_assignments`
-- Auto-populate subject from teacher's `subject_specialty` as default
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
 
-## Teacher Dashboard Scoping
-Update data-fetching in **AdminDashboard.tsx** (teacher route) to filter by assigned classes:
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
 
-- **Exams**: Only show exams assigned to the teacher's classes, or created by the teacher
-  ```ts
-  // Fetch teacher's assigned class IDs first
-  const { data: assignments } = await supabase
-    .from('teacher_class_assignments')
-    .select('class_id, subject')
-    .eq('teacher_id', teacherRecord.id);
-  
-  // Then filter exams by those class assignments
-  const classIds = assignments.map(a => a.class_id);
-  const { data: examAssignments } = await supabase
-    .from('exam_class_assignments')
-    .select('exam_id')
-    .in('class_id', classIds);
-  ```
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
 
-- **Students**: Filter `students` table by `class_id IN (teacher's assigned class IDs)`
-- **Exam Attempts**: Only attempts for exams assigned to teacher's classes
-- **Registration Keys**: Only for teacher's assigned classes
-
-## Fallback for Admins
-Admin role bypasses all scoping — continues to see everything (no change needed, existing RLS handles this).
-
-## Files to Modify
-1. **Migration** — Create `teacher_class_assignments` table + helper function
-2. **`src/components/admin/TeacherManagement.tsx`** — Add "Assign Classes" UI
-3. **`src/pages/AdminDashboard.tsx`** — Add scoping logic for teacher role in `loadExams` and related queries
-4. **`src/components/admin/StudentManagement.tsx`** — Filter students by teacher's classes when role is teacher
-5. **`src/components/admin/ExamAssignment.tsx`** — Scope class dropdown to teacher's assignments
-6. **`src/components/admin/RegistrationKeyManagement.tsx`** — Scope to teacher's classes
-
-## Scope Summary
-- New table: `teacher_class_assignments` with RLS
-- New DB function: `get_teacher_class_ids`
-- Admin gets a UI to assign teachers → classes + subjects
-- Teacher dashboard queries are filtered by their assignments
-- No changes to student registration or auth flow
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

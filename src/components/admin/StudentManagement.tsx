@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ export default function StudentManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<string>('all');
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -69,16 +71,27 @@ export default function StudentManagement() {
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
   const [linkingParent, setLinkingParent] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
   const loadData = async () => {
     try {
+      let studentsQuery = supabase
+        .from('students')
+        .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, parent_id, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
+        .order('full_name')
+        .limit(1000);
+
+      // Scope to teacher's assigned classes
+      if (scopedClassIds !== null) {
+        if (scopedClassIds.length > 0) {
+          studentsQuery = studentsQuery.in('class_id', scopedClassIds);
+        } else {
+          studentsQuery = studentsQuery.eq('class_id', '00000000-0000-0000-0000-000000000000');
+        }
+      }
+
       const [studentsRes, schoolsRes, classesRes] = await Promise.all([
-        supabase
-          .from('students')
-          .select('id, full_name, email, student_id_code, grade, school_id, class_id, user_id, date_of_birth, gender, phone_number, parent_id, school:schools(id, name), class:classes(id, name), parent:parents(full_name, phone_number, relationship_to_student)')
-          .order('full_name')
-          .limit(1000),
+        studentsQuery,
         supabase.from('schools').select('id, name').order('name'),
         supabase.from('classes').select('id, name, school_id, grade_level').order('name'),
       ]);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export default function RegistrationKeyManagement() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   // Generate form state
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -52,8 +54,8 @@ export default function RegistrationKeyManagement() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!scopeLoading) loadData();
+  }, [scopeLoading]);
 
   const loadData = async () => {
     try {
@@ -68,9 +70,32 @@ export default function RegistrationKeyManagement() {
       ]);
 
       if (keysRes.error) throw keysRes.error;
-      setKeys((keysRes.data || []) as unknown as RegistrationKey[]);
+
+      // Scope classes for teachers
+      let allClasses = classesRes.data || [];
+      if (scopedClassIds !== null) {
+        allClasses = allClasses.filter(c => scopedClassIds.includes(c.id));
+      }
+
+      // Scope keys — we need the class_id which isn't in select, so we filter via class name matching
+      // Better: query keys with class_id filter
+      let allKeys = (keysRes.data || []) as unknown as (RegistrationKey & { class_id?: string })[];
+      // Re-query with class_id if scoped
+      if (scopedClassIds !== null && scopedClassIds.length > 0) {
+        const { data: scopedKeys, error } = await supabase
+          .from('registration_keys')
+          .select('id, key_code, status, created_at, class_id, school:schools(name, code), class:classes(name), claimed_student:students!registration_keys_claimed_by_fkey(full_name)')
+          .in('class_id', scopedClassIds)
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (!error) allKeys = (scopedKeys || []) as any;
+      } else if (scopedClassIds !== null) {
+        allKeys = [];
+      }
+
+      setKeys(allKeys as unknown as RegistrationKey[]);
       setSchools(schoolsRes.data || []);
-      setClasses(classesRes.data || []);
+      setClasses(allClasses);
     } catch (error) {
       console.error('Error loading keys:', error);
       toast.error('Failed to load registration keys');
