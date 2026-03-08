@@ -23,6 +23,7 @@ import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import ResitManagement from '@/components/admin/ResitManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface Exam {
   id: string;
@@ -220,7 +221,8 @@ export default function AdminDashboard() {
             <GraduationCap className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <NotificationBell />
             {isAdmin && (
               <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
                 <BarChart3 className="mr-2 h-4 w-4" />

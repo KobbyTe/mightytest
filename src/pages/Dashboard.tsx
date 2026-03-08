@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { ChatBubble } from '@/components/ChatBubble';
+import { NotificationBell } from '@/components/NotificationBell';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 
 interface Exam {
@@ -393,6 +394,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour">
               <HelpCircle className="h-5 w-5" />
             </Button>
