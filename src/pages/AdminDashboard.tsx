@@ -232,11 +232,6 @@ export default function AdminDashboard() {
               Sign Out
             </Button>
           </div>
-            <Button variant="ghost" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
-          </div>
         </div>
       </header>
 
