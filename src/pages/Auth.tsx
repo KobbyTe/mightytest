@@ -339,7 +339,7 @@ const Auth = () => {
             </Link>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setShowAdminLogin(false); }} className="w-full">
             <TabsList className="grid w-full grid-cols-3 h-auto p-1">
               <TabsTrigger value="student" className="flex items-center gap-2 py-3">
                 <GraduationCap className="w-4 h-4" />
@@ -349,9 +349,9 @@ const Auth = () => {
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Parent</span>
               </TabsTrigger>
-              <TabsTrigger value="admin" className="flex items-center gap-2 py-3">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
+              <TabsTrigger value="teacher" className="flex items-center gap-2 py-3">
+                <BookOpen className="w-4 h-4" />
+                <span className="hidden sm:inline">Teacher</span>
               </TabsTrigger>
             </TabsList>
 
