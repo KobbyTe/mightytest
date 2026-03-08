@@ -12,6 +12,8 @@ import {
   CheckCircle, XCircle, Clock, Award
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ChatBubble } from '@/components/ChatBubble';
+import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
 
 interface Student {
   id: string;
