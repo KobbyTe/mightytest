@@ -394,6 +394,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour">
               <HelpCircle className="h-5 w-5" />
             </Button>

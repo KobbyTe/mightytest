@@ -141,10 +141,13 @@ export default function ParentDashboard() {
               <p className="text-sm text-muted-foreground">Monitor your child's learning journey</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleSignOut} className="hover-lift">
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Button variant="outline" onClick={handleSignOut} className="hover-lift">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
