@@ -238,16 +238,17 @@ export default function AdminDashboard() {
       <main className="container mx-auto px-4 py-8 space-y-8">
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
-          <TabsList className="flex w-full overflow-x-auto">
-             <TabsTrigger value="exams">Exams</TabsTrigger>
-             <TabsTrigger value="schools">Schools</TabsTrigger>
-             <TabsTrigger value="assignments">Assignments</TabsTrigger>
-             <TabsTrigger value="attempts">Attempts</TabsTrigger>
-             <TabsTrigger value="students">Students</TabsTrigger>
-             <TabsTrigger value="keys">Keys</TabsTrigger>
-             <TabsTrigger value="resits">Resits</TabsTrigger>
-             <TabsTrigger value="analytics">Analytics</TabsTrigger>
-           </TabsList>
+           <TabsList className="flex w-full overflow-x-auto">
+              <TabsTrigger value="exams">Exams</TabsTrigger>
+              <TabsTrigger value="schools">Schools</TabsTrigger>
+              <TabsTrigger value="assignments">Assignments</TabsTrigger>
+              <TabsTrigger value="attempts">Attempts</TabsTrigger>
+              <TabsTrigger value="students">Students</TabsTrigger>
+              <TabsTrigger value="keys">Keys</TabsTrigger>
+              <TabsTrigger value="resits">Resits</TabsTrigger>
+              {isAdmin && <TabsTrigger value="teachers">Teachers</TabsTrigger>}
+              {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
+            </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
             {/* Stats Cards */}
