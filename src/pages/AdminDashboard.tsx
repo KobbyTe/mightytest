@@ -83,7 +83,7 @@ export default function AdminDashboard() {
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
   const dashboardTitle = isAdmin ? 'Admin Dashboard' : 'Teacher/Educator Dashboard';
-  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
+  const { scopedClassIds, assignments, loading: scopeLoading } = useTeacherScope();
 
   useEffect(() => {
     if (loading || scopeLoading) return;
