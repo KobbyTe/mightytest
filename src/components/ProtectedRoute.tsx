@@ -40,6 +40,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
               ? 'Your teacher account is awaiting admin approval. You will be notified once your account is approved.'
               : 'Your teacher account registration was not approved. Please contact the administrator for more information.'}
           </p>
+          <Button variant="outline" onClick={() => signOut()} className="mt-4">
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </div>
     );
