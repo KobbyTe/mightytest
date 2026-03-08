@@ -115,32 +115,13 @@ export default function ParentDashboard() {
     );
   }
 
-  const getSubjectIcon = (subject: string) => {
-    const icons: Record<string, string> = {
-      'Science': '🔬',
-      'Technology': '💻',
-      'Engineering': '⚙️',
-      'Mathematics': '📐',
-      'Robotics': '🤖',
-      'AI': '🧠',
-    };
-    return icons[subject] || '📚';
-  };
-
   // Overall stats across all children
   const totalAttempts = examAttempts.length;
   const completedAttempts = examAttempts.filter(a => a.status === 'graded' || a.status === 'completed').length;
   const passedAttempts = examAttempts.filter(a => 
     a.status === 'graded' && a.marks_obtained !== null && a.marks_obtained >= a.exams.passing_marks
   ).length;
-  // Bug #1 fix: Use percentage-based average instead of raw marks
-  const gradedWithMarks = examAttempts.filter(a => a.marks_obtained !== null && a.exams?.total_marks > 0);
-  const avgScore = gradedWithMarks.length > 0
-    ? Math.round(
-        gradedWithMarks.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / 
-        gradedWithMarks.length
-      )
-    : 0;
+  const avgScore = calcAvgScore(examAttempts);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
