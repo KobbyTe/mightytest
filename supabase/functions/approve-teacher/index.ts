@@ -13,7 +13,7 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -25,26 +25,29 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Verify the caller is an admin
+    // Verify the caller using getClaims
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
-    if (userError || !user) {
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseUser.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    const userId = claimsData.claims.sub;
+
     // Check admin role
     const { data: adminRole } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
 
@@ -69,7 +72,7 @@ serve(async (req) => {
       .from('teachers')
       .update({
         status: action,
-        approved_by: user.id,
+        approved_by: userId,
         approved_at: new Date().toISOString(),
       })
       .eq('id', teacherId)
@@ -95,7 +98,7 @@ serve(async (req) => {
       link: action === 'approved' ? '/auth' : null,
     });
 
-    console.log(`Teacher ${teacher.email} ${action} by admin ${user.id}`);
+    console.log(`Teacher ${teacher.email} ${action} by admin ${userId}`);
 
     return new Response(
       JSON.stringify({ success: true, action, teacher: { id: teacherId, name: teacher.full_name, email: teacher.email } }),
