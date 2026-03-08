@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
+import { ChatBubble } from '@/components/ChatBubble';
+import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 
 interface Exam {
   id: string;
