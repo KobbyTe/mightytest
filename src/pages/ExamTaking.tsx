@@ -679,6 +679,13 @@ export default function ExamTaking() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Network Status */}
+              {!networkOnline && (
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/20 text-secondary border border-secondary/50 animate-pulse">
+                  <WifiOff className="h-4 w-4" />
+                  <span className="text-xs font-semibold">Offline</span>
+                </div>
+              )}
               {/* Question Timer */}
               <div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-mono ${
                 questionTimeRemaining < 10 
