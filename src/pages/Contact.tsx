@@ -26,8 +26,13 @@ const Contact = () => {
       toast({ title: "Validation Error", description: result.error.errors[0].message, variant: "destructive" });
       return;
     }
+    const validated = result.data;
     setLoading(true);
-    const { error } = await supabase.from("contact_submissions").insert([result.data]);
+    const { error } = await supabase.from("contact_submissions").insert([{
+      name: validated.name,
+      email: validated.email,
+      message: validated.message,
+    }]);
     setLoading(false);
     if (error) {
       toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" });
