@@ -56,10 +56,14 @@ export function ChatBubble() {
       .channel('chat-messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const msg = payload.new as Message;
+        // Play notification sound + browser notification for incoming messages
+        if (msg.sender_id !== user.id) {
+          playNotificationSound();
+          showBrowserNotification(msg.content);
+        }
         // Update messages if in active conversation
         if (msg.conversation_id === activeConversationId) {
           setMessages((prev) => [...prev, msg]);
-          // Mark as read if it's not from us
           if (msg.sender_id !== user.id) {
             supabase.from('messages').update({ is_read: true }).eq('id', msg.id).then();
           }
