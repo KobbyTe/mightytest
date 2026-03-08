@@ -440,7 +440,7 @@ export function ChatBubble() {
         conversation_id: activeConversationId,
         sender_id: user.id,
         sender_role: role || 'student',
-        recipient_role: isAdmin ? 'student' : 'admin',
+        recipient_role: isAdmin ? activeRecipientRole : 'admin',
         recipient_id: activeRecipientUserId || null,
         content: newMessage.trim(),
         is_read: false,
