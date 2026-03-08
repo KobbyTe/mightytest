@@ -22,6 +22,16 @@ const Auth = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+  // Teacher registration state
+  const [showTeacherRegistration, setShowTeacherRegistration] = useState(false);
+  const [teacherRegData, setTeacherRegData] = useState({
+    fullName: '', email: '', password: '', confirmPassword: '',
+    phoneNumber: '', schoolId: '', subjectSpecialty: '',
+  });
+  const [teacherRegLoading, setTeacherRegLoading] = useState(false);
+  const [schools, setSchools] = useState<{ id: string; name: string }[]>([]);
 
   // Student forgot password state
   const [showStudentForgotPassword, setShowStudentForgotPassword] = useState(false);
