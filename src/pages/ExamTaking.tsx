@@ -68,11 +68,57 @@ export default function ExamTaking() {
   // Keep refs updated for async operations
   useEffect(() => {
     answersRef.current = answers;
-  }, [answers]);
+    // Also cache answers locally on every change
+    if (attemptId && examStarted) {
+      cacheAnswers(attemptId, answers, currentQuestionIndex);
+    }
+  }, [answers, attemptId, examStarted, currentQuestionIndex]);
 
   useEffect(() => {
     questionsRef.current = questions;
   }, [questions]);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setNetworkOnline(true);
+      toast.success('Connection restored — syncing your answers…', { icon: <Wifi className="h-4 w-4" /> });
+      syncPendingAnswers();
+    };
+    const handleOffline = () => {
+      setNetworkOnline(false);
+      toast.warning('You\'re offline — answers are saved locally', { icon: <WifiOff className="h-4 w-4" />, duration: 5000 });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync pending answers when back online
+  const syncPendingAnswers = useCallback(async () => {
+    const pending = getPendingSync();
+    if (!pending) return;
+    try {
+      const answersToSave = Object.entries(pending.answers).map(([question_id, answer_text]) => ({
+        attempt_id: pending.attemptId,
+        question_id,
+        answer_text,
+      }));
+      if (answersToSave.length > 0) {
+        await supabase.from('exam_answers').upsert(answersToSave, { onConflict: 'attempt_id,question_id' });
+      }
+      await supabase
+        .from('exam_attempts')
+        .update({ last_activity_at: new Date().toISOString(), current_question_index: pending.currentQuestionIndex })
+        .eq('id', pending.attemptId);
+      clearPendingSync();
+    } catch (e) {
+      console.error('Failed to sync pending answers:', e);
+    }
+  }, []);
 
   // Calculate time per question
   const timePerQuestion = exam?.duration_minutes && questions.length > 0 
