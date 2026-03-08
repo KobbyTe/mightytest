@@ -76,12 +76,16 @@ export default function AdminDashboard() {
     status: 'active'
   });
 
+  const isAdmin = role === 'admin';
+  const isTeacher = role === 'teacher';
+  const dashboardTitle = isAdmin ? 'Admin Dashboard' : 'Teacher/Educator Dashboard';
+
   useEffect(() => {
     if (loading) return;
     
     if (!user) {
       navigate('/auth');
-    } else if (role !== 'admin') {
+    } else if (role !== 'admin' && role !== 'teacher') {
       navigate('/dashboard');
     } else {
       loadExams();
