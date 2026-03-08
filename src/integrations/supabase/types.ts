@@ -888,6 +888,59 @@ export type Database = {
           },
         ]
       }
+      teachers: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          phone_number: string | null
+          school_id: string | null
+          status: string
+          subject_specialty: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          phone_number?: string | null
+          school_id?: string | null
+          status?: string
+          subject_specialty?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          phone_number?: string | null
+          school_id?: string | null
+          status?: string
+          subject_specialty?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_preferences: {
         Row: {
           created_at: string | null
@@ -958,6 +1011,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_or_teacher: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "student" | "parent" | "admin" | "teacher"
