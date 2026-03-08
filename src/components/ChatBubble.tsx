@@ -17,6 +17,7 @@ interface Message {
   sender_id: string;
   sender_role: string;
   recipient_role: string;
+  recipient_id: string | null;
   content: string;
   is_read: boolean;
   created_at: string;
