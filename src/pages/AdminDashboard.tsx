@@ -218,7 +218,7 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
