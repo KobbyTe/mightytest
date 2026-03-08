@@ -1,52 +1,91 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+# Make Mighty Test Platform Commercial-Ready
 
-## What Changes
+No payment code exists in the project, so nothing to remove. The focus is on two areas: **better landing page** and **more admin features**.
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+---
 
-## Changes by Dashboard
+## 1. Enhanced Landing Page
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+Transform the current minimal landing page into a professional, conversion-focused marketing site.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+**New sections to add to `Index.tsx`:**
+- **Stats/Social Proof Bar** -- Animated counters showing "X+ Students", "X+ Exams Completed", "X+ Schools" (pulled from real DB counts via a public edge function)
+- **Testimonials Carousel** -- Rotating quotes from students, parents, and schools with avatars and roles
+- **How It Works** -- 3-step visual walkthrough (Register → Take Exams → Track Progress) with icons and connecting lines
+- **Call-to-Action Banner** -- Full-width gradient section with "Get Started Free" and "Request a Demo" buttons
+- **FAQ Accordion** -- Common questions about the platform using the existing Accordion component
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+**New standalone pages:**
+- `/about` -- Mission, team, and platform story
+- `/contact` -- Contact form (stores submissions in a new `contact_submissions` table)
+- `/faq` -- Expanded FAQ page
+- `/terms` and `/privacy` -- Legal pages with placeholder content
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+**Footer update:**
+- Wire up the currently dead links to the new pages
+- Add a newsletter signup input (stores emails in a `newsletter_subscribers` table)
 
-## Technical Details
+---
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+## 2. More Admin Features
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+**Notification System:**
+- New `notifications` table (user_id, title, message, type, is_read, link, created_at)
+- Bell icon with unread badge in all dashboard headers (admin, student, parent)
+- Notification dropdown panel showing recent notifications
+- Auto-generate notifications on key events: exam assigned, exam graded, resit opened, new message received
+- Database trigger or edge function to create notification rows on relevant table inserts/updates
 
-### Files to Modify
-| File | Change |
+**Bulk Operations (Admin Dashboard):**
+- Multi-select checkboxes on the student roster for bulk actions (deactivate, assign to class, delete)
+- Bulk exam assignment -- select multiple classes at once
+- Bulk grade export -- select multiple exams and download combined CSV/PDF
+
+**Admin Announcement System:**
+- New `announcements` table (title, content, target_role, priority, expires_at, created_by)
+- Admin can post announcements visible to all students, all parents, or both
+- Banner component on student/parent dashboards showing active announcements
+
+---
+
+## 3. Database Changes
+
+New tables with RLS:
+- `contact_submissions` (name, email, message, created_at) -- public INSERT, admin SELECT
+- `newsletter_subscribers` (email, created_at) -- public INSERT, admin ALL
+- `notifications` (user_id, title, message, type, is_read, link, created_at) -- users see own, admin sees all
+- `announcements` (title, content, target_role, priority, expires_at, created_by, created_at) -- admin ALL, authenticated SELECT
+
+---
+
+## 4. Files to Create/Edit
+
+| File | Action |
 |------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+| `src/pages/Index.tsx` | Add new sections |
+| `src/components/StatsBar.tsx` | New -- animated counters |
+| `src/components/Testimonials.tsx` | New -- carousel |
+| `src/components/HowItWorks.tsx` | New -- 3-step visual |
+| `src/components/CTABanner.tsx` | New -- call to action |
+| `src/components/FAQSection.tsx` | New -- accordion FAQ |
+| `src/pages/About.tsx` | New page |
+| `src/pages/Contact.tsx` | New page with form |
+| `src/pages/FAQ.tsx` | New page |
+| `src/pages/Terms.tsx` | New page |
+| `src/pages/Privacy.tsx` | New page |
+| `src/components/Footer.tsx` | Wire up links |
+| `src/components/Navbar.tsx` | Add new page links |
+| `src/components/NotificationBell.tsx` | New -- bell + dropdown |
+| `src/components/AnnouncementBanner.tsx` | New -- dashboard banner |
+| `src/pages/AdminDashboard.tsx` | Add bulk ops, announcements tab, notification bell |
+| `src/pages/Dashboard.tsx` | Add notification bell, announcement banner |
+| `src/pages/ParentDashboard.tsx` | Add notification bell, announcement banner |
+| `src/App.tsx` | Add new routes |
+| Database migration | 4 new tables + RLS policies |
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+---
+
+This is a large scope. I recommend implementing it in 2-3 rounds: landing page first, then admin features + notifications.
 
