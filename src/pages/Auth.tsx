@@ -161,6 +161,7 @@ const Auth = () => {
       });
       
       if (userType === 'admin') navigate('/admin');
+      else if (userType === 'teacher') navigate('/teacher');
       else if (userType === 'parent') navigate('/parent');
       else navigate('/dashboard');
     } catch (error: any) {
