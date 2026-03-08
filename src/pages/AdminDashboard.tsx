@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key, UserCheck } from 'lucide-react';
+import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key, UserCheck, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +24,7 @@ import ResitManagement from '@/components/admin/ResitManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 
 interface Exam {
   id: string;
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [showTour, setShowTour] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -90,8 +92,42 @@ export default function AdminDashboard() {
       navigate('/dashboard');
     } else {
       loadExams();
+      // Check if teacher needs onboarding tour
+      if (role === 'teacher') {
+        checkTeacherOnboarding();
+      }
     }
   }, [user, loading, role, navigate]);
+
+  const checkTeacherOnboarding = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('onboarding_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (!data || !data.onboarding_completed) {
+        // Delay slightly so the UI renders first
+        setTimeout(() => setShowTour(true), 1000);
+      }
+    } catch (err) {
+      console.error('Error checking onboarding:', err);
+    }
+  };
+
+  const handleTourComplete = async () => {
+    setShowTour(false);
+    if (!user) return;
+    try {
+      await supabase
+        .from('user_preferences')
+        .upsert({ user_id: user.id, onboarding_completed: true }, { onConflict: 'user_id' });
+    } catch (err) {
+      console.error('Error saving onboarding status:', err);
+    }
+  };
 
   const loadExams = async () => {
     try {
@@ -217,12 +253,17 @@ export default function AdminDashboard() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" id="teacher-tour-welcome">
             <GraduationCap className="h-8 w-8 text-primary" />
             <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
+            {isTeacher && (
+              <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+                <HelpCircle className="h-4 w-4" />
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
                 <BarChart3 className="mr-2 h-4 w-4" />
@@ -241,12 +282,12 @@ export default function AdminDashboard() {
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
            <TabsList className="flex w-full overflow-x-auto">
-              <TabsTrigger value="exams">Exams</TabsTrigger>
-              <TabsTrigger value="schools">Schools</TabsTrigger>
-              <TabsTrigger value="assignments">Assignments</TabsTrigger>
-              <TabsTrigger value="attempts">Attempts</TabsTrigger>
-              <TabsTrigger value="students">Students</TabsTrigger>
-              <TabsTrigger value="keys">Keys</TabsTrigger>
+              <TabsTrigger value="exams" id="teacher-tour-exams">Exams</TabsTrigger>
+              <TabsTrigger value="schools" id="teacher-tour-schools">Schools</TabsTrigger>
+              <TabsTrigger value="assignments" id="teacher-tour-assignments">Assignments</TabsTrigger>
+              <TabsTrigger value="attempts" id="teacher-tour-attempts">Attempts</TabsTrigger>
+              <TabsTrigger value="students" id="teacher-tour-students">Students</TabsTrigger>
+              <TabsTrigger value="keys" id="teacher-tour-keys">Keys</TabsTrigger>
               <TabsTrigger value="resits">Resits</TabsTrigger>
             </TabsList>
 
@@ -611,6 +652,9 @@ export default function AdminDashboard() {
         </Tabs>
       </main>
       <ChatBubble />
+      {isTeacher && (
+        <TeacherOnboardingTour isActive={showTour} onComplete={handleTourComplete} />
+      )}
     </div>
   );
 }
