@@ -42,6 +42,7 @@ export default function StudentManagement() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<string>('all');
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -70,7 +71,7 @@ export default function StudentManagement() {
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
   const [linkingParent, setLinkingParent] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
   const loadData = async () => {
     try {
