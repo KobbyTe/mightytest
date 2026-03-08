@@ -116,7 +116,7 @@ export async function exportToPDF(
           const htmlEl = el as HTMLElement;
           if (htmlEl.style) {
             htmlEl.style.backdropFilter = 'none';
-            htmlEl.style.webkitBackdropFilter = 'none';
+            (htmlEl.style as any).webkitBackdropFilter = 'none';
           }
         });
       }
