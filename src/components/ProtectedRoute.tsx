@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -8,7 +10,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, role, loading, profile } = useAuth();
+  const { user, role, loading, profile, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -38,6 +40,10 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
               ? 'Your teacher account is awaiting admin approval. You will be notified once your account is approved.'
               : 'Your teacher account registration was not approved. Please contact the administrator for more information.'}
           </p>
+          <Button variant="outline" onClick={() => signOut()} className="mt-4">
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </div>
     );
