@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,15 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
 import {
   LogOut, GraduationCap, Users, FileText, BarChart3, TrendingUp, Target, Award,
-  UserCheck, Building2, Activity, BookOpen, Shield
+  UserCheck, Building2, Activity, BookOpen, Shield, ChevronUp, ChevronDown, Zap,
+  Eye, Clock, Sparkles, ArrowUpRight, LayoutDashboard, School, UserCog, Globe
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import SchoolManagement from '@/components/admin/SchoolManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import StudentManagement from '@/components/admin/StudentManagement';
@@ -23,25 +26,102 @@ import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import { NotificationBell } from '@/components/NotificationBell';
 
 const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2, 160 60% 45%))',
-  'hsl(var(--chart-3, 30 80% 55%))',
-  'hsl(var(--chart-4, 280 65% 60%))',
-  'hsl(var(--destructive))',
+  'hsl(166, 73%, 42%)',   // success green
+  'hsl(194, 100%, 42%)',  // accent blue
+  'hsl(45, 100%, 51%)',   // primary gold
+  'hsl(277, 81%, 59%)',   // purple
+  'hsl(0, 84%, 60%)',     // destructive red
+];
+
+const GRADE_COLORS: Record<string, string> = {
+  A: 'hsl(166, 73%, 42%)',
+  B: 'hsl(194, 100%, 42%)',
+  C: 'hsl(45, 100%, 51%)',
+  D: 'hsl(18, 100%, 60%)',
+  F: 'hsl(0, 84%, 60%)',
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.08, duration: 0.5, ease: "easeOut" as const }
+  }),
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.4, ease: "easeOut" as const } },
+};
+
+interface KPICardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ReactNode;
+  trend?: number;
+  gradient: string;
+  delay: number;
+}
+
+function KPICard({ title, value, subtitle, icon, trend, gradient, delay }: KPICardProps) {
+  return (
+    <motion.div custom={delay} variants={fadeUp} initial="hidden" animate="visible">
+      <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-500 hover:-translate-y-1 group">
+        <div className={`absolute inset-0 opacity-[0.07] group-hover:opacity-[0.12] transition-opacity duration-500 ${gradient}`} />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className={`p-2 rounded-xl ${gradient} text-white shadow-md`}>
+            {icon}
+          </div>
+        </CardHeader>
+        <CardContent className="relative">
+          <div className="text-3xl font-bold tracking-tight">{value}</div>
+          <div className="flex items-center gap-2 mt-1">
+            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            {trend !== undefined && (
+              <span className={`inline-flex items-center text-xs font-semibold ${trend >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
+                {trend >= 0 ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                {Math.abs(trend)}%
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card/95 backdrop-blur-xl border border-border/50 rounded-xl p-3 shadow-xl">
+      <p className="text-sm font-semibold mb-1">{label}</p>
+      {payload.map((entry: any, i: number) => (
+        <p key={i} className="text-xs text-muted-foreground">
+          <span className="inline-block w-2 h-2 rounded-full mr-2" style={{ backgroundColor: entry.color }} />
+          {entry.name}: <span className="font-semibold text-foreground">{entry.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+const tabItems = [
+  { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { value: 'students', label: 'Students', icon: GraduationCap },
+  { value: 'teachers', label: 'Teachers', icon: UserCog },
+  { value: 'exams', label: 'Exam Analytics', icon: BarChart3 },
+  { value: 'schools', label: 'Schools', icon: School },
+  { value: 'traffic', label: 'Site Traffic', icon: Globe },
 ];
 
 export default function NewAdminDashboard() {
   const { user, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalTeachers: 0,
-    pendingTeachers: 0,
-    totalExams: 0,
-    activeExams: 0,
-    totalAttempts: 0,
-    passRate: 0,
-    averageScore: 0,
+    totalStudents: 0, totalTeachers: 0, pendingTeachers: 0,
+    totalExams: 0, activeExams: 0, totalAttempts: 0, passRate: 0, averageScore: 0,
   });
   const [enrollmentData, setEnrollmentData] = useState<{ month: string; count: number }[]>([]);
   const [subjectPerformance, setSubjectPerformance] = useState<{ subject: string; avgScore: number; count: number }[]>([]);
@@ -49,6 +129,7 @@ export default function NewAdminDashboard() {
   const [topPerformers, setTopPerformers] = useState<{ name: string; email: string; avgScore: number; exams: number }[]>([]);
   const [examRanking, setExamRanking] = useState<{ title: string; attempts: number; avgScore: number }[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (loading) return;
@@ -71,7 +152,6 @@ export default function NewAdminDashboard() {
       const exams = examsRes.data || [];
       const attempts = attemptsRes.data || [];
 
-      // KPI Stats
       const passedCount = attempts.filter(a =>
         a.marks_obtained != null && a.exam?.passing_marks != null &&
         a.marks_obtained >= a.exam.passing_marks
@@ -95,17 +175,17 @@ export default function NewAdminDashboard() {
         averageScore: attempts.length > 0 ? Math.round(totalScorePercent / attempts.length) : 0,
       });
 
-      // Enrollment trends (last 6 months)
+      // Enrollment trends
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const enrollMap = new Map<string, number>();
       const now = new Date();
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        enrollMap.set(`${monthNames[d.getMonth()]} ${d.getFullYear()}`, 0);
+        enrollMap.set(`${monthNames[d.getMonth()]}`, 0);
       }
       students.forEach(s => {
         const d = new Date(s.created_at);
-        const key = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+        const key = `${monthNames[d.getMonth()]}`;
         if (enrollMap.has(key)) enrollMap.set(key, (enrollMap.get(key) || 0) + 1);
       });
       setEnrollmentData(Array.from(enrollMap.entries()).map(([month, count]) => ({ month, count })));
@@ -122,7 +202,7 @@ export default function NewAdminDashboard() {
         subject, avgScore: Math.round(d.total / d.count), count: d.count,
       })).sort((a, b) => b.avgScore - a.avgScore));
 
-      // Grade distribution (A/B/C/D/F)
+      // Grade distribution
       const grades = { A: 0, B: 0, C: 0, D: 0, F: 0 };
       attempts.forEach(a => {
         const pct = a.exam?.total_marks ? ((a.marks_obtained || 0) / a.exam.total_marks) * 100 : 0;
@@ -178,360 +258,415 @@ export default function NewAdminDashboard() {
 
   if (loading || loadingData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="w-8 h-8 border-4 border-primary/30 rounded-full animate-spin border-t-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-muted animate-spin border-t-primary" />
+            <Sparkles className="absolute inset-0 m-auto h-6 w-6 text-primary animate-pulse" />
+          </div>
+          <p className="text-sm text-muted-foreground font-medium animate-pulse">Loading analytics...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
+      {/* Subtle background pattern */}
+      <div className="fixed inset-0 dots-pattern pointer-events-none" />
+
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <motion.header
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60"
+      >
+        <div className="container mx-auto px-4 lg:px-8 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-primary-light shadow-md">
+              <Shield className="h-5 w-5 text-primary-foreground" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-              <p className="text-xs text-muted-foreground">Platform Overview & Management</p>
+              <h1 className="text-lg lg:text-xl font-bold font-heading tracking-tight">Admin Console</h1>
+              <p className="text-[11px] text-muted-foreground hidden sm:block">Platform Overview & Management</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <NotificationBell />
-            <Button variant="ghost" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground hover:text-destructive">
+              <LogOut className="mr-1.5 h-4 w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="flex w-full overflow-x-auto">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="teachers">
-              Teachers
-              {stats.pendingTeachers > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center">
-                  {stats.pendingTeachers}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="exams">Exam Analytics</TabsTrigger>
-            <TabsTrigger value="schools">Schools</TabsTrigger>
-            <TabsTrigger value="traffic">Site Traffic</TabsTrigger>
-          </TabsList>
-
-          {/* ====== OVERVIEW TAB ====== */}
-          <TabsContent value="overview" className="space-y-6">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Students</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.totalStudents}</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Teachers</CardTitle>
-                  <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalTeachers}</div>
-                  {stats.pendingTeachers > 0 && (
-                    <p className="text-xs text-destructive">{stats.pendingTeachers} pending</p>
+      <main className="container mx-auto px-4 lg:px-8 py-6 space-y-6 relative">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          {/* Modern tab navigation */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+            <TabsList className="inline-flex h-auto p-1 bg-muted/50 backdrop-blur-sm rounded-2xl gap-0.5 flex-wrap">
+              {tabItems.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-md rounded-xl px-3 py-2 text-xs lg:text-sm font-medium transition-all duration-300 gap-1.5"
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  {tab.value === 'teachers' && stats.pendingTeachers > 0 && (
+                    <Badge variant="destructive" className="ml-1 h-4 min-w-4 rounded-full p-0 px-1 text-[9px]">
+                      {stats.pendingTeachers}
+                    </Badge>
                   )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Exams</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalExams}</div>
-                  <p className="text-xs text-muted-foreground">{stats.activeExams} active</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.passRate}%</div></CardContent>
-              </Card>
-            </div>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </motion.div>
 
-            {/* Additional KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Graded Attempts</CardTitle>
-                  <Activity className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.totalAttempts}</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.averageScore}%</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Top Subject</CardTitle>
-                  <Award className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{subjectPerformance[0]?.subject || 'N/A'}</div>
-                </CardContent>
-              </Card>
-            </div>
+          <AnimatePresence mode="wait">
+            {/* ====== OVERVIEW TAB ====== */}
+            <TabsContent value="overview" className="space-y-6 mt-6">
+              {/* KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <KPICard
+                  title="Total Students" value={stats.totalStudents}
+                  icon={<GraduationCap className="h-4 w-4" />}
+                  gradient="bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-cyan))]"
+                  delay={0}
+                />
+                <KPICard
+                  title="Teachers" value={stats.totalTeachers}
+                  subtitle={stats.pendingTeachers > 0 ? `${stats.pendingTeachers} pending` : undefined}
+                  icon={<UserCheck className="h-4 w-4" />}
+                  gradient="bg-gradient-to-br from-[hsl(var(--success))] to-[hsl(var(--fun-mint))]"
+                  delay={1}
+                />
+                <KPICard
+                  title="Pass Rate" value={`${stats.passRate}%`}
+                  icon={<Target className="h-4 w-4" />}
+                  gradient="bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary-light))]"
+                  delay={2}
+                />
+                <KPICard
+                  title="Avg Score" value={`${stats.averageScore}%`}
+                  icon={<TrendingUp className="h-4 w-4" />}
+                  gradient="bg-gradient-to-br from-[hsl(var(--purple))] to-[hsl(var(--fun-lavender))]"
+                  delay={3}
+                />
+              </div>
 
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Enrollment Trends */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Student Enrollment Trends</CardTitle>
-                  <CardDescription>New student registrations (last 6 months)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <AreaChart data={enrollmentData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} name="Students" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              {/* Secondary KPIs */}
+              <motion.div variants={fadeUp} custom={4} initial="hidden" animate="visible">
+                <div className="grid grid-cols-3 gap-4">
+                  {[
+                    { label: 'Total Exams', value: stats.totalExams, sub: `${stats.activeExams} active`, icon: <FileText className="h-4 w-4" /> },
+                    { label: 'Graded Attempts', value: stats.totalAttempts, icon: <Activity className="h-4 w-4" /> },
+                    { label: 'Top Subject', value: subjectPerformance[0]?.subject || 'N/A', icon: <Award className="h-4 w-4" /> },
+                  ].map((item, i) => (
+                    <Card key={i} className="border border-border/50 bg-card/60 backdrop-blur-sm hover:bg-card transition-colors duration-300">
+                      <CardContent className="p-4 flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-muted">{item.icon}</div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground truncate">{item.label}</p>
+                          <p className="text-lg font-bold truncate">{item.value}</p>
+                          {item.sub && <p className="text-[10px] text-muted-foreground">{item.sub}</p>}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </motion.div>
 
-              {/* Grade Distribution Pie */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Grade Distribution</CardTitle>
-                  <CardDescription>Overall grade breakdown (A/B/C/D/F)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={gradeDistribution}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ grade, percent }) => percent > 0 ? `${grade}: ${(percent * 100).toFixed(0)}%` : ''}
-                        outerRadius={100}
-                        dataKey="count"
-                        nameKey="grade"
-                      >
-                        {gradeDistribution.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+                {/* Enrollment Trends - wider */}
+                <motion.div variants={scaleIn} initial="hidden" animate="visible" className="lg:col-span-4">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm h-full">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base font-semibold">Enrollment Trends</CardTitle>
+                          <CardDescription className="text-xs">Last 6 months</CardDescription>
+                        </div>
+                        <Badge variant="outline" className="text-xs font-normal gap-1">
+                          <Eye className="h-3 w-3" /> Live
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <AreaChart data={enrollmentData}>
+                          <defs>
+                            <linearGradient id="enrollGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(194, 100%, 42%)" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="hsl(194, 100%, 42%)" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" strokeOpacity={0.5} />
+                          <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Area type="monotone" dataKey="count" stroke="hsl(194, 100%, 42%)" strokeWidth={2.5} fill="url(#enrollGrad)" name="Students" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+
+                {/* Grade Distribution */}
+                <motion.div variants={scaleIn} initial="hidden" animate="visible" className="lg:col-span-3">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm h-full">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">Grade Distribution</CardTitle>
+                      <CardDescription className="text-xs">A / B / C / D / F breakdown</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={gradeDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={50}
+                            outerRadius={80}
+                            paddingAngle={4}
+                            dataKey="count"
+                            nameKey="grade"
+                            strokeWidth={0}
+                          >
+                            {gradeDistribution.map((entry) => (
+                              <Cell key={entry.grade} fill={GRADE_COLORS[entry.grade] || CHART_COLORS[0]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CustomTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex justify-center gap-3 mt-2">
+                        {gradeDistribution.map((entry) => (
+                          <div key={entry.grade} className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: GRADE_COLORS[entry.grade] }} />
+                            <span className="text-xs font-medium">{entry.grade}</span>
+                            <span className="text-xs text-muted-foreground">({entry.count})</span>
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
 
-            {/* Subject Performance + Top Performers */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subject Performance</CardTitle>
-                  <CardDescription>Average scores by subject</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={subjectPerformance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="subject" tick={{ fontSize: 12 }} />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Bar dataKey="avgScore" fill="hsl(var(--primary))" name="Avg Score %" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
+              {/* Subject Performance + Top Performers */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div variants={fadeUp} custom={6} initial="hidden" animate="visible">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">Subject Performance</CardTitle>
+                      <CardDescription className="text-xs">Average scores by subject</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={subjectPerformance} barSize={32}>
+                          <defs>
+                            <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="hsl(194, 100%, 42%)" />
+                              <stop offset="100%" stopColor="hsl(194, 100%, 42%)" stopOpacity={0.6} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" strokeOpacity={0.5} />
+                          <XAxis dataKey="subject" tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Bar dataKey="avgScore" fill="url(#barGrad)" name="Avg Score %" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top 10 Performers</CardTitle>
-                  <CardDescription>Highest average scores across all exams</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>#</TableHead>
-                          <TableHead>Student</TableHead>
-                          <TableHead>Avg %</TableHead>
-                          <TableHead>Exams</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                <motion.div variants={fadeUp} custom={7} initial="hidden" animate="visible">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-base font-semibold">Top Performers</CardTitle>
+                          <CardDescription className="text-xs">Highest averages across all exams</CardDescription>
+                        </div>
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <Award className="h-3 w-3 text-primary" /> Top 10
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
                         {topPerformers.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground py-6">No data yet</TableCell>
-                          </TableRow>
+                          <p className="text-center text-muted-foreground text-sm py-8">No data yet</p>
                         ) : topPerformers.map((s, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-semibold">{i + 1}</TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium text-sm">{s.name}</p>
-                                <p className="text-xs text-muted-foreground">{s.email}</p>
+                          <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                              i === 0 ? 'bg-gradient-to-br from-primary to-primary-light text-primary-foreground' :
+                              i === 1 ? 'bg-muted text-foreground' :
+                              i === 2 ? 'bg-[hsl(var(--secondary))] text-secondary-foreground' :
+                              'bg-muted/60 text-muted-foreground'
+                            }`}>
+                              {i + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{s.name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{s.email}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold">{s.avgScore}%</p>
+                              <p className="text-[10px] text-muted-foreground">{s.exams} exams</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+
+              {/* Most Attempted Exams */}
+              <motion.div variants={fadeUp} custom={8} initial="hidden" animate="visible">
+                <Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base font-semibold">Most Attempted Exams</CardTitle>
+                        <CardDescription className="text-xs">Ranked by student participation</CardDescription>
+                      </div>
+                      <Zap className="h-4 w-4 text-primary" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {examRanking.length === 0 ? (
+                      <p className="text-center text-muted-foreground text-sm py-8">No data yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {examRanking.map((exam, i) => (
+                          <div key={i} className="flex items-center gap-4">
+                            <span className="text-xs font-bold text-muted-foreground w-5">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{exam.title}</p>
+                              <div className="flex items-center gap-3 mt-1">
+                                <Progress value={exam.avgScore} className="flex-1 h-2" />
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">{exam.avgScore}% avg</span>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={s.avgScore >= 70 ? 'default' : 'secondary'}>{s.avgScore}%</Badge>
-                            </TableCell>
-                            <TableCell>{s.exams}</TableCell>
-                          </TableRow>
+                            </div>
+                            <Badge variant="secondary" className="text-xs shrink-0">{exam.attempts} attempts</Badge>
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </TabsContent>
 
-            {/* Most Attempted Exams */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Most Attempted Exams</CardTitle>
-                <CardDescription>Ranked by number of student attempts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={examRanking} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="title" type="category" width={150} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="attempts" fill="hsl(var(--primary))" name="Attempts" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="avgScore" fill="hsl(var(--chart-2, 160 60% 45%))" name="Avg Score %" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </TabsContent>
+            {/* ====== STUDENTS TAB ====== */}
+            <TabsContent value="students" className="mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <StudentManagement />
+              </motion.div>
+            </TabsContent>
 
-          {/* ====== STUDENTS TAB ====== */}
-          <TabsContent value="students">
-            <StudentManagement />
-          </TabsContent>
+            {/* ====== TEACHERS TAB ====== */}
+            <TabsContent value="teachers" className="mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <TeacherManagement />
+              </motion.div>
+            </TabsContent>
 
-          {/* ====== TEACHERS TAB ====== */}
-          <TabsContent value="teachers">
-            <TeacherManagement />
-          </TabsContent>
+            {/* ====== EXAM ANALYTICS TAB ====== */}
+            <TabsContent value="exams" className="space-y-6 mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <KPICard title="Total Attempts" value={stats.totalAttempts} icon={<BookOpen className="h-4 w-4" />}
+                    gradient="bg-gradient-to-br from-[hsl(var(--accent))] to-[hsl(var(--accent-cyan))]" delay={0} />
+                  <KPICard title="Average Score" value={`${stats.averageScore}%`} icon={<TrendingUp className="h-4 w-4" />}
+                    gradient="bg-gradient-to-br from-[hsl(var(--success))] to-[hsl(var(--fun-mint))]" delay={1} />
+                  <KPICard title="Pass Rate" value={`${stats.passRate}%`} icon={<Target className="h-4 w-4" />}
+                    gradient="bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--primary-light))]" delay={2} />
+                  <KPICard title="Active Exams" value={stats.activeExams} icon={<FileText className="h-4 w-4" />}
+                    gradient="bg-gradient-to-br from-[hsl(var(--purple))] to-[hsl(var(--fun-lavender))]" delay={3} />
+                </div>
+              </motion.div>
 
-          {/* ====== EXAM ANALYTICS TAB ====== */}
-          <TabsContent value="exams" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Attempts</CardTitle>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.totalAttempts}</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.averageScore}%</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pass Rate</CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.passRate}%</div></CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Exams</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent><div className="text-2xl font-bold">{stats.activeExams}</div></CardContent>
-              </Card>
-            </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <motion.div variants={scaleIn} initial="hidden" animate="visible">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">Subject Performance</CardTitle>
+                      <CardDescription className="text-xs">Avg scores & attempt counts</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={subjectPerformance} barSize={24}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 13%, 91%)" strokeOpacity={0.5} />
+                          <XAxis dataKey="subject" tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <YAxis tick={{ fontSize: 11 }} stroke="hsl(220, 9%, 46%)" />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+                          <Bar dataKey="avgScore" fill="hsl(194, 100%, 42%)" name="Avg Score %" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="count" fill="hsl(166, 73%, 42%)" name="Attempts" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subject Performance</CardTitle>
-                  <CardDescription>Average scores and attempt counts by subject</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={subjectPerformance}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="subject" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="avgScore" fill="hsl(var(--primary))" name="Avg Score %" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="count" fill="hsl(var(--chart-2, 160 60% 45%))" name="Attempts" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Grade Distribution</CardTitle>
-                  <CardDescription>Performance breakdown across all exams</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={gradeDistribution}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ grade, percent }) => percent > 0 ? `${grade}: ${(percent * 100).toFixed(0)}%` : ''}
-                        outerRadius={100}
-                        dataKey="count"
-                        nameKey="grade"
-                      >
-                        {gradeDistribution.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                <motion.div variants={scaleIn} initial="hidden" animate="visible">
+                  <Card className="border border-border/50 bg-card/80 backdrop-blur-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base font-semibold">Grade Distribution</CardTitle>
+                      <CardDescription className="text-xs">Performance breakdown</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie data={gradeDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                            paddingAngle={4} dataKey="count" nameKey="grade" strokeWidth={0}>
+                            {gradeDistribution.map((entry) => (
+                              <Cell key={entry.grade} fill={GRADE_COLORS[entry.grade] || CHART_COLORS[0]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<CustomTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex justify-center gap-3 mt-2">
+                        {gradeDistribution.map((entry) => (
+                          <div key={entry.grade} className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: GRADE_COLORS[entry.grade] }} />
+                            <span className="text-xs font-medium">{entry.grade} ({entry.count})</span>
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+            </TabsContent>
 
-          {/* ====== SCHOOLS TAB ====== */}
-          <TabsContent value="schools">
-            <SchoolManagement />
-          </TabsContent>
+            {/* ====== SCHOOLS TAB ====== */}
+            <TabsContent value="schools" className="mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <SchoolManagement />
+              </motion.div>
+            </TabsContent>
 
-          {/* ====== SITE TRAFFIC TAB ====== */}
-          <TabsContent value="traffic">
-            <WebsiteAnalytics />
-          </TabsContent>
+            {/* ====== SITE TRAFFIC TAB ====== */}
+            <TabsContent value="traffic" className="mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <WebsiteAnalytics />
+              </motion.div>
+            </TabsContent>
+          </AnimatePresence>
         </Tabs>
       </main>
     </div>
