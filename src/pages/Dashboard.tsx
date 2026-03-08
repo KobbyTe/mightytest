@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { ChatBubble } from '@/components/ChatBubble';
+import { NotificationBell } from '@/components/NotificationBell';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 
 interface Exam {
