@@ -23,8 +23,8 @@ export default function ExamAnalytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || role !== 'admin') {
-      navigate('/admin');
+    if (!user || (role !== 'admin' && role !== 'teacher')) {
+      navigate(role === 'teacher' ? '/teacher' : '/admin');
       return;
     }
     loadAnalytics();

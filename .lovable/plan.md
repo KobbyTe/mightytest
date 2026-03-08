@@ -1,102 +1,52 @@
 
 
-# Separate Admin & Teacher Roles with New Admin Dashboard
+# Show Individual Test Results with Numbered List + Average
 
-## Summary
+## What Changes
 
-Transfer `kwabenatekyi19@gmail.com` from admin to teacher (auto-approved, all data preserved), create a new admin account for `justiceansah19@gmail.com`, and build a dedicated modern admin dashboard with comprehensive analytics.
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
----
+## Changes by Dashboard
 
-## Database Changes
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-### 1. Role swap for kwabenatekyi19@gmail.com
-- UPDATE `user_roles` to change role from `admin` to `teacher` for this user
-- INSERT into `teachers` table with `status = 'approved'` (auto-approved, no approval needed)
-- All existing data (exams, students, etc.) remains untouched since RLS now grants teacher access to the same tables
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-### 2. Create admin account for justiceansah19@gmail.com
-- Use the existing `create-admin` edge function with the provided credentials
-- This creates the auth user + assigns `admin` role in `user_roles`
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
----
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-## New Admin Dashboard (`src/pages/NewAdminDashboard.tsx`)
+## Technical Details
 
-A modern, analytics-heavy dashboard exclusively for the admin role with:
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
 
-### Overview Section
-- KPI cards: Total Students, Total Teachers, Total Exams, Active Exams, Overall Pass Rate, Average Score
-- Real-time stats pulled from `students`, `teachers`, `exams`, `exam_attempts`
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
 
-### Student Analytics
-- Enrollment trends (line chart over time)
-- Performance distribution (histogram of scores)
-- Pass/fail rates by subject (bar chart)
-- Top performers table
-- Students per school/class breakdown (pie chart)
-
-### Teacher Analytics
-- Total teachers, pending approvals count
-- Teacher approval management (approve/reject from here)
-- Teachers by school/subject (table)
-
-### Exam Analytics
-- Exam completion rates (bar chart)
-- Average scores by subject (bar chart)
-- Score trends over time (line chart)
-- Grade distribution (pie chart: A/B/C/D/F)
-- Most attempted exams ranking
-
-### Platform Analytics
-- Reuse existing `WebsiteAnalytics` component for traffic
-- Active users over time
-
-### Management Tabs
-- Teacher Management (existing component)
-- School Management (existing component)
-- Student overview with bulk operations
-
----
-
-## Frontend Routing Changes
-
-| Route | Role | Component |
-|-------|------|-----------|
-| `/admin` | admin | **NewAdminDashboard** (new) |
-| `/admin-setup` | admin | AdminSetup |
-| `/teacher` | teacher | AdminDashboard (current, renamed to TeacherDashboard) |
-
-### Auth Page Updates
-- The hidden "Admin Login" link stays — admin logs in with `justiceansah19@gmail.com`
-- Teacher tab remains for `kwabenatekyi19@gmail.com` and other teachers
-- Update `AdminSetup.tsx` defaults to new admin credentials
-
-### ExamAnalytics.tsx
-- Update role check to allow both `admin` and `teacher`
-
-### ProtectedRoute
-- No changes needed (already supports all roles)
-
----
-
-## Files to Create/Edit
-
-| File | Action |
+### Files to Modify
+| File | Change |
 |------|--------|
-| `src/pages/NewAdminDashboard.tsx` | **Create** — Full admin dashboard with modern analytics |
-| `src/App.tsx` | Update `/admin` route to use NewAdminDashboard |
-| `src/pages/AdminDashboard.tsx` | Minor: remove admin-only tabs (teachers, analytics), rename to teacher-focused |
-| `src/pages/AdminSetup.tsx` | Update default email to justiceansah19@gmail.com |
-| `src/pages/ExamAnalytics.tsx` | Allow teacher role access |
-| Migration SQL | Role swap for kwabenatekyi19@gmail.com + teacher profile insert |
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
 
----
-
-## Data Safety
-
-- No deletion of any data belonging to kwabenatekyi19@gmail.com
-- All exams created by that user remain accessible (teacher role has same RLS access to exams, students, etc.)
-- The `created_by` field on exams still references the same user_id — no change needed
-- The new admin (justiceansah19@gmail.com) gets full platform control
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

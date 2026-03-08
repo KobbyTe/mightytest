@@ -12,7 +12,7 @@ export default function AdminSetup() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: 'kwabenatekyi19@gmail.com',
+    email: 'justiceansah19@gmail.com',
     password: '@jK4ta23st!5rg'
   });
 

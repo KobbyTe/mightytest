@@ -248,8 +248,6 @@ export default function AdminDashboard() {
               <TabsTrigger value="students">Students</TabsTrigger>
               <TabsTrigger value="keys">Keys</TabsTrigger>
               <TabsTrigger value="resits">Resits</TabsTrigger>
-              {isAdmin && <TabsTrigger value="teachers">Teachers</TabsTrigger>}
-              {isAdmin && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
             </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
@@ -610,17 +608,6 @@ export default function AdminDashboard() {
             <ResitManagement />
           </TabsContent>
 
-          {isAdmin && (
-            <TabsContent value="teachers">
-              <TeacherManagement />
-            </TabsContent>
-          )}
-
-          {isAdmin && (
-            <TabsContent value="analytics">
-              <WebsiteAnalytics />
-            </TabsContent>
-          )}
         </Tabs>
       </main>
       <ChatBubble />
