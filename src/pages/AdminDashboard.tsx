@@ -23,6 +23,7 @@ import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import ResitManagement from '@/components/admin/ResitManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface Exam {
   id: string;
