@@ -95,13 +95,16 @@ export default function ExamAssignment() {
   }, [scopeLoading]);
 
   useEffect(() => {
+    const baseClasses = scopedClassIds !== null
+      ? classes.filter(c => scopedClassIds.includes(c.id))
+      : classes;
     if (assignForm.school_id) {
-      setFilteredClasses(classes.filter(c => c.school_id === assignForm.school_id));
+      setFilteredClasses(baseClasses.filter(c => c.school_id === assignForm.school_id));
       setAssignForm(prev => ({ ...prev, class_id: '' }));
     } else {
       setFilteredClasses([]);
     }
-  }, [assignForm.school_id, classes]);
+  }, [assignForm.school_id, classes, scopedClassIds]);
 
   const loadData = async () => {
     try {
