@@ -41,6 +41,7 @@ export default function RegistrationKeyManagement() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   // Generate form state
   const [selectedSchool, setSelectedSchool] = useState('');
@@ -53,8 +54,8 @@ export default function RegistrationKeyManagement() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!scopeLoading) loadData();
+  }, [scopeLoading]);
 
   const loadData = async () => {
     try {
