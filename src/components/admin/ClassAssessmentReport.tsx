@@ -104,7 +104,7 @@ export default function ClassAssessmentReport({
     .filter(s => s.status === 'needs-improvement' || (s.examsTaken > 0 && s.passRate < 50));
 
   return (
-    <div id="class-assessment-report" className="space-y-6">
+    <div id={reportId} className="space-y-6">
       {/* Header */}
       <div className="text-center border-b pb-4">
         <h1 className="text-2xl font-bold">{classInfo.schoolName}</h1>

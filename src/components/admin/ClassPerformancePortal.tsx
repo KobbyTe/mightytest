@@ -371,7 +371,7 @@ export default function ClassPerformancePortal({
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="students" className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'students' | 'performance' | 'reports')} className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="students">
                   <Users className="h-4 w-4 mr-2" />
@@ -401,6 +401,7 @@ export default function ClassPerformancePortal({
                   examData={examData}
                   adminRemarks={adminRemarks}
                   onRemarksChange={setAdminRemarks}
+                  reportId="class-assessment-report-performance"
                 />
               </TabsContent>
 
@@ -411,6 +412,7 @@ export default function ClassPerformancePortal({
                   examData={examData}
                   adminRemarks={adminRemarks}
                   onRemarksChange={setAdminRemarks}
+                  reportId={REPORT_EXPORT_ID}
                 />
               </TabsContent>
             </Tabs>
