@@ -357,6 +357,7 @@ export function ChatBubble() {
     } else {
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
+      setActiveRecipientUserId(null); // admin-bound; recipient_id not needed (admin ALL policy)
       setMessages([]);
       setShowConversations(false);
       setHasMoreMessages(false);
