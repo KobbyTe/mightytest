@@ -456,6 +456,18 @@ export function ChatBubble() {
     }
   };
 
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      const { error } = await supabase.from('messages').delete().eq('id', msgId);
+      if (error) throw error;
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      toast.success('Message deleted');
+      loadConversations();
+    } catch {
+      toast.error('Failed to delete message');
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
