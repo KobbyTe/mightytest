@@ -78,12 +78,13 @@ export function ChatBubble() {
 
   // Admin recipient picker state
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientOptions, setRecipientOptions] = useState<RecipientOption[]>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
 
-  // Track the recipient user_id for the active conversation
+  // Track the recipient user_id and role for the active conversation
   const [activeRecipientUserId, setActiveRecipientUserId] = useState<string | null>(null);
+  const [activeRecipientRole, setActiveRecipientRole] = useState<string>('admin');
 
   // Notification permission prompt
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
