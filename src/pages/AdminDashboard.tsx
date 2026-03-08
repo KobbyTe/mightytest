@@ -83,7 +83,7 @@ export default function AdminDashboard() {
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
   const dashboardTitle = isAdmin ? 'Admin Dashboard' : 'Teacher/Educator Dashboard';
-  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
+  const { scopedClassIds, assignments, loading: scopeLoading } = useTeacherScope();
 
   useEffect(() => {
     if (loading || scopeLoading) return;
@@ -313,6 +313,34 @@ export default function AdminDashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Teacher Scope Indicator */}
+        {isTeacher && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <Building2 className="h-5 w-5 text-primary mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Your Assigned Classes</p>
+                  {assignments.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {assignments.map((a, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">
+                          {a.class_name || 'Unknown'} — {a.subject}
+                          {a.school_name && <span className="text-muted-foreground ml-1">({a.school_name})</span>}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      No classes assigned yet. Contact an administrator to get access to specific classes.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
            <TabsList className="flex w-full overflow-x-auto">
