@@ -33,10 +33,11 @@ interface Conversation {
   unread_count: number;
 }
 
-interface StudentOption {
+interface RecipientOption {
   user_id: string;
   full_name: string;
-  student_id_code: string | null;
+  identifier: string | null;
+  type: 'student' | 'parent';
 }
 
 const playNotificationSound = () => {
@@ -77,12 +78,13 @@ export function ChatBubble() {
 
   // Admin recipient picker state
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientOptions, setRecipientOptions] = useState<RecipientOption[]>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
 
-  // Track the recipient user_id for the active conversation
+  // Track the recipient user_id and role for the active conversation
   const [activeRecipientUserId, setActiveRecipientUserId] = useState<string | null>(null);
+  const [activeRecipientRole, setActiveRecipientRole] = useState<string>('admin');
 
   // Notification permission prompt
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -300,7 +302,10 @@ export function ChatBubble() {
 
     // Set recipient from conversation list
     const conv = conversations.find(c => c.conversation_id === convId);
-    if (conv) setActiveRecipientUserId(conv.other_user_id);
+    if (conv) {
+      setActiveRecipientUserId(conv.other_user_id);
+      setActiveRecipientRole(conv.other_role);
+    }
 
     const { data, count } = await supabase
       .from('messages')
@@ -356,51 +361,75 @@ export function ChatBubble() {
   const startNewConversation = () => {
     if (isAdmin) {
       setShowRecipientPicker(true);
-      setStudentSearch('');
-      loadStudents('');
+      setRecipientSearch('');
+      loadRecipients('');
     } else {
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
-      setActiveRecipientUserId(null); // admin-bound; recipient_id not needed (admin ALL policy)
+      setActiveRecipientUserId(null);
+      setActiveRecipientRole('admin');
       setMessages([]);
       setShowConversations(false);
       setHasMoreMessages(false);
     }
   };
 
-  const loadStudents = async (search: string) => {
-    setLoadingStudents(true);
-    let query = supabase.from('students').select('user_id, full_name, student_id_code').eq('account_status', 'active').order('full_name').limit(50);
+  const loadRecipients = async (search: string) => {
+    setLoadingRecipients(true);
+    const results: RecipientOption[] = [];
+
+    // Load students
+    let studentQuery = supabase.from('students').select('user_id, full_name, student_id_code').eq('account_status', 'active').order('full_name').limit(30);
     if (search.trim()) {
-      query = query.or(`full_name.ilike.%${search.trim()}%,student_id_code.ilike.%${search.trim()}%`);
+      studentQuery = studentQuery.or(`full_name.ilike.%${search.trim()}%,student_id_code.ilike.%${search.trim()}%`);
     }
-    const { data } = await query;
-    setStudentOptions(data || []);
-    setLoadingStudents(false);
+    const { data: students } = await studentQuery;
+    if (students) {
+      for (const s of students) {
+        results.push({ user_id: s.user_id, full_name: s.full_name, identifier: s.student_id_code, type: 'student' });
+      }
+    }
+
+    // Load parents
+    let parentQuery = supabase.from('parents').select('user_id, full_name, email').order('full_name').limit(30);
+    if (search.trim()) {
+      parentQuery = parentQuery.or(`full_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
+    }
+    const { data: parents } = await parentQuery;
+    if (parents) {
+      for (const p of parents) {
+        results.push({ user_id: p.user_id, full_name: p.full_name, identifier: p.email, type: 'parent' });
+      }
+    }
+
+    setRecipientOptions(results);
+    setLoadingRecipients(false);
   };
 
-  const selectRecipient = (student: StudentOption) => {
-    const existing = conversations.find((c) => c.other_user_id === student.user_id);
+  const selectRecipient = (recipient: RecipientOption) => {
+    const existing = conversations.find((c) => c.other_user_id === recipient.user_id);
     if (existing) {
-      setActiveRecipientUserId(student.user_id);
+      setActiveRecipientUserId(recipient.user_id);
+      setActiveRecipientRole(recipient.type);
       openConversation(existing.conversation_id);
       return;
     }
     const newConvId = crypto.randomUUID();
     setActiveConversationId(newConvId);
-    setActiveRecipientUserId(student.user_id);
+    setActiveRecipientUserId(recipient.user_id);
+    setActiveRecipientRole(recipient.type);
     setMessages([]);
     setShowConversations(false);
     setShowRecipientPicker(false);
     setHasMoreMessages(false);
   };
 
-  // Debounced student search
+  // Debounced recipient search
   useEffect(() => {
     if (!showRecipientPicker) return;
-    const t = setTimeout(() => loadStudents(studentSearch), 300);
+    const t = setTimeout(() => loadRecipients(recipientSearch), 300);
     return () => clearTimeout(t);
-  }, [studentSearch, showRecipientPicker]);
+  }, [recipientSearch, showRecipientPicker]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !user || !activeConversationId) return;
@@ -411,7 +440,7 @@ export function ChatBubble() {
         conversation_id: activeConversationId,
         sender_id: user.id,
         sender_role: role || 'student',
-        recipient_role: isAdmin ? 'student' : 'admin',
+        recipient_role: isAdmin ? activeRecipientRole : 'admin',
         recipient_id: activeRecipientUserId || null,
         content: newMessage.trim(),
         is_read: false,
@@ -528,36 +557,44 @@ export function ChatBubble() {
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    placeholder="Search students..."
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    placeholder="Search students & parents..."
                     className="text-sm h-8 pl-8"
                     autoFocus
                   />
                 </div>
               </div>
               <ScrollArea className="flex-1">
-                {loadingStudents ? (
+                {loadingRecipients ? (
                   <p className="text-xs text-muted-foreground text-center py-6">Loading...</p>
-                ) : studentOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">No students found</p>
+                ) : recipientOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">No recipients found</p>
                 ) : (
                   <div className="divide-y">
-                    {studentOptions.map((s) => (
+                    {recipientOptions.map((r) => (
                       <button
-                        key={s.user_id}
-                        onClick={() => selectRecipient(s)}
+                        key={r.user_id}
+                        onClick={() => selectRecipient(r)}
                         className="w-full px-4 py-2.5 text-left hover:bg-muted/50 transition-colors flex items-center gap-3"
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shrink-0">
+                        <div className={cn(
+                          'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
+                          r.type === 'parent'
+                            ? 'bg-gradient-to-br from-accent/20 to-secondary/20'
+                            : 'bg-gradient-to-br from-primary/20 to-secondary/20'
+                        )}>
                           <User className="h-3.5 w-3.5 text-primary" />
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{s.full_name}</p>
-                          {s.student_id_code && (
-                            <p className="text-xs text-muted-foreground">{s.student_id_code}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{r.full_name}</p>
+                          {r.identifier && (
+                            <p className="text-xs text-muted-foreground truncate">{r.identifier}</p>
                           )}
                         </div>
+                        <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
+                          {r.type}
+                        </Badge>
                       </button>
                     ))}
                   </div>
