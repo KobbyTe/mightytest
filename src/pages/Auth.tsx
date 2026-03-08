@@ -75,10 +75,18 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Load schools for teacher registration
+  useEffect(() => {
+    supabase.from('schools').select('id, name').eq('status', 'active').then(({ data }) => {
+      if (data) setSchools(data);
+    });
+  }, []);
+
   // Redirect authenticated users — but NOT during an active login or password reset
   useEffect(() => {
     if (!authLoading && user && role && !loginInProgressRef.current && !showResetPassword) {
       if (role === 'admin') navigate('/admin');
+      else if (role === 'teacher') navigate('/teacher');
       else if (role === 'parent') navigate('/parent');
       else navigate('/dashboard');
     }
