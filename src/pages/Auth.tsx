@@ -92,7 +92,7 @@ const Auth = () => {
     }
   }, [user, role, authLoading, navigate, showResetPassword]);
 
-  const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin') => {
+  const handleLogin = async (e: React.FormEvent, userType: 'student' | 'parent' | 'admin' | 'teacher') => {
     e.preventDefault();
     loginInProgressRef.current = true;
     setLoading(true);
