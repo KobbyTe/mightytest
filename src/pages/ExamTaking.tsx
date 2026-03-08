@@ -66,66 +66,73 @@ export default function ExamTaking() {
     ? Math.floor((exam.duration_minutes * 60) / questions.length)
     : 60;
 
+  // Shared grading and submission helper
+  const gradeAndSubmitExam = useCallback(async (
+    submissionType: string,
+    currentAnswers: Record<string, string>,
+    currentQuestions: Question[]
+  ) => {
+    const answersToSave = Object.entries(currentAnswers).map(([question_id, answer_text]) => ({
+      attempt_id: attemptId!,
+      question_id,
+      answer_text
+    }));
+
+    let totalMarks = 0;
+    let hasEssay = false;
+    const gradedAnswers = answersToSave.map(answer => {
+      const question = currentQuestions.find(q => q.id === answer.question_id);
+      if (!question) return answer;
+
+      if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
+        const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
+        const marks = isCorrect ? question.marks : 0;
+        totalMarks += marks;
+        return { ...answer, is_correct: isCorrect, marks_awarded: marks };
+      } else if (question.question_type === 'essay') {
+        hasEssay = true;
+        return { ...answer, is_correct: null, marks_awarded: null };
+      }
+      return answer;
+    });
+
+    if (gradedAnswers.length > 0) {
+      await supabase.from('exam_answers').upsert(gradedAnswers, { onConflict: 'attempt_id,question_id' });
+    }
+
+    const updateData: any = {
+      status: hasEssay ? 'completed' : 'graded',
+      completed_at: new Date().toISOString(),
+      submission_type: submissionType,
+      marks_obtained: hasEssay ? null : totalMarks,
+      graded_at: hasEssay ? null : new Date().toISOString(),
+      current_question_index: currentQuestionIndex
+    };
+
+    await supabase
+      .from('exam_attempts')
+      .update(updateData)
+      .eq('id', attemptId);
+
+    try {
+      await supabase.functions.invoke('send-grade-notification', {
+        body: { attemptId, notifyParent: true }
+      });
+    } catch (e) {
+      console.error('Notification failed:', e);
+    }
+
+    return { totalMarks, hasEssay };
+  }, [attemptId, currentQuestionIndex]);
+
   // Auto-submit function
   const autoSubmitExam = useCallback(async (reason: 'tab_switch' | 'page_exit' | 'route_change' | 'time_expired') => {
     if (!attemptId || isSubmittingRef.current) return;
     isSubmittingRef.current = true;
 
     try {
-      const currentAnswers = answersRef.current;
-      const currentQuestions = questionsRef.current;
-
-      const answersToSave = Object.entries(currentAnswers).map(([question_id, answer_text]) => ({
-        attempt_id: attemptId,
-        question_id,
-        answer_text
-      }));
-
-      await supabase.from('exam_answers').delete().eq('attempt_id', attemptId);
-
-      let totalMarks = 0;
-      let hasEssay = false;
-      const gradedAnswers = answersToSave.map(answer => {
-        const question = currentQuestions.find(q => q.id === answer.question_id);
-        if (!question) return answer;
-
-        if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
-          const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
-          const marks = isCorrect ? question.marks : 0;
-          totalMarks += marks;
-          return { ...answer, is_correct: isCorrect, marks_awarded: marks };
-        } else if (question.question_type === 'essay') {
-          hasEssay = true;
-          return { ...answer, is_correct: null, marks_awarded: null };
-        }
-        return answer;
-      });
-
-      if (gradedAnswers.length > 0) {
-        await supabase.from('exam_answers').insert(gradedAnswers);
-      }
-
       const submissionType = reason === 'time_expired' ? 'time_expired' : 'auto_submitted';
-
-      await supabase
-        .from('exam_attempts')
-        .update({
-          status: hasEssay ? 'completed' : 'graded',
-          completed_at: new Date().toISOString(),
-          submission_type: submissionType,
-          marks_obtained: hasEssay ? null : totalMarks,
-          graded_at: hasEssay ? null : new Date().toISOString(),
-          current_question_index: currentQuestionIndex
-        })
-        .eq('id', attemptId);
-
-      try {
-        await supabase.functions.invoke('send-grade-notification', {
-          body: { attemptId, notifyParent: true }
-        });
-      } catch (e) {
-        console.error('Notification failed:', e);
-      }
+      await gradeAndSubmitExam(submissionType, answersRef.current, questionsRef.current);
 
       const reasonMessages: Record<string, string> = {
         tab_switch: 'You switched tabs or windows',
@@ -140,7 +147,7 @@ export default function ExamTaking() {
       console.error('Auto-submit error:', error);
       isSubmittingRef.current = false;
     }
-  }, [attemptId, currentQuestionIndex, navigate]);
+  }, [attemptId, gradeAndSubmitExam, navigate]);
 
   // NOTE: `useBlocker` requires a Data Router (createBrowserRouter).
   // This app uses <BrowserRouter>, so attempting to call `useBlocker` throws at runtime.
