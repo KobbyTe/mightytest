@@ -302,7 +302,10 @@ export function ChatBubble() {
 
     // Set recipient from conversation list
     const conv = conversations.find(c => c.conversation_id === convId);
-    if (conv) setActiveRecipientUserId(conv.other_user_id);
+    if (conv) {
+      setActiveRecipientUserId(conv.other_user_id);
+      setActiveRecipientRole(conv.other_role);
+    }
 
     const { data, count } = await supabase
       .from('messages')
