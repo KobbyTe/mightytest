@@ -76,6 +76,7 @@ export default function ExamAssignment() {
   const [loading, setLoading] = useState(true);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
   const [selectedSchoolFilter, setSelectedSchoolFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -90,8 +91,8 @@ export default function ExamAssignment() {
   const [filteredClasses, setFilteredClasses] = useState<Class[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!scopeLoading) loadData();
+  }, [scopeLoading]);
 
   useEffect(() => {
     if (assignForm.school_id) {
