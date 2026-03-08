@@ -80,6 +80,9 @@ export function ChatBubble() {
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  // Track the recipient user_id for the active conversation
+  const [activeRecipientUserId, setActiveRecipientUserId] = useState<string | null>(null);
+
   // Notification permission prompt
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
 
