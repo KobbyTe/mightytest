@@ -17,6 +17,7 @@ interface Message {
   sender_id: string;
   sender_role: string;
   recipient_role: string;
+  recipient_id: string | null;
   content: string;
   is_read: boolean;
   created_at: string;
@@ -79,6 +80,9 @@ export function ChatBubble() {
   const [studentSearch, setStudentSearch] = useState('');
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+
+  // Track the recipient user_id for the active conversation
+  const [activeRecipientUserId, setActiveRecipientUserId] = useState<string | null>(null);
 
   // Notification permission prompt
   const [showNotifPrompt, setShowNotifPrompt] = useState(false);
@@ -237,18 +241,38 @@ export function ChatBubble() {
     const convPromises = Array.from(convMap.entries()).map(async ([convId, msgs]) => {
       const sorted = msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const lastMsg = sorted[0];
-      const otherUserId = msgs.find((m) => m.sender_id !== user!.id)?.sender_id || user!.id;
-      const otherRole = msgs.find((m) => m.sender_id !== user!.id)?.sender_role || 'admin';
+      
+      // Determine the "other" user: check sender_id and recipient_id
+      let otherUserId: string | null = null;
+      let otherRole = 'admin';
+      for (const m of msgs) {
+        if (m.sender_id !== user!.id) {
+          otherUserId = m.sender_id;
+          otherRole = m.sender_role;
+          break;
+        }
+        if (m.recipient_id && m.recipient_id !== user!.id) {
+          otherUserId = m.recipient_id;
+          otherRole = m.recipient_role;
+          break;
+        }
+      }
+      if (!otherUserId) {
+        otherUserId = user!.id;
+      }
+
       const unread = msgs.filter((m) => m.sender_id !== user!.id && !m.is_read).length;
 
       let otherName = otherRole === 'admin' ? 'Admin' : 'User';
       if (otherUserId !== user!.id) {
-        if (otherRole === 'student') {
+        if (otherRole === 'student' || otherRole === 'user') {
           const { data } = await supabase.from('students').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
         } else if (otherRole === 'parent') {
           const { data } = await supabase.from('parents').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
+        } else if (otherRole === 'admin') {
+          otherName = 'Admin';
         }
       }
 
@@ -273,6 +297,10 @@ export function ChatBubble() {
     setActiveConversationId(convId);
     setShowConversations(false);
     setShowRecipientPicker(false);
+
+    // Set recipient from conversation list
+    const conv = conversations.find(c => c.conversation_id === convId);
+    if (conv) setActiveRecipientUserId(conv.other_user_id);
 
     const { data, count } = await supabase
       .from('messages')
@@ -333,6 +361,7 @@ export function ChatBubble() {
     } else {
       const newConvId = crypto.randomUUID();
       setActiveConversationId(newConvId);
+      setActiveRecipientUserId(null); // admin-bound; recipient_id not needed (admin ALL policy)
       setMessages([]);
       setShowConversations(false);
       setHasMoreMessages(false);
@@ -353,11 +382,13 @@ export function ChatBubble() {
   const selectRecipient = (student: StudentOption) => {
     const existing = conversations.find((c) => c.other_user_id === student.user_id);
     if (existing) {
+      setActiveRecipientUserId(student.user_id);
       openConversation(existing.conversation_id);
       return;
     }
     const newConvId = crypto.randomUUID();
     setActiveConversationId(newConvId);
+    setActiveRecipientUserId(student.user_id);
     setMessages([]);
     setShowConversations(false);
     setShowRecipientPicker(false);
@@ -381,9 +412,10 @@ export function ChatBubble() {
         sender_id: user.id,
         sender_role: role || 'student',
         recipient_role: isAdmin ? 'student' : 'admin',
+        recipient_id: activeRecipientUserId || null,
         content: newMessage.trim(),
         is_read: false,
-      });
+      } as any);
 
       if (error) throw error;
       setNewMessage('');
