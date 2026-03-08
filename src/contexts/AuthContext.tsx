@@ -36,7 +36,7 @@ const clearStaleAuthData = () => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<'student' | 'parent' | 'admin' | null>(null);
+  const [role, setRole] = useState<UserRole>(null);
   const [profile, setProfile] = useState<any>(null);
   const [preferences, setPreferences] = useState<any>(null);
   const [loading, setLoading] = useState(true);
