@@ -33,10 +33,11 @@ interface Conversation {
   unread_count: number;
 }
 
-interface StudentOption {
+interface RecipientOption {
   user_id: string;
   full_name: string;
-  student_id_code: string | null;
+  identifier: string | null;
+  type: 'student' | 'parent';
 }
 
 const playNotificationSound = () => {
