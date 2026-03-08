@@ -1,52 +1,38 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+# Fix: Chat Feature Not Working
 
-## What Changes
+## Root Cause
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+Two critical issues in the `messages` table RLS policies:
 
-## Changes by Dashboard
+1. **Students/parents cannot see admin-initiated messages.** The SELECT policy only shows messages where `sender_id = auth.uid()` or where the user has previously sent a message in that conversation. If the admin starts a conversation, the student has no way to see it because they haven't sent anything yet — the subquery returns empty.
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+2. **No recipient tracking at the row level.** The table has `recipient_role` (e.g., "student") but no `recipient_id` column to identify *which* student/parent the message is for. This makes it impossible to write a proper SELECT policy for recipients.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+## Plan
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+### 1. Database Migration
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+- **Add `recipient_id` column** (`uuid`, nullable) to `public.messages` to store the intended recipient's `auth.uid()`.
+- **Drop and recreate the flawed RLS policies:**
+  - **SELECT**: Allow access if `sender_id = auth.uid()` OR `recipient_id = auth.uid()` (plus the existing admin ALL policy).
+  - **INSERT**: Allow authenticated users to insert where `sender_id = auth.uid()` (remove the `sender_role IN ('student','parent')` restriction so admin can also insert).
+  - **UPDATE** (mark as read): Allow if `recipient_id = auth.uid()`.
 
-## Technical Details
+### 2. Update `ChatBubble.tsx`
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+- **Set `recipient_id` on insert**: When sending a message, include the recipient's user ID.
+  - Student/parent → admin: `recipient_id` needs to be determined (admin user ID). Since there may be multiple admins, we can leave it null for admin-bound messages (admin ALL policy handles access), or query for an admin ID.
+  - Admin → student: `recipient_id = student.user_id` (already known from recipient picker).
+- **Update `loadConversations`**: The current logic groups by `conversation_id` and finds the "other" user by checking `sender_id !== user.id`. With `recipient_id` available, we can also identify conversations where the user is the recipient, even if they haven't replied yet.
+- **Update `selectRecipient`**: Pass `student.user_id` so it's stored as `recipient_id` on the first message.
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+### 3. Conversation visibility fix
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+For student/parent users who haven't replied yet, the SELECT policy with `recipient_id = auth.uid()` will now surface admin-initiated messages. The `loadConversations` function will pick these up automatically since the query already fetches all visible messages.
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+### Files Changed
+- **Database migration**: Add `recipient_id` column, recreate 3 RLS policies
+- **`src/components/ChatBubble.tsx`**: Pass `recipient_id` in message inserts, track active recipient user ID in state
 
