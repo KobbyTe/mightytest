@@ -518,6 +518,8 @@ export default function ExamTaking() {
         examTitle: exam.title || 'Exam',
       });
       setShowResults(true);
+      // Clear offline cache on successful submission
+      clearExamCache(attemptId!);
     } catch (error) {
       console.error('Error submitting exam:', error);
       toast.error('Failed to submit exam');
