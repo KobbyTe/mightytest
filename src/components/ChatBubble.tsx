@@ -241,18 +241,38 @@ export function ChatBubble() {
     const convPromises = Array.from(convMap.entries()).map(async ([convId, msgs]) => {
       const sorted = msgs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       const lastMsg = sorted[0];
-      const otherUserId = msgs.find((m) => m.sender_id !== user!.id)?.sender_id || user!.id;
-      const otherRole = msgs.find((m) => m.sender_id !== user!.id)?.sender_role || 'admin';
+      
+      // Determine the "other" user: check sender_id and recipient_id
+      let otherUserId: string | null = null;
+      let otherRole = 'admin';
+      for (const m of msgs) {
+        if (m.sender_id !== user!.id) {
+          otherUserId = m.sender_id;
+          otherRole = m.sender_role;
+          break;
+        }
+        if (m.recipient_id && m.recipient_id !== user!.id) {
+          otherUserId = m.recipient_id;
+          otherRole = m.recipient_role;
+          break;
+        }
+      }
+      if (!otherUserId) {
+        otherUserId = user!.id;
+      }
+
       const unread = msgs.filter((m) => m.sender_id !== user!.id && !m.is_read).length;
 
       let otherName = otherRole === 'admin' ? 'Admin' : 'User';
       if (otherUserId !== user!.id) {
-        if (otherRole === 'student') {
+        if (otherRole === 'student' || otherRole === 'user') {
           const { data } = await supabase.from('students').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
         } else if (otherRole === 'parent') {
           const { data } = await supabase.from('parents').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
+        } else if (otherRole === 'admin') {
+          otherName = 'Admin';
         }
       }
 
