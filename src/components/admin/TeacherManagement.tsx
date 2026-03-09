@@ -52,7 +52,7 @@ const cardVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { delay: i * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] },
+    transition: { delay: i * 0.06, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] as [number, number, number, number] },
   }),
   exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
 };
