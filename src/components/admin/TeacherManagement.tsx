@@ -77,6 +77,11 @@ export default function TeacherManagement() {
   const [assignSubject, setAssignSubject] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
 
+  // Profile dialog state
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTeacher, setProfileTeacher] = useState<Teacher | null>(null);
+  const [profileAssignments, setProfileAssignments] = useState<ClassAssignment[]>([]);
+
   useEffect(() => {
     loadTeachers();
     loadSchoolsAndClasses();
