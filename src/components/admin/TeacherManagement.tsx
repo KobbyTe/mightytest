@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { CheckCircle, XCircle, Clock, UserCheck, Loader2, BookOpen, Plus, Trash2, Mail, Phone, GraduationCap, Building2, CalendarDays, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, UserCheck, Loader2, BookOpen, Plus, Trash2, Mail, Phone, GraduationCap, Building2, CalendarDays, Sparkles, Eye, Shield, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -77,6 +77,11 @@ export default function TeacherManagement() {
   const [assignSubject, setAssignSubject] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
 
+  // Profile dialog state
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTeacher, setProfileTeacher] = useState<Teacher | null>(null);
+  const [profileAssignments, setProfileAssignments] = useState<ClassAssignment[]>([]);
+
   useEffect(() => {
     loadTeachers();
     loadSchoolsAndClasses();
@@ -129,6 +134,23 @@ export default function TeacherManagement() {
     setAssignSubject(teacher.subject_specialty || '');
     setAssignOpen(true);
     await loadAssignments(teacher.id);
+  };
+
+  const openProfileDialog = async (teacher: Teacher) => {
+    setProfileTeacher(teacher);
+    setProfileOpen(true);
+    // Load assignments for this teacher
+    const { data } = await supabase
+      .from('teacher_class_assignments')
+      .select('id, teacher_id, class_id, subject, assigned_at')
+      .eq('teacher_id', teacher.id)
+      .order('assigned_at', { ascending: false });
+    const enriched: ClassAssignment[] = (data || []).map((a: any) => {
+      const cls = classes.find(c => c.id === a.class_id);
+      const school = cls ? schools.find(s => s.id === cls.school_id) : null;
+      return { ...a, class_info: cls ? { name: cls.name, school: school ? { name: school.name } : undefined } : undefined };
+    });
+    setProfileAssignments(enriched);
   };
 
   const handleAddAssignment = async () => {
@@ -276,6 +298,15 @@ export default function TeacherManagement() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openProfileDialog(teacher)}
+                className="text-xs gap-1.5 hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View Profile
+              </Button>
               {teacher.status === 'approved' && (
                 <Button
                   size="sm"
@@ -529,6 +560,153 @@ export default function TeacherManagement() {
               Add Assignment
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Teacher Profile Dialog */}
+      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {profileTeacher && (() => {
+            const initials = profileTeacher.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+            const statusConfig = {
+              approved: { label: 'Approved', cls: 'bg-success/15 text-success border-success/30' },
+              pending: { label: 'Pending', cls: 'bg-primary/15 text-primary border-primary/30' },
+              rejected: { label: 'Rejected', cls: 'bg-destructive/15 text-destructive border-destructive/30' },
+            }[profileTeacher.status] || { label: profileTeacher.status, cls: 'bg-muted text-muted-foreground' };
+
+            return (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+                <div className="flex flex-col items-center text-center pb-5 border-b border-border/50">
+                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/25 to-accent/25 flex items-center justify-center text-2xl font-bold text-foreground border-2 border-border/50 shadow-lg mb-3">
+                    {initials}
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground">{profileTeacher.full_name}</h2>
+                  <Badge variant="outline" className={`mt-2 text-xs border ${statusConfig.cls}`}>
+                    {statusConfig.label}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 py-5">
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Mail className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Email</p>
+                      <p className="text-sm text-foreground truncate">{profileTeacher.email}</p>
+                    </div>
+                  </div>
+
+                  {profileTeacher.phone_number && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Phone className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Phone</p>
+                        <p className="text-sm text-foreground">{profileTeacher.phone_number}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {profileTeacher.subject_specialty && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                      <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                        <GraduationCap className="h-4 w-4 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Subject Specialty</p>
+                        <Badge variant="outline" className={`text-xs border ${subjectColorMap[profileTeacher.subject_specialty] || 'bg-muted'}`}>
+                          {profileTeacher.subject_specialty}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {profileTeacher.school && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                      <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">School</p>
+                        <p className="text-sm text-foreground">{profileTeacher.school.name}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <CalendarDays className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Joined</p>
+                        <p className="text-sm text-foreground">{new Date(profileTeacher.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {profileTeacher.approved_at && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                        <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                          <Shield className="h-4 w-4 text-success" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Approved</p>
+                          <p className="text-sm text-foreground">{new Date(profileTeacher.approved_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
+                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">User ID</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">{profileTeacher.user_id}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border/50">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Assigned Classes ({profileAssignments.length})
+                  </Label>
+                  {profileAssignments.length > 0 ? (
+                    <div className="space-y-2 mt-3">
+                      {profileAssignments.map((a, i) => (
+                        <motion.div
+                          key={a.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="flex items-center gap-2.5 p-3 rounded-xl border border-border/50 bg-muted/20"
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                            <BookOpen className="h-4 w-4 text-accent" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{a.class_info?.name || 'Unknown Class'}</p>
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className={`text-[10px] border ${subjectColorMap[a.subject] || 'bg-muted'}`}>
+                                {a.subject}
+                              </Badge>
+                              {a.class_info?.school && (
+                                <span className="text-[10px] text-muted-foreground">{a.class_info.school.name}</span>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-2">No classes assigned yet.</p>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </>
