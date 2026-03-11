@@ -1,63 +1,52 @@
 
-Goal: Make the downloaded class report look premium and professional, while enforcing your exact table format only:
-Student (All students) | Test 1..N | Total | Average | Percentage (100%) | Position | Remark.
 
-What I found
-- Your uploaded PDF is still using a legacy structure (Student ID, Exams, Pass Rate, Status), and the styling is too plain/monochrome.
-- Current export logic needs to be fully unified so PDF uses the same ranking data model as the new on-screen report.
+# Show Individual Test Results with Numbered List + Average
 
-Implementation plan
+## What Changes
 
-1) Enforce one export schema (single source of truth)
-- In `src/components/admin/ClassPerformancePortal.tsx`, create one normalized dataset for both UI + PDF export:
-  - `studentName`
-  - dynamic `testScores[]` as `marks/total`
-  - `total`
-  - `average`
-  - `percentage`
-  - `position`
-  - `remark`
-- Remove any legacy/fallback mapping that can reintroduce Student ID / Exams / Pass Rate.
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-2) Rebuild PDF layout as a premium report template
-- Keep `jsPDF` but redesign drawing flow:
-  - Branded top band with strong color treatment and clean hierarchy.
-  - Refined metadata row (school, class, generated date) with better spacing.
-  - Optional AI summary in a styled callout box (subtle background, readable line height).
-  - Professional table block:
-    - Exact required column sequence only.
-    - Dynamic Test columns sized from available width.
-    - Colored header row, alternating row backgrounds, stronger borders.
-    - Right/center alignment for numeric consistency.
-    - Truncation/wrapping rules so long names/remarks don’t break layout.
-  - Footer with page number and timestamp.
+## Changes by Dashboard
 
-3) Add professional performance color system in PDF
-- Percentage badge colors:
-  - High (>=75) green
-  - Mid (>=60) amber
-  - Low (<60) red
-- Position styling:
-  - Top 3 with medal-style fills
-  - Others with clean neutral badge
-- Remark cell uses concise text + readable contrast.
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-4) Fix pagination and table continuity
-- Repeat table header on every new page.
-- Prevent row clipping by checking row height before rendering.
-- Keep column widths stable across pages (no visual jump).
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-5) Remove legacy report fields at data boundary
-- Update `supabase/functions/generate-pdf-report/index.ts` response shape so it no longer exposes/encourages legacy table fields for export rendering.
-- Keep it focused on summary/meta support (AI summary + class-level context), while table rows come from the normalized client ranking data model.
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-Files to update
-- `src/components/admin/ClassPerformancePortal.tsx` (core export redesign + schema unification + styling logic)
-- `supabase/functions/generate-pdf-report/index.ts` (trim legacy payload fields to prevent mismatch regressions)
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-Validation checklist
-- Exported PDF contains only: Student | Test 1..N | Total | Average | Percentage (100%) | Position | Remark.
-- No Student ID, Exams Taken, Pass Rate, or Status in exported table.
-- Visual quality is premium: strong hierarchy, polished colors, clean spacing, and consistent alignment.
-- Multi-page classes render correctly with repeated headers and no broken rows.
-- Export output matches what teachers see in the Rankings table structure.
+## Technical Details
+
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
+
