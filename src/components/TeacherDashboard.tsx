@@ -593,6 +593,141 @@ export default function TeacherDashboard() {
               </div>
             </TabsContent>
 
+            {/* ── Performance Tab ── */}
+            <TabsContent value="performance" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Score Gauge */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <awardTier.icon className={`h-5 w-5 ${awardTier.color}`} />
+                      {awardTier.label}
+                    </CardTitle>
+                    <CardDescription>Your educator effectiveness rating</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center">
+                    <div className="relative w-48 h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={180} endAngle={0} data={gaugeData} barSize={14}>
+                          <RadialBar background dataKey="value" cornerRadius={10} max={100} />
+                        </RadialBarChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <motion.span
+                          className="text-4xl font-bold text-foreground"
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.3, type: 'spring' }}
+                        >
+                          {performanceScore}
+                        </motion.span>
+                        <span className="text-xs text-muted-foreground">out of 100</span>
+                      </div>
+                    </div>
+                    {gradedAttempts.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">No graded attempts yet. Score will update as students complete exams.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Metrics Breakdown */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Performance Breakdown</CardTitle>
+                    <CardDescription>Weighted metrics that determine your score</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {performanceMetrics.map((metric) => (
+                      <div key={metric.label} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                            <span className="text-sm font-medium">{metric.label}</span>
+                            <Badge variant="outline" className="text-[10px]">{metric.weight}</Badge>
+                          </div>
+                          <span className="text-sm font-bold">{metric.value}%</span>
+                        </div>
+                        <Progress value={metric.value} className="h-2" />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Top Students Leaderboard */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-yellow-400" />
+                      Top Performing Students
+                    </CardTitle>
+                    <CardDescription>Your highest-scoring students by average</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {topStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">No graded results yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {topStudents.map((student, idx) => (
+                          <motion.div
+                            key={student.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.08 }}
+                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50"
+                          >
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                              idx === 0 ? 'bg-yellow-500/15 text-yellow-400' :
+                              idx === 1 ? 'bg-slate-400/15 text-slate-300' :
+                              idx === 2 ? 'bg-amber-600/15 text-amber-500' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              #{idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{student.name}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-xs font-bold">{student.avg}%</Badge>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Award Tiers Guide */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Award Tiers</CardTitle>
+                    <CardDescription>Performance milestones and recognition levels</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      { label: 'Diamond Educator', range: '90-100', icon: Diamond, color: 'text-cyan-400', bg: 'bg-cyan-500/10', active: performanceScore >= 90 },
+                      { label: 'Gold Educator', range: '75-89', icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/10', active: performanceScore >= 75 && performanceScore < 90 },
+                      { label: 'Silver Educator', range: '60-74', icon: Star, color: 'text-slate-300', bg: 'bg-slate-400/10', active: performanceScore >= 60 && performanceScore < 75 },
+                      { label: 'Bronze Educator', range: '0-59', icon: Award, color: 'text-amber-600', bg: 'bg-amber-600/10', active: performanceScore < 60 },
+                    ].map((tier) => (
+                      <div
+                        key={tier.label}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          tier.active ? `${tier.bg} border-current/20 ring-1 ring-current/10` : 'bg-muted/20 border-border/50 opacity-60'
+                        }`}
+                      >
+                        <tier.icon className={`h-5 w-5 ${tier.color} shrink-0`} />
+                        <div className="flex-1">
+                          <p className={`text-sm font-semibold ${tier.active ? tier.color : 'text-muted-foreground'}`}>{tier.label}</p>
+                          <p className="text-xs text-muted-foreground">Score: {tier.range}</p>
+                        </div>
+                        {tier.active && <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30">Current</Badge>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             <TabsContent value="schools"><SchoolManagement /></TabsContent>
             <TabsContent value="assignments"><ExamAssignment /></TabsContent>
 
