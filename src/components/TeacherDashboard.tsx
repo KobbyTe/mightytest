@@ -818,12 +818,15 @@ export default function TeacherDashboard() {
             </Avatar>
             <div className="pb-1 flex-1">
               <h3 className="text-xl font-bold text-foreground">{teacher?.full_name || 'Teacher'}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 {teacher?.status === 'approved' && (
                   <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <ShieldCheck className="h-3 w-3" />Verified Educator
                   </Badge>
                 )}
+                <Badge className={`${awardTier.bg} ${awardTier.color} gap-1 text-[10px] border`}>
+                  <awardTier.icon className="h-3 w-3" />{awardTier.label} • {performanceScore}%
+                </Badge>
                 {teacher?.subject_specialty && (
                   <Badge className={`text-[10px] border ${subjectColors[teacher.subject_specialty] || 'bg-muted'}`}>
                     {teacher.subject_specialty}
