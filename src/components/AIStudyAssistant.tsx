@@ -29,10 +29,100 @@ interface StudentContext {
 
 const QUICK_ACTIONS = [
   { label: '🔍 Explain my wrong answers', prompt: 'Can you explain the questions I got wrong on my recent exams and help me understand the correct answers?' },
-  { label: '📝 Practice questions', prompt: 'Generate some practice questions based on my weak areas to help me improve.' },
+  { label: '📝 Practice quiz', prompt: 'Generate a practice quiz with 10 questions based on my weak areas. Format each question with a number, the question text, multiple choice options labeled A-D, and put the correct answer at the end of each question. Include a mix of question types covering my weakest subjects.', isQuiz: true },
   { label: '📊 Study plan', prompt: 'Based on my exam results, can you create a quick study plan for the areas I need to improve?' },
   { label: '💡 Tips to improve', prompt: 'What are the best study tips and strategies for improving my scores based on my performance?' },
 ];
+
+function generateQuizPDF(content: string, weakSubjects: string[]) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const maxWidth = pageWidth - margin * 2;
+  let y = 20;
+
+  // Header
+  doc.setFillColor(124, 58, 237); // violet-600
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MightyTest Practice Quiz', margin, 22);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generated: ${new Date().toLocaleDateString()} | Focus: ${weakSubjects.length ? weakSubjects.join(', ') : 'General'}`, margin, 30);
+
+  y = 45;
+  doc.setTextColor(40, 40, 40);
+
+  // Parse content into lines and render
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      y += 4;
+      continue;
+    }
+
+    // Check for new page
+    if (y > doc.internal.pageSize.getHeight() - 25) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // Detect question numbers (e.g., "1.", "**1.", "Q1", "Question 1")
+    const isQuestion = /^(\*{0,2})(\d+[\.\):]|\*{0,2}Q(uestion)?\s*\d+)/i.test(trimmed);
+    // Detect answer options
+    const isOption = /^[A-D][\.\):\s]/i.test(trimmed);
+    // Detect correct answer lines
+    const isAnswer = /^(\*{0,2})(correct\s*answer|answer)[:\s]/i.test(trimmed);
+
+    // Strip markdown bold markers for PDF
+    const cleanText = trimmed.replace(/\*{1,2}/g, '');
+
+    if (isQuestion) {
+      y += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 6;
+    } else if (isOption) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth - 8);
+      doc.text(splitLines, margin + 8, y);
+      y += splitLines.length * 5.5;
+    } else if (isAnswer) {
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(9);
+      doc.setTextColor(34, 139, 34);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 5;
+      doc.setTextColor(40, 40, 40);
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 5.5;
+    }
+  }
+
+  // Footer on last page
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i} of ${pageCount} — MightyTest Study Buddy`, margin, doc.internal.pageSize.getHeight() - 10);
+  }
+
+  doc.save('MightyTest-Practice-Quiz.pdf');
+}
 
 export function AIStudyAssistant() {
   const [isOpen, setIsOpen] = useState(false);
