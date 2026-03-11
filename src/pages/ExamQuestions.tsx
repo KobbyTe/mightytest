@@ -35,6 +35,17 @@ export default function ExamQuestions() {
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  
+  // AI generation state
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiNumQuestions, setAiNumQuestions] = useState(10);
+  const [aiDifficulty, setAiDifficulty] = useState('Medium');
+  const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
+  const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
+  const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
+
   const [formData, setFormData] = useState({
     question_text: '',
     question_type: 'multiple_choice',
