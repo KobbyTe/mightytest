@@ -267,31 +267,71 @@ export default function ClassPerformancePortal({
       pdf.line(margin, y, pw - margin, y);
       y += 6;
 
-      pdf.setFontSize(8);
+      // Dynamic columns: Student | Test 1..N | Total | Average | Percentage | Position | Remark
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
-      const cols = [margin, margin + 45, margin + 80, margin + 100, margin + 120, margin + 145];
-      pdf.text('Student Name', cols[0], y);
-      pdf.text('Student ID', cols[1], y);
-      pdf.text('Exams', cols[2], y);
-      pdf.text('Average', cols[3], y);
-      pdf.text('Pass Rate', cols[4], y);
-      pdf.text('Status', cols[5], y);
+
+      // Build column layout dynamically
+      const testCount = examOrder.length;
+      const fixedColsWidth = 45 + 18 + 18 + 22 + 14 + 28; // student + total + avg + pct + pos + remark
+      const availableForTests = (pw - margin * 2) - fixedColsWidth;
+      const testColWidth = testCount > 0 ? Math.min(20, availableForTests / testCount) : 0;
+
+      let cx = margin;
+      const colPositions: number[] = [cx]; // Student
+      cx += 45;
+      for (let i = 0; i < testCount; i++) {
+        colPositions.push(cx);
+        cx += testColWidth;
+      }
+      const totalCol = cx; cx += 18;
+      const avgCol = cx; cx += 18;
+      const pctCol = cx; cx += 22;
+      const posCol = cx; cx += 14;
+      const remarkCol = cx;
+
+      // Header row
+      pdf.text('Student', colPositions[0], y);
+      examOrder.forEach((_, idx) => {
+        pdf.text(`Test ${idx + 1}`, colPositions[idx + 1], y);
+      });
+      pdf.text('Total', totalCol, y);
+      pdf.text('Average', avgCol, y);
+      pdf.text('Pct (%)', pctCol, y);
+      pdf.text('Pos', posCol, y);
+      pdf.text('Remark', remarkCol, y);
       y += 2;
       pdf.line(margin, y, pw - margin, y);
       y += 4;
 
+      // Rank students
+      const pdfRanked = [...report.students]
+        .sort((a: any, b: any) => (b.averagePercentage || 0) - (a.averagePercentage || 0))
+        .map((s: any, idx: number) => ({ ...s, position: idx + 1 }));
+
       pdf.setFont('helvetica', 'normal');
-      for (const student of report.students) {
+      for (const student of pdfRanked) {
         if (y > pdf.internal.pageSize.getHeight() - 20) {
           pdf.addPage();
           y = 20;
         }
-        pdf.text(student.name.substring(0, 25), cols[0], y);
-        pdf.text(student.studentId.substring(0, 15), cols[1], y);
-        pdf.text(String(student.examsTaken), cols[2], y);
-        pdf.text(`${student.averagePercentage}%`, cols[3], y);
-        pdf.text(`${student.passRate}%`, cols[4], y);
-        pdf.text(student.status, cols[5], y);
+        pdf.text(student.name.substring(0, 25), colPositions[0], y);
+        // Test scores
+        const attempts = student.examAttempts || [];
+        examOrder.forEach((exam: any, idx: number) => {
+          const attempt = attempts.find((a: any) => a.examId === exam.examId);
+          pdf.text(attempt ? `${attempt.marks}/${exam.totalMarks}` : '—', colPositions[idx + 1], y);
+        });
+        pdf.text(`${student.marksObtained || 0}/${student.totalMarks || 0}`, totalCol, y);
+        const avg = student.examsTaken > 0 ? ((student.marksObtained || 0) / student.examsTaken).toFixed(1) : '0';
+        pdf.text(avg, avgCol, y);
+        pdf.text(`${(student.averagePercentage || 0).toFixed(1)}%`, pctCol, y);
+        pdf.text(String(student.position), posCol, y);
+        const remark = (student.averagePercentage || 0) >= 90 ? 'Excellent' :
+          (student.averagePercentage || 0) >= 75 ? 'Very Good' :
+          (student.averagePercentage || 0) >= 60 ? 'Good' :
+          (student.averagePercentage || 0) >= 50 ? 'Fair' : 'Needs Imp.';
+        pdf.text(remark, remarkCol, y);
         y += 5;
       }
 

@@ -52,10 +52,6 @@ export function generateRemarks(performance: StudentPerformance): string {
     remarks += 'Suggest one-on-one tutoring and parent-teacher consultation.';
   }
   
-  if (passRate < 50 && examsTaken > 0) {
-    remarks += ' Pass rate is concerning - extra support needed.';
-  }
-  
   return remarks;
 }
 
