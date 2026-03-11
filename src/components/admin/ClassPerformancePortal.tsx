@@ -226,112 +226,121 @@ export default function ClassPerformancePortal({
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
-        body: { class_id: classId },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      const report = data.report;
+      // Fetch AI summary from edge function
+      let aiSummary = '';
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+          body: { class_id: classId },
+        });
+        if (!error && data?.report?.aiSummary) {
+          aiSummary = data.report.aiSummary;
+        }
+      } catch (e) {
+        console.warn('AI summary unavailable, continuing without it');
+      }
 
       const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pw = pdf.internal.pageSize.getWidth();
-      const margin = 15;
-      let y = 20;
+      const ph = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      let y = 16;
 
-      pdf.setFontSize(20);
+      // Header
+      pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(report.schoolName, pw / 2, y, { align: 'center' });
-      y += 8;
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Class: ${report.className} (${report.gradeLevel || 'N/A'})`, pw / 2, y, { align: 'center' });
+      pdf.text(schoolName, pw / 2, y, { align: 'center' });
       y += 7;
-      pdf.setFontSize(10);
-      pdf.text(`Report Generated: ${new Date(report.generatedAt).toLocaleDateString()}`, pw / 2, y, { align: 'center' });
-      y += 5;
-      pdf.text(`Class Average: ${report.classAverage}% | Total Students: ${report.totalStudents}`, pw / 2, y, { align: 'center' });
-      y += 8;
-
-      if (report.aiSummary) {
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'italic');
-        const summaryLines = pdf.splitTextToSize(report.aiSummary, pw - margin * 2);
-        pdf.text(summaryLines, margin, y);
-        y += summaryLines.length * 4 + 5;
-      }
-
-      pdf.setDrawColor(200);
-      pdf.line(margin, y, pw - margin, y);
+      pdf.setFontSize(13);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Class: ${className} (${gradeLevel || 'N/A'})`, pw / 2, y, { align: 'center' });
+      y += 6;
+      pdf.setFontSize(9);
+      pdf.text(`Report Generated: ${new Date().toLocaleDateString()} | Class Average: ${classAverage.toFixed(1)}% | Total Students: ${totalStudents}`, pw / 2, y, { align: 'center' });
       y += 6;
 
-      // Dynamic columns: Student | Test 1..N | Total | Average | Percentage | Position | Remark
-      pdf.setFontSize(7);
-      pdf.setFont('helvetica', 'bold');
+      if (aiSummary) {
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'italic');
+        const summaryLines = pdf.splitTextToSize(aiSummary, pw - margin * 2);
+        pdf.text(summaryLines, margin, y);
+        y += summaryLines.length * 3.5 + 4;
+      }
 
-      // Build column layout dynamically
+      pdf.setDrawColor(180);
+      pdf.line(margin, y, pw - margin, y);
+      y += 5;
+
+      // Build columns using local examOrder and rankedStudents
       const testCount = examOrder.length;
-      const fixedColsWidth = 45 + 18 + 18 + 22 + 14 + 28; // student + total + avg + pct + pos + remark
-      const availableForTests = (pw - margin * 2) - fixedColsWidth;
-      const testColWidth = testCount > 0 ? Math.min(20, availableForTests / testCount) : 0;
+      const studentColW = 42;
+      const totalColW = 18;
+      const avgColW = 16;
+      const pctColW = 18;
+      const posColW = 12;
+      const remarkColW = 26;
+      const fixedW = studentColW + totalColW + avgColW + pctColW + posColW + remarkColW;
+      const availableForTests = (pw - margin * 2) - fixedW;
+      const testColW = testCount > 0 ? Math.min(22, availableForTests / testCount) : 0;
 
       let cx = margin;
-      const colPositions: number[] = [cx]; // Student
-      cx += 45;
+      const colX: number[] = [cx];
+      cx += studentColW;
       for (let i = 0; i < testCount; i++) {
-        colPositions.push(cx);
-        cx += testColWidth;
+        colX.push(cx);
+        cx += testColW;
       }
-      const totalCol = cx; cx += 18;
-      const avgCol = cx; cx += 18;
-      const pctCol = cx; cx += 22;
-      const posCol = cx; cx += 14;
-      const remarkCol = cx;
+      const totalX = cx; cx += totalColW;
+      const avgX = cx; cx += avgColW;
+      const pctX = cx; cx += pctColW;
+      const posX = cx; cx += posColW;
+      const remarkX = cx;
 
-      // Header row
-      pdf.text('Student', colPositions[0], y);
+      // Table header
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Student', colX[0], y);
       examOrder.forEach((_, idx) => {
-        pdf.text(`Test ${idx + 1}`, colPositions[idx + 1], y);
+        pdf.text(`Test ${idx + 1}`, colX[idx + 1], y);
       });
-      pdf.text('Total', totalCol, y);
-      pdf.text('Average', avgCol, y);
-      pdf.text('Pct (%)', pctCol, y);
-      pdf.text('Pos', posCol, y);
-      pdf.text('Remark', remarkCol, y);
+      pdf.text('Total', totalX, y);
+      pdf.text('Average', avgX, y);
+      pdf.text('Pct (%)', pctX, y);
+      pdf.text('Pos', posX, y);
+      pdf.text('Remark', remarkX, y);
       y += 2;
       pdf.line(margin, y, pw - margin, y);
       y += 4;
 
-      // Rank students
-      const pdfRanked = [...report.students]
-        .sort((a: any, b: any) => (b.averagePercentage || 0) - (a.averagePercentage || 0))
-        .map((s: any, idx: number) => ({ ...s, position: idx + 1 }));
-
+      // Table rows from local ranked data
       pdf.setFont('helvetica', 'normal');
-      for (const student of pdfRanked) {
-        if (y > pdf.internal.pageSize.getHeight() - 20) {
+      pdf.setFontSize(7);
+      for (const student of rankedStudents) {
+        if (y > ph - 15) {
           pdf.addPage();
-          y = 20;
+          y = 16;
         }
-        pdf.text(student.name.substring(0, 25), colPositions[0], y);
-        // Test scores
-        const attempts = student.examAttempts || [];
-        examOrder.forEach((exam: any, idx: number) => {
-          const attempt = attempts.find((a: any) => a.examId === exam.examId);
-          pdf.text(attempt ? `${attempt.marks}/${exam.totalMarks}` : '—', colPositions[idx + 1], y);
+        const studentAttempts = rawAttempts[student.studentId] || [];
+
+        pdf.text(student.studentName.substring(0, 28), colX[0], y);
+
+        examOrder.forEach((exam, idx) => {
+          const attempt = studentAttempts.find(a => a.exam.id === exam.examId);
+          const txt = attempt ? `${attempt.marks_obtained || 0}/${exam.totalMarks}` : '—';
+          pdf.text(txt, colX[idx + 1], y);
         });
-        pdf.text(`${student.marksObtained || 0}/${student.totalMarks || 0}`, totalCol, y);
-        const avg = student.examsTaken > 0 ? ((student.marksObtained || 0) / student.examsTaken).toFixed(1) : '0';
-        pdf.text(avg, avgCol, y);
-        pdf.text(`${(student.averagePercentage || 0).toFixed(1)}%`, pctCol, y);
-        pdf.text(String(student.position), posCol, y);
-        const remark = (student.averagePercentage || 0) >= 90 ? 'Excellent' :
-          (student.averagePercentage || 0) >= 75 ? 'Very Good' :
-          (student.averagePercentage || 0) >= 60 ? 'Good' :
-          (student.averagePercentage || 0) >= 50 ? 'Fair' : 'Needs Imp.';
-        pdf.text(remark, remarkCol, y);
+
+        pdf.text(`${student.marksObtained}/${student.totalMarks}`, totalX, y);
+        const avg = student.examsTaken > 0 ? (student.marksObtained / student.examsTaken).toFixed(1) : '0';
+        pdf.text(avg, avgX, y);
+        pdf.text(`${student.averagePercentage.toFixed(1)}%`, pctX, y);
+        pdf.text(String(student.position), posX, y);
+
+        const remark = student.averagePercentage >= 90 ? 'Excellent' :
+          student.averagePercentage >= 75 ? 'Very Good' :
+          student.averagePercentage >= 60 ? 'Good' :
+          student.averagePercentage >= 50 ? 'Fair' : 'Needs Imp.';
+        pdf.text(remark, remarkX, y);
         y += 5;
       }
 
