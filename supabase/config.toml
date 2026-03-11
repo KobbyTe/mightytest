@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.generate-pdf-report]
 verify_jwt = false
+
+[functions.auto-grade-essay]
+verify_jwt = false
