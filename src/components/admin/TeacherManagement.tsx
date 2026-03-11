@@ -298,6 +298,15 @@ export default function TeacherManagement() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openProfileDialog(teacher)}
+                className="text-xs gap-1.5 hover:bg-primary/10 hover:text-primary hover:border-primary/40"
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View Profile
+              </Button>
               {teacher.status === 'approved' && (
                 <Button
                   size="sm"
