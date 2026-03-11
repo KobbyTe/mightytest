@@ -26,6 +26,7 @@ import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
+import TeacherDashboard from '@/components/TeacherDashboard';
 
 interface Exam {
   id: string;
