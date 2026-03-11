@@ -426,7 +426,7 @@ export default function ClassPerformancePortal({
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <Card className="backdrop-blur-xl bg-card/80 border-border/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2">
@@ -445,17 +445,6 @@ export default function ClassPerformancePortal({
                     <div>
                       <p className="text-2xl font-bold">{classAverage.toFixed(1)}%</p>
                       <p className="text-xs text-muted-foreground">Class Average</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="backdrop-blur-xl bg-card/80 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-emerald-500" />
-                    <div>
-                      <p className="text-2xl font-bold">{overallPassRate.toFixed(0)}%</p>
-                      <p className="text-xs text-muted-foreground">Pass Rate</p>
                     </div>
                   </div>
                 </CardContent>
