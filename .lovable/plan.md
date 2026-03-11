@@ -1,49 +1,52 @@
 
 
-# Teacher Performance Rating & Awards System
+# Show Individual Test Results with Numbered List + Average
 
-## What We're Building
-A **Teacher Performance Score** system that automatically calculates a teacher's effectiveness rating based on their students' exam results, displayed as a prominent section on the Teacher Dashboard with visual awards/badges.
+## What Changes
 
-## How It Works
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-### Performance Metrics (calculated from existing data)
-- **Average Student Score** — Mean percentage across all graded attempts for the teacher's scoped classes
-- **Pass Rate** — Percentage of students who scored above passing marks
-- **Student Improvement** — Track if students improve across sequential exams (comparing first vs latest attempts)
-- **Completion Rate** — Percentage of assigned exams actually completed by students
+## Changes by Dashboard
 
-### Teacher Rating Formula
-Weighted composite score (0-100):
-- 40% Average student score percentage
-- 30% Pass rate
-- 20% Completion rate  
-- 10% Student count engagement factor
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-### Award Tiers (Badges)
-- **Diamond Educator** (90-100) — Elite performance
-- **Gold Educator** (75-89) — Outstanding
-- **Silver Educator** (60-74) — Good
-- **Bronze Educator** (below 60) — Developing
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-### UI Changes
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-**1. New Stats in Header Row** — Add a "Performance Score" stat card (5th card) showing the composite score with the award tier badge.
-
-**2. New "Performance" Tab** — Added to the tab navigation, containing:
-- Large performance score gauge/ring with award badge
-- Breakdown of each metric with progress bars
-- Top-performing students list (leaderboard of their best students)
-- Award tier explanation card
-
-**3. Profile Dialog Enhancement** — Show the teacher's current award tier badge in their profile dialog.
-
-## Files to Modify
-1. **`src/components/TeacherDashboard.tsx`** — Add performance calculation logic, new stat card, new "Performance" tab with metrics UI, and update profile dialog with award badge.
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
 ## Technical Details
-- All calculations done client-side from already-fetched `attempts` data + a query for total assigned students
-- No database changes needed — purely derived from existing `exam_attempts`, `students`, and `exam_class_assignments` data
-- Uses `recharts` (already installed) for the score breakdown visualization
-- `framer-motion` for animated score counter and badge reveals
+
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

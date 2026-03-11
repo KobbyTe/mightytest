@@ -24,11 +24,14 @@ import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
 import {
   LogOut, GraduationCap, Plus, Calendar, Users, FileText, Building2,
   HelpCircle, FileQuestion, Edit, Trash2, Eye, CheckCircle, Clock,
-  ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase
+  ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase,
+  Trophy, Diamond, Star, TrendingUp, Target, Zap
 } from 'lucide-react';
+import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 interface Exam {
   id: string;
@@ -277,6 +280,61 @@ export default function TeacherDashboard() {
     ? Math.floor((Date.now() - new Date(teacher.created_at).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // ─── PERFORMANCE CALCULATIONS ───
+  const gradedAttempts = attempts.filter(a => a.status === 'graded' && a.marks_obtained !== null && a.exam?.total_marks);
+  
+  const avgStudentScore = gradedAttempts.length > 0
+    ? gradedAttempts.reduce((sum, a) => sum + ((a.marks_obtained! / (a.exam?.total_marks || 1)) * 100), 0) / gradedAttempts.length
+    : 0;
+
+  const passRate = gradedAttempts.length > 0
+    ? (gradedAttempts.filter(a => {
+        const exam = exams.find(e => e.id === a.exam_id);
+        return a.marks_obtained! >= (exam?.passing_marks || 50);
+      }).length / gradedAttempts.length) * 100
+    : 0;
+
+  const completedAttempts = attempts.filter(a => ['completed', 'graded'].includes(a.status || ''));
+  const completionRate = attempts.length > 0 ? (completedAttempts.length / attempts.length) * 100 : 0;
+
+  const engagementFactor = Math.min(100, (studentCount / Math.max(1, assignments.length * 10)) * 100);
+
+  const performanceScore = Math.round(
+    (avgStudentScore * 0.4) + (passRate * 0.3) + (completionRate * 0.2) + (engagementFactor * 0.1)
+  );
+
+  const getAwardTier = (score: number) => {
+    if (score >= 90) return { label: 'Diamond Educator', icon: Diamond, color: 'text-cyan-400', bg: 'bg-cyan-500/15 border-cyan-500/30', gradient: 'from-cyan-500/20 to-cyan-500/5' };
+    if (score >= 75) return { label: 'Gold Educator', icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15 border-yellow-500/30', gradient: 'from-yellow-500/20 to-yellow-500/5' };
+    if (score >= 60) return { label: 'Silver Educator', icon: Star, color: 'text-slate-300', bg: 'bg-slate-400/15 border-slate-400/30', gradient: 'from-slate-400/20 to-slate-400/5' };
+    return { label: 'Bronze Educator', icon: Award, color: 'text-amber-600', bg: 'bg-amber-600/15 border-amber-600/30', gradient: 'from-amber-600/20 to-amber-600/5' };
+  };
+
+  const awardTier = getAwardTier(performanceScore);
+
+  // Top performing students
+  const studentScores: Record<string, { name: string; totalPercent: number; count: number }> = {};
+  gradedAttempts.forEach(a => {
+    const key = a.student_id;
+    const pct = (a.marks_obtained! / (a.exam?.total_marks || 1)) * 100;
+    if (!studentScores[key]) studentScores[key] = { name: a.student?.full_name || 'Unknown', totalPercent: 0, count: 0 };
+    studentScores[key].totalPercent += pct;
+    studentScores[key].count += 1;
+  });
+  const topStudents = Object.entries(studentScores)
+    .map(([id, s]) => ({ id, name: s.name, avg: Math.round(s.totalPercent / s.count) }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 5);
+
+  const performanceMetrics = [
+    { label: 'Avg Student Score', value: Math.round(avgStudentScore), icon: Target, color: 'text-primary', weight: '40%' },
+    { label: 'Pass Rate', value: Math.round(passRate), icon: CheckCircle, color: 'text-emerald-500', weight: '30%' },
+    { label: 'Completion Rate', value: Math.round(completionRate), icon: TrendingUp, color: 'text-amber-500', weight: '20%' },
+    { label: 'Engagement', value: Math.round(engagementFactor), icon: Zap, color: 'text-violet-500', weight: '10%' },
+  ];
+
+  const gaugeData = [{ name: 'Score', value: performanceScore, fill: performanceScore >= 90 ? 'hsl(var(--primary))' : performanceScore >= 75 ? '#facc15' : performanceScore >= 60 ? '#94a3b8' : '#d97706' }];
+
   if (loadingData || scopeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
@@ -328,7 +386,7 @@ export default function TeacherDashboard() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* ─── STAT CARDS ─── */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-2 lg:grid-cols-5 gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -338,7 +396,8 @@ export default function TeacherDashboard() {
             { label: 'Active Exams', value: activeExams, icon: Calendar, gradient: 'from-emerald-500/15 to-emerald-500/5', iconColor: 'text-emerald-500' },
             { label: 'Assigned Classes', value: assignments.length, icon: Building2, gradient: 'from-amber-500/15 to-amber-500/5', iconColor: 'text-amber-500' },
             { label: 'Students', value: studentCount, icon: Users, gradient: 'from-violet-500/15 to-violet-500/5', iconColor: 'text-violet-500' },
-          ].map((stat, i) => (
+            { label: 'Performance', value: `${performanceScore}%`, icon: awardTier.icon, gradient: awardTier.gradient, iconColor: awardTier.color, extra: awardTier.label },
+          ].map((stat) => (
             <motion.div key={stat.label} variants={itemVariants}>
               <Card className="border-border/50 bg-background/60 backdrop-blur-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4 flex items-center gap-3">
@@ -347,7 +406,7 @@ export default function TeacherDashboard() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <p className="text-xs text-muted-foreground">{stat.extra || stat.label}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -382,6 +441,7 @@ export default function TeacherDashboard() {
                 <TabsList className="w-full bg-transparent gap-1 flex overflow-x-auto">
                   {[
                     { value: 'exams', label: 'Exams', icon: FileText, count: exams.length },
+                    { value: 'performance', label: 'Performance', icon: Trophy },
                     { value: 'schools', label: 'Schools', icon: Building2 },
                     { value: 'assignments', label: 'Assignments', icon: ClipboardList },
                     { value: 'attempts', label: 'Attempts', icon: Eye, count: attempts.length },
@@ -533,6 +593,141 @@ export default function TeacherDashboard() {
               </div>
             </TabsContent>
 
+            {/* ── Performance Tab ── */}
+            <TabsContent value="performance" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Score Gauge */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <awardTier.icon className={`h-5 w-5 ${awardTier.color}`} />
+                      {awardTier.label}
+                    </CardTitle>
+                    <CardDescription>Your educator effectiveness rating</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col items-center">
+                    <div className="relative w-48 h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={180} endAngle={0} data={gaugeData} barSize={14}>
+                          <RadialBar background dataKey="value" cornerRadius={10} max={100} />
+                        </RadialBarChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <motion.span
+                          className="text-4xl font-bold text-foreground"
+                          initial={{ opacity: 0, scale: 0.5 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.3, type: 'spring' }}
+                        >
+                          {performanceScore}
+                        </motion.span>
+                        <span className="text-xs text-muted-foreground">out of 100</span>
+                      </div>
+                    </div>
+                    {gradedAttempts.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">No graded attempts yet. Score will update as students complete exams.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Metrics Breakdown */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Performance Breakdown</CardTitle>
+                    <CardDescription>Weighted metrics that determine your score</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-5">
+                    {performanceMetrics.map((metric) => (
+                      <div key={metric.label} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <metric.icon className={`h-4 w-4 ${metric.color}`} />
+                            <span className="text-sm font-medium">{metric.label}</span>
+                            <Badge variant="outline" className="text-[10px]">{metric.weight}</Badge>
+                          </div>
+                          <span className="text-sm font-bold">{metric.value}%</span>
+                        </div>
+                        <Progress value={metric.value} className="h-2" />
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Top Students Leaderboard */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Trophy className="h-5 w-5 text-yellow-400" />
+                      Top Performing Students
+                    </CardTitle>
+                    <CardDescription>Your highest-scoring students by average</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {topStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">No graded results yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {topStudents.map((student, idx) => (
+                          <motion.div
+                            key={student.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.08 }}
+                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50"
+                          >
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                              idx === 0 ? 'bg-yellow-500/15 text-yellow-400' :
+                              idx === 1 ? 'bg-slate-400/15 text-slate-300' :
+                              idx === 2 ? 'bg-amber-600/15 text-amber-500' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              #{idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{student.name}</p>
+                            </div>
+                            <Badge variant="secondary" className="text-xs font-bold">{student.avg}%</Badge>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Award Tiers Guide */}
+                <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Award Tiers</CardTitle>
+                    <CardDescription>Performance milestones and recognition levels</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      { label: 'Diamond Educator', range: '90-100', icon: Diamond, color: 'text-cyan-400', bg: 'bg-cyan-500/10', active: performanceScore >= 90 },
+                      { label: 'Gold Educator', range: '75-89', icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/10', active: performanceScore >= 75 && performanceScore < 90 },
+                      { label: 'Silver Educator', range: '60-74', icon: Star, color: 'text-slate-300', bg: 'bg-slate-400/10', active: performanceScore >= 60 && performanceScore < 75 },
+                      { label: 'Bronze Educator', range: '0-59', icon: Award, color: 'text-amber-600', bg: 'bg-amber-600/10', active: performanceScore < 60 },
+                    ].map((tier) => (
+                      <div
+                        key={tier.label}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          tier.active ? `${tier.bg} border-current/20 ring-1 ring-current/10` : 'bg-muted/20 border-border/50 opacity-60'
+                        }`}
+                      >
+                        <tier.icon className={`h-5 w-5 ${tier.color} shrink-0`} />
+                        <div className="flex-1">
+                          <p className={`text-sm font-semibold ${tier.active ? tier.color : 'text-muted-foreground'}`}>{tier.label}</p>
+                          <p className="text-xs text-muted-foreground">Score: {tier.range}</p>
+                        </div>
+                        {tier.active && <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30">Current</Badge>}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             <TabsContent value="schools"><SchoolManagement /></TabsContent>
             <TabsContent value="assignments"><ExamAssignment /></TabsContent>
 
@@ -623,12 +818,15 @@ export default function TeacherDashboard() {
             </Avatar>
             <div className="pb-1 flex-1">
               <h3 className="text-xl font-bold text-foreground">{teacher?.full_name || 'Teacher'}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 {teacher?.status === 'approved' && (
                   <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 gap-1 text-[10px]">
                     <ShieldCheck className="h-3 w-3" />Verified Educator
                   </Badge>
                 )}
+                <Badge className={`${awardTier.bg} ${awardTier.color} gap-1 text-[10px] border`}>
+                  <awardTier.icon className="h-3 w-3" />{awardTier.label} • {performanceScore}%
+                </Badge>
                 {teacher?.subject_specialty && (
                   <Badge className={`text-[10px] border ${subjectColors[teacher.subject_specialty] || 'bg-muted'}`}>
                     {teacher.subject_specialty}
