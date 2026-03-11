@@ -289,6 +289,8 @@ export default function ExamQuestions() {
       return next;
     });
   };
+
+  const handlePdfUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     const fileInput = document.getElementById('pdf-file') as HTMLInputElement;
     const file = fileInput?.files?.[0];
