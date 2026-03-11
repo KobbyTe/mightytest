@@ -24,11 +24,14 @@ import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
 import {
   LogOut, GraduationCap, Plus, Calendar, Users, FileText, Building2,
   HelpCircle, FileQuestion, Edit, Trash2, Eye, CheckCircle, Clock,
-  ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase
+  ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase,
+  Trophy, Diamond, Star, TrendingUp, Target, Zap
 } from 'lucide-react';
+import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
 interface Exam {
   id: string;
