@@ -136,6 +136,23 @@ export default function TeacherManagement() {
     await loadAssignments(teacher.id);
   };
 
+  const openProfileDialog = async (teacher: Teacher) => {
+    setProfileTeacher(teacher);
+    setProfileOpen(true);
+    // Load assignments for this teacher
+    const { data } = await supabase
+      .from('teacher_class_assignments')
+      .select('id, teacher_id, class_id, subject, assigned_at')
+      .eq('teacher_id', teacher.id)
+      .order('assigned_at', { ascending: false });
+    const enriched: ClassAssignment[] = (data || []).map((a: any) => {
+      const cls = classes.find(c => c.id === a.class_id);
+      const school = cls ? schools.find(s => s.id === cls.school_id) : null;
+      return { ...a, class_info: cls ? { name: cls.name, school: school ? { name: school.name } : undefined } : undefined };
+    });
+    setProfileAssignments(enriched);
+  };
+
   const handleAddAssignment = async () => {
     if (!assignTeacher || !assignClassId || !assignSubject) {
       toast.error('Please select a class and enter a subject');
