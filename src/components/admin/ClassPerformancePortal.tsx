@@ -267,31 +267,71 @@ export default function ClassPerformancePortal({
       pdf.line(margin, y, pw - margin, y);
       y += 6;
 
-      pdf.setFontSize(8);
+      // Dynamic columns: Student | Test 1..N | Total | Average | Percentage | Position | Remark
+      pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
-      const cols = [margin, margin + 45, margin + 80, margin + 100, margin + 120, margin + 145];
-      pdf.text('Student Name', cols[0], y);
-      pdf.text('Student ID', cols[1], y);
-      pdf.text('Exams', cols[2], y);
-      pdf.text('Average', cols[3], y);
-      pdf.text('Pass Rate', cols[4], y);
-      pdf.text('Status', cols[5], y);
+
+      // Build column layout dynamically
+      const testCount = examOrder.length;
+      const fixedColsWidth = 45 + 18 + 18 + 22 + 14 + 28; // student + total + avg + pct + pos + remark
+      const availableForTests = (pw - margin * 2) - fixedColsWidth;
+      const testColWidth = testCount > 0 ? Math.min(20, availableForTests / testCount) : 0;
+
+      let cx = margin;
+      const colPositions: number[] = [cx]; // Student
+      cx += 45;
+      for (let i = 0; i < testCount; i++) {
+        colPositions.push(cx);
+        cx += testColWidth;
+      }
+      const totalCol = cx; cx += 18;
+      const avgCol = cx; cx += 18;
+      const pctCol = cx; cx += 22;
+      const posCol = cx; cx += 14;
+      const remarkCol = cx;
+
+      // Header row
+      pdf.text('Student', colPositions[0], y);
+      examOrder.forEach((_, idx) => {
+        pdf.text(`Test ${idx + 1}`, colPositions[idx + 1], y);
+      });
+      pdf.text('Total', totalCol, y);
+      pdf.text('Average', avgCol, y);
+      pdf.text('Pct (%)', pctCol, y);
+      pdf.text('Pos', posCol, y);
+      pdf.text('Remark', remarkCol, y);
       y += 2;
       pdf.line(margin, y, pw - margin, y);
       y += 4;
 
+      // Rank students
+      const pdfRanked = [...report.students]
+        .sort((a: any, b: any) => (b.averagePercentage || 0) - (a.averagePercentage || 0))
+        .map((s: any, idx: number) => ({ ...s, position: idx + 1 }));
+
       pdf.setFont('helvetica', 'normal');
-      for (const student of report.students) {
+      for (const student of pdfRanked) {
         if (y > pdf.internal.pageSize.getHeight() - 20) {
           pdf.addPage();
           y = 20;
         }
-        pdf.text(student.name.substring(0, 25), cols[0], y);
-        pdf.text(student.studentId.substring(0, 15), cols[1], y);
-        pdf.text(String(student.examsTaken), cols[2], y);
-        pdf.text(`${student.averagePercentage}%`, cols[3], y);
-        pdf.text(`${student.passRate}%`, cols[4], y);
-        pdf.text(student.status, cols[5], y);
+        pdf.text(student.name.substring(0, 25), colPositions[0], y);
+        // Test scores
+        const attempts = student.examAttempts || [];
+        examOrder.forEach((exam: any, idx: number) => {
+          const attempt = attempts.find((a: any) => a.examId === exam.examId);
+          pdf.text(attempt ? `${attempt.marks}/${exam.totalMarks}` : '—', colPositions[idx + 1], y);
+        });
+        pdf.text(`${student.marksObtained || 0}/${student.totalMarks || 0}`, totalCol, y);
+        const avg = student.examsTaken > 0 ? ((student.marksObtained || 0) / student.examsTaken).toFixed(1) : '0';
+        pdf.text(avg, avgCol, y);
+        pdf.text(`${(student.averagePercentage || 0).toFixed(1)}%`, pctCol, y);
+        pdf.text(String(student.position), posCol, y);
+        const remark = (student.averagePercentage || 0) >= 90 ? 'Excellent' :
+          (student.averagePercentage || 0) >= 75 ? 'Very Good' :
+          (student.averagePercentage || 0) >= 60 ? 'Good' :
+          (student.averagePercentage || 0) >= 50 ? 'Fair' : 'Needs Imp.';
+        pdf.text(remark, remarkCol, y);
         y += 5;
       }
 
@@ -426,7 +466,7 @@ export default function ClassPerformancePortal({
         ) : (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <Card className="backdrop-blur-xl bg-card/80 border-border/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2">
@@ -445,17 +485,6 @@ export default function ClassPerformancePortal({
                     <div>
                       <p className="text-2xl font-bold">{classAverage.toFixed(1)}%</p>
                       <p className="text-xs text-muted-foreground">Class Average</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="backdrop-blur-xl bg-card/80 border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-emerald-500" />
-                    <div>
-                      <p className="text-2xl font-bold">{overallPassRate.toFixed(0)}%</p>
-                      <p className="text-xs text-muted-foreground">Pass Rate</p>
                     </div>
                   </div>
                 </CardContent>
@@ -489,36 +518,47 @@ export default function ClassPerformancePortal({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Card className="backdrop-blur-xl bg-card/80 border-border/50 shadow-md">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-primary" />
-                        Class Rankings — All Students
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                  <Card className="overflow-hidden border-0 shadow-xl bg-card">
+                    {/* Premium gradient header */}
+                    <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 px-6 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="rounded-full bg-white/20 p-2">
+                            <Trophy className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-white">Class Rankings</h3>
+                            <p className="text-white/70 text-xs">{className} • {schoolName}</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-white/20 text-white border-0 text-xs font-medium">
+                          {totalStudents} Students
+                        </Badge>
+                      </div>
+                    </div>
+                    <CardContent className="p-0">
                       {rankedStudents.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-8">No exam data available yet.</p>
+                        <p className="text-muted-foreground text-center py-12">No exam data available yet.</p>
                       ) : (
-                        <div className="relative w-full overflow-x-auto rounded-lg border border-border">
+                        <div className="relative w-full overflow-x-auto">
                           <Table>
                             <TableHeader>
-                              <TableRow className="bg-muted/70">
-                                <TableHead className="font-bold text-foreground whitespace-nowrap">Student</TableHead>
+                              <TableRow className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border-b-2 border-indigo-200 dark:border-indigo-800">
+                                <TableHead className="font-extrabold text-foreground whitespace-nowrap text-sm sticky left-0 bg-gradient-to-r from-indigo-50 to-indigo-50 dark:from-indigo-950/30 dark:to-indigo-950/30 z-10">Student</TableHead>
                                 {examOrder.map((exam, idx) => (
-                                  <TableHead key={exam.examId} className="font-bold text-foreground text-center whitespace-nowrap">
+                                  <TableHead key={exam.examId} className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">
                                     Test {idx + 1}
                                   </TableHead>
                                 ))}
-                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Total</TableHead>
-                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Average</TableHead>
-                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Percentage (100%)</TableHead>
-                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Position</TableHead>
-                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Remark</TableHead>
+                                <TableHead className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">Total</TableHead>
+                                <TableHead className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">Average</TableHead>
+                                <TableHead className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">Percentage (100%)</TableHead>
+                                <TableHead className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">Position</TableHead>
+                                <TableHead className="font-extrabold text-foreground text-center whitespace-nowrap text-sm">Remark</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {rankedStudents.map((student) => {
+                              {rankedStudents.map((student, rowIdx) => {
                                 const studentAttempts = rawAttempts[student.studentId] || [];
                                 let totalObtained = 0;
                                 let totalPossible = 0;
@@ -526,17 +566,19 @@ export default function ClassPerformancePortal({
                                 return (
                                   <TableRow 
                                     key={student.studentId} 
-                                    className="hover:bg-muted/30 cursor-pointer"
+                                    className={`cursor-pointer transition-colors hover:bg-primary/5 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
                                     onClick={() => handleViewStudent(student)}
                                   >
-                                    <TableCell className="font-medium whitespace-nowrap">
+                                    <TableCell className={`font-semibold whitespace-nowrap sticky left-0 z-10 ${rowIdx % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
                                       <div className="flex items-center gap-2">
                                         {student.position <= 3 && (
-                                          <Trophy className={`h-4 w-4 ${
-                                            student.position === 1 ? 'text-yellow-500' :
-                                            student.position === 2 ? 'text-gray-400' :
-                                            'text-amber-700'
-                                          }`} />
+                                          <span className={`inline-flex items-center justify-center rounded-full w-6 h-6 text-xs font-bold ${
+                                            student.position === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' :
+                                            student.position === 2 ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' :
+                                            'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                                          }`}>
+                                            {student.position}
+                                          </span>
                                         )}
                                         {student.studentName}
                                       </div>
@@ -557,7 +599,7 @@ export default function ClassPerformancePortal({
                                               <span className={`font-semibold ${getPercentageColor(pct)}`}>
                                                 {marks}
                                               </span>
-                                              <span className="text-muted-foreground">/{total}</span>
+                                              <span className="text-muted-foreground text-xs">/{total}</span>
                                             </>
                                           ) : (
                                             <span className="text-muted-foreground">—</span>
@@ -566,19 +608,33 @@ export default function ClassPerformancePortal({
                                       );
                                     })}
                                     <TableCell className="text-center font-bold whitespace-nowrap">
-                                      {student.marksObtained}/{student.totalMarks}
+                                      {student.marksObtained}<span className="text-muted-foreground text-xs font-normal">/{student.totalMarks}</span>
                                     </TableCell>
                                     <TableCell className="text-center font-semibold whitespace-nowrap">
                                       {student.examsTaken > 0 ? (student.marksObtained / student.examsTaken).toFixed(1) : '0'}
                                     </TableCell>
-                                    <TableCell className={`text-center font-bold whitespace-nowrap ${getPercentageColor(student.averagePercentage)}`}>
-                                      {student.averagePercentage.toFixed(1)}%
-                                    </TableCell>
-                                    <TableCell className="text-center font-bold whitespace-nowrap">
-                                      {student.position}
+                                    <TableCell className="text-center whitespace-nowrap">
+                                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                        student.averagePercentage >= 75 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+                                        student.averagePercentage >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                                        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                                      }`}>
+                                        {student.averagePercentage.toFixed(1)}%
+                                      </span>
                                     </TableCell>
                                     <TableCell className="text-center whitespace-nowrap">
-                                      <Badge variant="outline" className={`${getPercentageColor(student.averagePercentage)} border-current text-xs`}>
+                                      <span className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary w-8 h-8 text-sm font-bold">
+                                        {student.position}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-center whitespace-nowrap">
+                                      <Badge className={`text-xs font-semibold border-0 ${
+                                        student.averagePercentage >= 90 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+                                        student.averagePercentage >= 75 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' :
+                                        student.averagePercentage >= 60 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                                        student.averagePercentage >= 50 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                                        'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                                      }`}>
                                         {getRemarkText(student.averagePercentage)}
                                       </Badge>
                                     </TableCell>
