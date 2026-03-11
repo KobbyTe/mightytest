@@ -408,7 +408,7 @@ export function AIStudyAssistant() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
             <div
               className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
                 msg.role === 'user'
@@ -424,6 +424,18 @@ export function AIStudyAssistant() {
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
             </div>
+            {msg.role === 'assistant' && !isLoading && msg.content.length > 100 && (
+              <button
+                onClick={() => {
+                  generateQuizPDF(msg.content, studentContext?.weakSubjects || []);
+                  toast.success('Practice quiz PDF downloaded!');
+                }}
+                className="flex items-center gap-1 mt-1 text-[10px] px-2 py-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Download className="h-3 w-3" />
+                Download as PDF
+              </button>
+            )}
           </div>
         ))}
 
