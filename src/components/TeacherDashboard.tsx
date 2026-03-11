@@ -280,6 +280,61 @@ export default function TeacherDashboard() {
     ? Math.floor((Date.now() - new Date(teacher.created_at).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // ─── PERFORMANCE CALCULATIONS ───
+  const gradedAttempts = attempts.filter(a => a.status === 'graded' && a.marks_obtained !== null && a.exam?.total_marks);
+  
+  const avgStudentScore = gradedAttempts.length > 0
+    ? gradedAttempts.reduce((sum, a) => sum + ((a.marks_obtained! / (a.exam?.total_marks || 1)) * 100), 0) / gradedAttempts.length
+    : 0;
+
+  const passRate = gradedAttempts.length > 0
+    ? (gradedAttempts.filter(a => {
+        const exam = exams.find(e => e.id === a.exam_id);
+        return a.marks_obtained! >= (exam?.passing_marks || 50);
+      }).length / gradedAttempts.length) * 100
+    : 0;
+
+  const completedAttempts = attempts.filter(a => ['completed', 'graded'].includes(a.status || ''));
+  const completionRate = attempts.length > 0 ? (completedAttempts.length / attempts.length) * 100 : 0;
+
+  const engagementFactor = Math.min(100, (studentCount / Math.max(1, assignments.length * 10)) * 100);
+
+  const performanceScore = Math.round(
+    (avgStudentScore * 0.4) + (passRate * 0.3) + (completionRate * 0.2) + (engagementFactor * 0.1)
+  );
+
+  const getAwardTier = (score: number) => {
+    if (score >= 90) return { label: 'Diamond Educator', icon: Diamond, color: 'text-cyan-400', bg: 'bg-cyan-500/15 border-cyan-500/30', gradient: 'from-cyan-500/20 to-cyan-500/5' };
+    if (score >= 75) return { label: 'Gold Educator', icon: Trophy, color: 'text-yellow-400', bg: 'bg-yellow-500/15 border-yellow-500/30', gradient: 'from-yellow-500/20 to-yellow-500/5' };
+    if (score >= 60) return { label: 'Silver Educator', icon: Star, color: 'text-slate-300', bg: 'bg-slate-400/15 border-slate-400/30', gradient: 'from-slate-400/20 to-slate-400/5' };
+    return { label: 'Bronze Educator', icon: Award, color: 'text-amber-600', bg: 'bg-amber-600/15 border-amber-600/30', gradient: 'from-amber-600/20 to-amber-600/5' };
+  };
+
+  const awardTier = getAwardTier(performanceScore);
+
+  // Top performing students
+  const studentScores: Record<string, { name: string; totalPercent: number; count: number }> = {};
+  gradedAttempts.forEach(a => {
+    const key = a.student_id;
+    const pct = (a.marks_obtained! / (a.exam?.total_marks || 1)) * 100;
+    if (!studentScores[key]) studentScores[key] = { name: a.student?.full_name || 'Unknown', totalPercent: 0, count: 0 };
+    studentScores[key].totalPercent += pct;
+    studentScores[key].count += 1;
+  });
+  const topStudents = Object.entries(studentScores)
+    .map(([id, s]) => ({ id, name: s.name, avg: Math.round(s.totalPercent / s.count) }))
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 5);
+
+  const performanceMetrics = [
+    { label: 'Avg Student Score', value: Math.round(avgStudentScore), icon: Target, color: 'text-primary', weight: '40%' },
+    { label: 'Pass Rate', value: Math.round(passRate), icon: CheckCircle, color: 'text-emerald-500', weight: '30%' },
+    { label: 'Completion Rate', value: Math.round(completionRate), icon: TrendingUp, color: 'text-amber-500', weight: '20%' },
+    { label: 'Engagement', value: Math.round(engagementFactor), icon: Zap, color: 'text-violet-500', weight: '10%' },
+  ];
+
+  const gaugeData = [{ name: 'Score', value: performanceScore, fill: performanceScore >= 90 ? 'hsl(var(--primary))' : performanceScore >= 75 ? '#facc15' : performanceScore >= 60 ? '#94a3b8' : '#d97706' }];
+
   if (loadingData || scopeLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
