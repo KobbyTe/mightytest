@@ -272,6 +272,132 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleBulkAiGrade = async () => {
+    // Find all completed/grading attempts that haven't been graded yet
+    const ungradedAttempts = attempts.filter(a => a.status === 'completed' || a.status === 'grading');
+    
+    if (ungradedAttempts.length === 0) {
+      toast.info('No ungraded submissions to process');
+      return;
+    }
+
+    setBulkGrading(true);
+    let gradedCount = 0;
+    let failedCount = 0;
+
+    for (const attempt of ungradedAttempts) {
+      setBulkGradingProgress(`Grading ${gradedCount + 1} of ${ungradedAttempts.length}...`);
+      
+      try {
+        // Fetch essay answers for this attempt
+        const { data: answersData } = await supabase
+          .from('exam_answers')
+          .select('id, answer_text, question:exam_questions(question_text, question_type, correct_answer, marks)')
+          .eq('attempt_id', attempt.id);
+
+        const essayAnswers = (answersData || []).filter(
+          (a: any) => a.question?.question_type === 'essay' || a.question?.question_type === 'short_answer'
+        );
+
+        if (essayAnswers.length === 0) {
+          // All MCQ/TF — just calculate existing marks
+          const { data: allAnswers } = await supabase
+            .from('exam_answers')
+            .select('marks_awarded')
+            .eq('attempt_id', attempt.id);
+          
+          const totalMarks = (allAnswers || []).reduce((sum: number, a: any) => sum + (a.marks_awarded || 0), 0);
+          
+          await supabase
+            .from('exam_attempts')
+            .update({ marks_obtained: totalMarks, status: 'graded', graded_by: user?.id, graded_at: new Date().toISOString() })
+            .eq('id', attempt.id);
+          
+          gradedCount++;
+          continue;
+        }
+
+        // Call AI auto-grade
+        const payload = essayAnswers.map((a: any) => ({
+          answerId: a.id,
+          questionText: a.question.question_text,
+          studentAnswer: a.answer_text,
+          correctAnswer: a.question.correct_answer,
+          maxMarks: a.question.marks,
+        }));
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/auto-grade-essay`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ answers: payload }),
+          }
+        );
+
+        if (response.status === 429) {
+          toast.error('Rate limited. Stopping bulk grading. Try again in a moment.');
+          break;
+        }
+        if (response.status === 402) {
+          toast.error('AI credits exhausted. Stopping bulk grading.');
+          break;
+        }
+        if (!response.ok) {
+          failedCount++;
+          continue;
+        }
+
+        const data = await response.json();
+
+        // Apply AI grades to each answer
+        for (const result of data.results) {
+          await supabase
+            .from('exam_answers')
+            .update({ marks_awarded: result.suggestedMarks, is_correct: result.suggestedMarks > 0 })
+            .eq('id', result.answerId);
+        }
+
+        // Calculate total marks across all answers for this attempt
+        const { data: allAnswers } = await supabase
+          .from('exam_answers')
+          .select('marks_awarded')
+          .eq('attempt_id', attempt.id);
+
+        const totalMarks = (allAnswers || []).reduce((sum: number, a: any) => sum + (a.marks_awarded || 0), 0);
+
+        await supabase
+          .from('exam_attempts')
+          .update({
+            marks_obtained: totalMarks,
+            status: 'graded',
+            feedback: 'Graded by AI — review recommended',
+            graded_by: user?.id,
+            graded_at: new Date().toISOString(),
+          })
+          .eq('id', attempt.id);
+
+        gradedCount++;
+      } catch (error) {
+        console.error('Error grading attempt:', attempt.id, error);
+        failedCount++;
+      }
+    }
+
+    setBulkGrading(false);
+    setBulkGradingProgress('');
+    
+    if (gradedCount > 0) {
+      toast.success(`AI graded ${gradedCount} submission(s)${failedCount > 0 ? `, ${failedCount} failed` : ''}. Review grades in each attempt.`);
+      loadData();
+    } else if (failedCount > 0) {
+      toast.error(`Failed to grade ${failedCount} submission(s)`);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
