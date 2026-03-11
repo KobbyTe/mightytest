@@ -1,52 +1,44 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+## Student Report Card Redesign
 
-## What Changes
+### Goal
+Restructure the Student Report Card to use a table-based layout matching the requested format: **Student | Test 1 | Test 2 | Test 3 | ... | Total | Average | Percentage | Position | Remark**
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+### Changes
 
-## Changes by Dashboard
+**1. `src/components/admin/StudentReportCard.tsx` — Full redesign**
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+- **Header section**: Keep the student profile card with glassmorphism styling (backdrop-blur, translucent bg) per the platform's management UI design standard. Improve with a gradient banner and cleaner stat cards using HSL design tokens.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+- **Results Table**: Replace the current vertical exam history list with a horizontal table:
+  - Columns: `Student`, `Test 1`, `Test 2`, `Test 3`, ..., `Total`, `Average`, `Percentage (100%)`, `Position`, `Remark`
+  - Each Test column shows `marksObtained/totalMarks`
+  - Total = sum of all marks obtained
+  - Average = total / number of tests
+  - Percentage = (total obtained / total possible) × 100
+  - Position = passed from parent or computed as "N/A" for single-student view
+  - Remark = auto-generated from `generateRemarks()`
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+- **Subject Performance**: Keep the progress bars but refine with color-coded bars (green ≥75%, amber ≥60%, red <60%) and better spacing.
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+- **Strengths/Weaknesses**: Consolidate into a single row with improved badge-based display instead of separate cards.
 
-## Technical Details
+- **Teacher Remarks**: Styled with a left accent border and subtle background.
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+**2. `src/components/admin/ClassPerformancePortal.tsx` — Minor update**
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+- When viewing the class-level report (not individual student), add a combined table view showing ALL students in the requested format with computed positions (ranked by percentage). This gives teachers the "Student (All students)" view.
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+**3. Visual improvements throughout**:
+- Glassmorphism card styling with `backdrop-blur-xl` and translucent backgrounds
+- `framer-motion` entrance animations
+- HSL-based status colors from design tokens
+- Better responsive behavior for the table (horizontal scroll on mobile)
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+### Technical Notes
+- Position calculation: sort all students by percentage descending, assign rank
+- The `StudentReportCardProps` interface will gain an optional `position` prop
+- Table uses existing `Table` UI components from `src/components/ui/table.tsx`
+- No database changes required
 
