@@ -69,6 +69,8 @@ export default function AdminDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<Exam | null>(null);
   const [showTour, setShowTour] = useState(false);
+  const [bulkGrading, setBulkGrading] = useState(false);
+  const [bulkGradingProgress, setBulkGradingProgress] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
