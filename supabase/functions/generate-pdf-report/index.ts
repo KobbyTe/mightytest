@@ -38,7 +38,7 @@ serve(async (req) => {
     // Fetch students in class
     const { data: students, error: studErr } = await supabase
       .from("students")
-      .select("id, full_name, email, grade, student_id_code")
+      .select("id, full_name, grade")
       .eq("class_id", class_id)
       .order("full_name");
 
@@ -54,46 +54,26 @@ serve(async (req) => {
     const studentIds = students.map((s) => s.id);
     const { data: attempts, error: attErr } = await supabase
       .from("exam_attempts")
-      .select("student_id, exam_id, marks_obtained, status, exams(title, total_marks, passing_marks, subject)")
+      .select("student_id, marks_obtained, status, exams(total_marks)")
       .in("student_id", studentIds)
       .in("status", ["graded", "completed"]);
 
     if (attErr) throw attErr;
 
-    // Build student performance data
-    const studentPerformance = students.map((student) => {
-      const studentAttempts = (attempts || []).filter((a) => a.student_id === student.id);
-      const graded = studentAttempts.filter((a) => a.status === "graded" && a.marks_obtained !== null);
-      const passed = graded.filter((a) => a.marks_obtained! >= (a.exams as any)?.passing_marks);
-      const totalMarks = graded.reduce((s, a) => s + ((a.exams as any)?.total_marks || 0), 0);
-      const marksObtained = graded.reduce((s, a) => s + (a.marks_obtained || 0), 0);
-      const avgPct = totalMarks > 0 ? (marksObtained / totalMarks) * 100 : 0;
-
-      return {
-        name: student.full_name,
-        studentId: student.student_id_code || "N/A",
-        email: student.email || "N/A",
-        grade: student.grade || "N/A",
-        examsTaken: graded.length,
-        totalMarks,
-        marksObtained,
-        averagePercentage: avgPct.toFixed(1),
-        passRate: graded.length > 0 ? ((passed.length / graded.length) * 100).toFixed(1) : "0.0",
-        status: avgPct >= 90 ? "Excellent" : avgPct >= 75 ? "Good" : avgPct >= 60 ? "Satisfactory" : "Needs Improvement",
-        exams: graded.map((a) => ({
-          title: (a.exams as any)?.title || "Unknown",
-          subject: (a.exams as any)?.subject || "General",
-          score: `${a.marks_obtained}/${(a.exams as any)?.total_marks}`,
-          passed: a.marks_obtained! >= ((a.exams as any)?.passing_marks || 0),
-        })),
-      };
+    // Compute class average for AI prompt
+    const studentAvgs = students.map((student) => {
+      const sa = (attempts || []).filter((a) => a.student_id === student.id && a.marks_obtained !== null);
+      const totalM = sa.reduce((s, a) => s + ((a.exams as any)?.total_marks || 0), 0);
+      const obtM = sa.reduce((s, a) => s + (a.marks_obtained || 0), 0);
+      return totalM > 0 ? (obtM / totalM) * 100 : 0;
     });
-
-    // Use AI to generate summary remarks
-    const classAvg = studentPerformance.length > 0
-      ? (studentPerformance.reduce((s, sp) => s + parseFloat(sp.averagePercentage), 0) / studentPerformance.length).toFixed(1)
+    const classAvg = studentAvgs.length > 0
+      ? (studentAvgs.reduce((a, b) => a + b, 0) / studentAvgs.length).toFixed(1)
       : "0.0";
 
+    const topStudent = students[studentAvgs.indexOf(Math.max(...studentAvgs))]?.full_name || "N/A";
+
+    // Use AI to generate summary remarks
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -105,13 +85,13 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are an educational report writer. Generate a brief, professional 2-3 sentence summary of a class performance report.",
+            content: "You are an educational report writer. Generate a brief, professional 2-3 sentence summary of a class performance report. Focus on overall achievement level, standout performance, and constructive outlook.",
           },
           {
             role: "user",
             content: `Class: ${classData.name}, Grade Level: ${classData.grade_level || "N/A"}, School: ${(classData.schools as any)?.name || "Unknown"}.
 Students: ${students.length}, Class Average: ${classAvg}%.
-Top performer: ${studentPerformance.sort((a, b) => parseFloat(b.averagePercentage) - parseFloat(a.averagePercentage))[0]?.name || "N/A"}.
+Top performer: ${topStudent}.
 Generate a brief professional summary for this class performance report.`,
           },
         ],
@@ -135,7 +115,6 @@ Generate a brief professional summary for this class performance report.`,
           classAverage: classAvg,
           totalStudents: students.length,
           aiSummary,
-          students: studentPerformance,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

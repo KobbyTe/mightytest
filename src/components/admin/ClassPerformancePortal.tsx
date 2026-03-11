@@ -243,109 +243,339 @@ export default function ClassPerformancePortal({
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
-      const margin = 12;
-      let y = 16;
+      const margin = 14;
+      const tableWidth = pw - margin * 2;
 
-      // Header
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(schoolName, pw / 2, y, { align: 'center' });
-      y += 7;
-      pdf.setFontSize(13);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Class: ${className} (${gradeLevel || 'N/A'})`, pw / 2, y, { align: 'center' });
-      y += 6;
-      pdf.setFontSize(9);
-      pdf.text(`Report Generated: ${new Date().toLocaleDateString()} | Class Average: ${classAverage.toFixed(1)}% | Total Students: ${totalStudents}`, pw / 2, y, { align: 'center' });
-      y += 6;
+      // ── Color palette ──
+      const brandDark = [30, 41, 82];     // deep navy
+      const brandMid = [79, 70, 229];     // indigo-600
+      const brandLight = [236, 72, 153];  // pink-500
+      const white = [255, 255, 255];
+      const textDark = [17, 24, 39];
+      const textMid = [75, 85, 99];
+      const headerBg = [238, 242, 255];   // indigo-50
+      const rowAlt = [249, 250, 251];     // gray-50
+      const greenBg = [220, 252, 231]; const greenTxt = [21, 128, 61];
+      const amberBg = [254, 243, 199]; const amberTxt = [146, 64, 14];
+      const redBg = [254, 226, 226]; const redTxt = [185, 28, 28];
+      const goldBg = [254, 249, 195]; const silverBg = [243, 244, 246]; const bronzeBg = [254, 237, 213];
 
-      if (aiSummary) {
-        pdf.setFontSize(8);
-        pdf.setFont('helvetica', 'italic');
-        const summaryLines = pdf.splitTextToSize(aiSummary, pw - margin * 2);
-        pdf.text(summaryLines, margin, y);
-        y += summaryLines.length * 3.5 + 4;
-      }
+      // ── Helper: draw colored rect ──
+      const fillRect = (x: number, y: number, w: number, h: number, color: number[]) => {
+        pdf.setFillColor(color[0], color[1], color[2]);
+        pdf.rect(x, y, w, h, 'F');
+      };
 
-      pdf.setDrawColor(180);
-      pdf.line(margin, y, pw - margin, y);
-      y += 5;
+      // ── Helper: draw gradient band (simulated with 2 rects) ──
+      const drawBrandBand = (y: number, h: number) => {
+        fillRect(margin, y, tableWidth / 2, h, brandMid as any);
+        fillRect(margin + tableWidth / 2, y, tableWidth / 2, h, brandLight as any);
+      };
 
-      // Build columns using local examOrder and rankedStudents
+      // ── Helper: get remark ──
+      const getRemark = (pct: number) => {
+        if (pct >= 90) return 'Excellent';
+        if (pct >= 75) return 'Very Good';
+        if (pct >= 60) return 'Good';
+        if (pct >= 50) return 'Fair';
+        return 'Needs Imp.';
+      };
+
+      // ── Column layout ──
       const testCount = examOrder.length;
-      const studentColW = 42;
-      const totalColW = 18;
-      const avgColW = 16;
-      const pctColW = 18;
-      const posColW = 12;
-      const remarkColW = 26;
+      const studentColW = 44;
+      const totalColW = 20;
+      const avgColW = 18;
+      const pctColW = 22;
+      const posColW = 14;
+      const remarkColW = 28;
       const fixedW = studentColW + totalColW + avgColW + pctColW + posColW + remarkColW;
-      const availableForTests = (pw - margin * 2) - fixedW;
-      const testColW = testCount > 0 ? Math.min(22, availableForTests / testCount) : 0;
+      const availableForTests = tableWidth - fixedW;
+      const testColW = testCount > 0 ? Math.min(24, Math.max(14, availableForTests / testCount)) : 0;
+      const actualTableW = studentColW + (testColW * testCount) + totalColW + avgColW + pctColW + posColW + remarkColW;
 
+      // Column x-positions
+      const cols: number[] = [];
       let cx = margin;
-      const colX: number[] = [cx];
-      cx += studentColW;
-      for (let i = 0; i < testCount; i++) {
-        colX.push(cx);
-        cx += testColW;
-      }
-      const totalX = cx; cx += totalColW;
-      const avgX = cx; cx += avgColW;
-      const pctX = cx; cx += pctColW;
-      const posX = cx; cx += posColW;
-      const remarkX = cx;
+      cols.push(cx); cx += studentColW; // 0: Student
+      for (let i = 0; i < testCount; i++) { cols.push(cx); cx += testColW; } // 1..N: Tests
+      const totalIdx = cols.length; cols.push(cx); cx += totalColW;
+      const avgIdx = cols.length; cols.push(cx); cx += avgColW;
+      const pctIdx = cols.length; cols.push(cx); cx += pctColW;
+      const posIdx = cols.length; cols.push(cx); cx += posColW;
+      const remarkIdx = cols.length; cols.push(cx);
 
-      // Table header
-      pdf.setFontSize(7);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Student', colX[0], y);
-      examOrder.forEach((_, idx) => {
-        pdf.text(`Test ${idx + 1}`, colX[idx + 1], y);
-      });
-      pdf.text('Total', totalX, y);
-      pdf.text('Average', avgX, y);
-      pdf.text('Pct (%)', pctX, y);
-      pdf.text('Pos', posX, y);
-      pdf.text('Remark', remarkX, y);
-      y += 2;
-      pdf.line(margin, y, pw - margin, y);
-      y += 4;
+      const rowH = 7;
+      const headerH = 9;
 
-      // Table rows from local ranked data
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(7);
-      for (const student of rankedStudents) {
-        if (y > ph - 15) {
-          pdf.addPage();
-          y = 16;
+      // ── Draw page header ──
+      const drawPageHeader = () => {
+        let y = 0;
+
+        // Brand band
+        drawBrandBand(0, 22);
+
+        // School name
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(white[0], white[1], white[2]);
+        pdf.text(schoolName.toUpperCase(), pw / 2, 10, { align: 'center' });
+
+        // Class info
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`${className}  •  ${gradeLevel || 'Grade N/A'}  •  Class Performance Report`, pw / 2, 17, { align: 'center' });
+
+        y = 26;
+
+        // Meta row
+        pdf.setTextColor(textMid[0], textMid[1], textMid[2]);
+        pdf.setFontSize(8);
+        const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        pdf.text(`Generated: ${dateStr}`, margin, y);
+        pdf.text(`Students: ${totalStudents}`, margin + 70, y);
+        pdf.text(`Class Average: ${classAverage.toFixed(1)}%`, margin + 110, y);
+        pdf.text(`Tests: ${testCount}`, margin + 165, y);
+        y += 5;
+
+        // AI Summary box
+        if (aiSummary) {
+          fillRect(margin, y, actualTableW, 1, brandMid as any);
+          y += 3;
+          fillRect(margin, y, actualTableW, 0, headerBg as any);
+          pdf.setFontSize(7);
+          pdf.setFont('helvetica', 'italic');
+          pdf.setTextColor(textMid[0], textMid[1], textMid[2]);
+          const lines = pdf.splitTextToSize(aiSummary, actualTableW - 6);
+          const boxH = lines.length * 3.2 + 4;
+          fillRect(margin, y, actualTableW, boxH, headerBg as any);
+          pdf.text(lines, margin + 3, y + 3.5);
+          y += boxH + 2;
         }
+
+        y += 2;
+        return y;
+      };
+
+      // ── Draw table header row ──
+      const drawTableHeader = (y: number) => {
+        fillRect(margin, y - 1, actualTableW, headerH, brandDark as any);
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(white[0], white[1], white[2]);
+        const hY = y + 4.5;
+        pdf.text('Student', cols[0] + 2, hY);
+        examOrder.forEach((_, idx) => {
+          pdf.text(`Test ${idx + 1}`, cols[idx + 1] + 1, hY);
+        });
+        pdf.text('Total', cols[totalIdx] + 1, hY);
+        pdf.text('Average', cols[avgIdx] + 1, hY);
+        pdf.text('Pct (%)', cols[pctIdx] + 1, hY);
+        pdf.text('Pos', cols[posIdx] + 1, hY);
+        pdf.text('Remark', cols[remarkIdx] + 1, hY);
+        return y + headerH + 1;
+      };
+
+      // ── Draw footer ──
+      const drawFooter = (pageNum: number, totalPages: number) => {
+        pdf.setFontSize(6);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(textMid[0], textMid[1], textMid[2]);
+        pdf.text(`${schoolName} • ${className} Assessment Report`, margin, ph - 5);
+        pdf.text(`Page ${pageNum} of ${totalPages}`, pw - margin, ph - 5, { align: 'right' });
+        // Bottom brand line
+        fillRect(margin, ph - 3, actualTableW, 0.5, brandMid as any);
+      };
+
+      // ── First pass: figure out page count ──
+      let y = drawPageHeader();
+      y = drawTableHeader(y);
+      let pageCount = 1;
+      for (let i = 0; i < rankedStudents.length; i++) {
+        if (y + rowH > ph - 12) {
+          pageCount++;
+          y = 14;
+          y = drawTableHeader(y);
+        }
+        y += rowH;
+      }
+
+      // ── Actual rendering ──
+      // Reset
+      const pdf2 = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const p = pdf2;
+      let currentPage = 1;
+
+      y = drawPageHeaderOn(p);
+      y = drawTableHeaderOn(p, y);
+
+      for (let rowIdx = 0; rowIdx < rankedStudents.length; rowIdx++) {
+        if (y + rowH > ph - 12) {
+          drawFooterOn(p, currentPage, pageCount);
+          p.addPage();
+          currentPage++;
+          y = 10;
+          y = drawTableHeaderOn(p, y);
+        }
+
+        const student = rankedStudents[rowIdx];
         const studentAttempts = rawAttempts[student.studentId] || [];
+        const isAlt = rowIdx % 2 === 1;
 
-        pdf.text(student.studentName.substring(0, 28), colX[0], y);
+        // Row background
+        if (isAlt) fillRect(margin, y - 1, actualTableW, rowH, rowAlt as any);
 
+        const rY = y + 4;
+        p.setFontSize(7);
+        p.setFont('helvetica', 'normal');
+        p.setTextColor(textDark[0], textDark[1], textDark[2]);
+
+        // Student name (bold for top 3)
+        if ((student as any).position <= 3) {
+          p.setFont('helvetica', 'bold');
+        }
+        p.text(student.studentName.substring(0, 26), cols[0] + 2, rY);
+        p.setFont('helvetica', 'normal');
+
+        // Test scores
         examOrder.forEach((exam, idx) => {
           const attempt = studentAttempts.find(a => a.exam.id === exam.examId);
-          const txt = attempt ? `${attempt.marks_obtained || 0}/${exam.totalMarks}` : '—';
-          pdf.text(txt, colX[idx + 1], y);
+          if (attempt) {
+            const marks = attempt.marks_obtained || 0;
+            const pct = exam.totalMarks > 0 ? (marks / exam.totalMarks) * 100 : 0;
+            const color = pct >= 75 ? greenTxt : pct >= 60 ? amberTxt : redTxt;
+            p.setTextColor(color[0], color[1], color[2]);
+            p.text(`${marks}/${exam.totalMarks}`, cols[idx + 1] + 1, rY);
+          } else {
+            p.setTextColor(textMid[0], textMid[1], textMid[2]);
+            p.text('—', cols[idx + 1] + 1, rY);
+          }
         });
 
-        pdf.text(`${student.marksObtained}/${student.totalMarks}`, totalX, y);
-        const avg = student.examsTaken > 0 ? (student.marksObtained / student.examsTaken).toFixed(1) : '0';
-        pdf.text(avg, avgX, y);
-        pdf.text(`${student.averagePercentage.toFixed(1)}%`, pctX, y);
-        pdf.text(String(student.position), posX, y);
+        // Total
+        p.setTextColor(textDark[0], textDark[1], textDark[2]);
+        p.setFont('helvetica', 'bold');
+        p.text(`${student.marksObtained}/${student.totalMarks}`, cols[totalIdx] + 1, rY);
 
-        const remark = student.averagePercentage >= 90 ? 'Excellent' :
-          student.averagePercentage >= 75 ? 'Very Good' :
-          student.averagePercentage >= 60 ? 'Good' :
-          student.averagePercentage >= 50 ? 'Fair' : 'Needs Imp.';
-        pdf.text(remark, remarkX, y);
-        y += 5;
+        // Average
+        p.setFont('helvetica', 'normal');
+        const avg = student.examsTaken > 0 ? (student.marksObtained / student.examsTaken).toFixed(1) : '0';
+        p.text(avg, cols[avgIdx] + 1, rY);
+
+        // Percentage pill
+        const pctVal = student.averagePercentage;
+        const pillBg = pctVal >= 75 ? greenBg : pctVal >= 60 ? amberBg : redBg;
+        const pillTxt = pctVal >= 75 ? greenTxt : pctVal >= 60 ? amberTxt : redTxt;
+        const pctStr = `${pctVal.toFixed(1)}%`;
+        fillRect(cols[pctIdx] + 0.5, y - 0.5, pctColW - 2, rowH - 1, pillBg as any);
+        p.setFont('helvetica', 'bold');
+        p.setTextColor(pillTxt[0], pillTxt[1], pillTxt[2]);
+        p.text(pctStr, cols[pctIdx] + 1.5, rY);
+
+        // Position badge
+        const pos = (student as any).position;
+        const posBg = pos === 1 ? goldBg : pos === 2 ? silverBg : pos === 3 ? bronzeBg : [255, 255, 255];
+        if (pos <= 3) {
+          fillRect(cols[posIdx] + 1, y, 10, rowH - 2, posBg as any);
+        }
+        p.setFont('helvetica', 'bold');
+        p.setTextColor(textDark[0], textDark[1], textDark[2]);
+        p.text(String(pos), cols[posIdx] + 4, rY);
+
+        // Remark
+        const remark = getRemark(pctVal);
+        const remBg = pctVal >= 75 ? greenBg : pctVal >= 60 ? amberBg : redBg;
+        const remTxt = pctVal >= 75 ? greenTxt : pctVal >= 60 ? amberTxt : redTxt;
+        fillRect(cols[remarkIdx] + 0.5, y - 0.5, remarkColW - 2, rowH - 1, remBg as any);
+        p.setFont('helvetica', 'bold');
+        p.setFontSize(6.5);
+        p.setTextColor(remTxt[0], remTxt[1], remTxt[2]);
+        p.text(remark, cols[remarkIdx] + 1.5, rY);
+
+        // Row bottom border
+        p.setDrawColor(230, 230, 230);
+        p.line(margin, y + rowH - 1, margin + actualTableW, y + rowH - 1);
+
+        y += rowH;
       }
 
-      pdf.save(`${className}-assessment-report.pdf`);
+      // Final footer
+      drawFooterOn(p, currentPage, pageCount);
+      p.save(`${className}-Assessment-Report.pdf`);
       toast.success('PDF exported successfully');
+
+      // ── Inline helpers that reference the same pdf instance ──
+      function drawPageHeaderOn(doc: any) {
+        let y = 0;
+        // Brand band
+        doc.setFillColor(brandMid[0], brandMid[1], brandMid[2]);
+        doc.rect(0, 0, pw / 2, 22, 'F');
+        doc.setFillColor(brandLight[0], brandLight[1], brandLight[2]);
+        doc.rect(pw / 2, 0, pw / 2, 22, 'F');
+
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text(schoolName.toUpperCase(), pw / 2, 10, { align: 'center' });
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${className}  •  ${gradeLevel || 'Grade N/A'}  •  Class Performance Report`, pw / 2, 17, { align: 'center' });
+
+        y = 26;
+        doc.setTextColor(textMid[0], textMid[1], textMid[2]);
+        doc.setFontSize(8);
+        const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        doc.text(`Generated: ${dateStr}`, margin, y);
+        doc.text(`Students: ${totalStudents}`, margin + 70, y);
+        doc.text(`Class Average: ${classAverage.toFixed(1)}%`, margin + 110, y);
+        doc.text(`Tests: ${testCount}`, margin + 165, y);
+        y += 5;
+
+        if (aiSummary) {
+          doc.setFillColor(brandMid[0], brandMid[1], brandMid[2]);
+          doc.rect(margin, y, actualTableW, 0.8, 'F');
+          y += 2.5;
+          doc.setFontSize(7);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(textMid[0], textMid[1], textMid[2]);
+          const lines = doc.splitTextToSize(aiSummary, actualTableW - 6);
+          const boxH = lines.length * 3.2 + 4;
+          doc.setFillColor(headerBg[0], headerBg[1], headerBg[2]);
+          doc.rect(margin, y, actualTableW, boxH, 'F');
+          doc.text(lines, margin + 3, y + 3.5);
+          y += boxH + 2;
+        }
+        y += 2;
+        return y;
+      }
+
+      function drawTableHeaderOn(doc: any, startY: number) {
+        doc.setFillColor(brandDark[0], brandDark[1], brandDark[2]);
+        doc.rect(margin, startY - 1, actualTableW, headerH, 'F');
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        const hY = startY + 4.5;
+        doc.text('Student', cols[0] + 2, hY);
+        examOrder.forEach((_, idx) => { doc.text(`Test ${idx + 1}`, cols[idx + 1] + 1, hY); });
+        doc.text('Total', cols[totalIdx] + 1, hY);
+        doc.text('Average', cols[avgIdx] + 1, hY);
+        doc.text('Pct (%)', cols[pctIdx] + 1, hY);
+        doc.text('Pos', cols[posIdx] + 1, hY);
+        doc.text('Remark', cols[remarkIdx] + 1, hY);
+        return startY + headerH + 1;
+      }
+
+      function drawFooterOn(doc: any, pageNum: number, totalPages: number) {
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(textMid[0], textMid[1], textMid[2]);
+        doc.text(`${schoolName} • ${className} Assessment Report`, margin, ph - 5);
+        doc.text(`Page ${pageNum} of ${totalPages}`, pw - margin, ph - 5, { align: 'right' });
+        doc.setFillColor(brandMid[0], brandMid[1], brandMid[2]);
+        doc.rect(margin, ph - 3, actualTableW, 0.5, 'F');
+      }
+
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export PDF. Please try again.');
