@@ -453,7 +453,7 @@ export function AIStudyAssistant() {
       {/* Quick actions after conversation started */}
       {messages.length > 0 && !isLoading && (
         <div className="px-3 pb-1 flex gap-1 overflow-x-auto shrink-0">
-          {QUICK_ACTIONS.slice(0, 2).map((action) => (
+          {QUICK_ACTIONS.slice(0, 3).map((action) => (
             <button
               key={action.label}
               onClick={() => sendMessage(action.prompt)}
