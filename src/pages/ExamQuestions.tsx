@@ -181,7 +181,114 @@ export default function ExamQuestions() {
     setFormData({ ...formData, options: newOptions });
   };
 
-  const handlePdfUpload = async (e: React.FormEvent) => {
+  const toggleAiQuestionType = (type: string) => {
+    setAiQuestionTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) {
+      toast.error('Please describe the topic');
+      return;
+    }
+    if (aiQuestionTypes.length === 0) {
+      toast.error('Select at least one question type');
+      return;
+    }
+
+    setAiGenerating(true);
+    setAiGeneratedQuestions([]);
+    setAiSelectedQuestions(new Set());
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            topic: aiTopic,
+            subject: exam?.subject,
+            gradeLevel: exam?.grade_level,
+            questionTypes: aiQuestionTypes,
+            numQuestions: aiNumQuestions,
+            difficulty: aiDifficulty,
+          }),
+        }
+      );
+
+      if (response.status === 429) {
+        toast.error('Too many requests. Please wait a moment.');
+        return;
+      }
+      if (response.status === 402) {
+        toast.error('AI credits exhausted. Please add credits.');
+        return;
+      }
+      if (!response.ok) throw new Error('Generation failed');
+
+      const data = await response.json();
+      if (data.questions?.length) {
+        setAiGeneratedQuestions(data.questions);
+        // Select all by default
+        setAiSelectedQuestions(new Set(data.questions.map((_: any, i: number) => i)));
+        toast.success(`Generated ${data.questions.length} questions! Review and add below.`);
+      } else {
+        toast.error('No questions generated. Try a different topic description.');
+      }
+    } catch (error) {
+      console.error('AI generation error:', error);
+      toast.error('Failed to generate questions. Please try again.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAddAiQuestions = async () => {
+    const selected = aiGeneratedQuestions.filter((_, i) => aiSelectedQuestions.has(i));
+    if (selected.length === 0) {
+      toast.error('Select at least one question to add');
+      return;
+    }
+
+    try {
+      const startOrder = questions.length + 1;
+      const inserts = selected.map((q, i) => ({
+        exam_id: examId,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.question_type === 'multiple_choice' ? q.options : null,
+        correct_answer: q.correct_answer || null,
+        marks: q.marks || 1,
+        order_number: startOrder + i,
+      }));
+
+      const { error } = await supabase.from('exam_questions').insert(inserts);
+      if (error) throw error;
+
+      toast.success(`Added ${selected.length} questions to the exam!`);
+      setIsAiDialogOpen(false);
+      setAiGeneratedQuestions([]);
+      setAiTopic('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding AI questions:', error);
+      toast.error('Failed to add questions');
+    }
+  };
+
+  const toggleAiQuestion = (index: number) => {
+    setAiSelectedQuestions(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
     e.preventDefault();
     const fileInput = document.getElementById('pdf-file') as HTMLInputElement;
     const file = fileInput?.files?.[0];
