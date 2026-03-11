@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Edit, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, Upload, Sparkles, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Question {
   id: string;
@@ -34,6 +35,17 @@ export default function ExamQuestions() {
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  
+  // AI generation state
+  const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiNumQuestions, setAiNumQuestions] = useState(10);
+  const [aiDifficulty, setAiDifficulty] = useState('Medium');
+  const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
+  const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
+  const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
+
   const [formData, setFormData] = useState({
     question_text: '',
     question_type: 'multiple_choice',
@@ -167,6 +179,115 @@ export default function ExamQuestions() {
     const newOptions = [...formData.options];
     newOptions[index] = value;
     setFormData({ ...formData, options: newOptions });
+  };
+
+  const toggleAiQuestionType = (type: string) => {
+    setAiQuestionTypes(prev =>
+      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
+    );
+  };
+
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim()) {
+      toast.error('Please describe the topic');
+      return;
+    }
+    if (aiQuestionTypes.length === 0) {
+      toast.error('Select at least one question type');
+      return;
+    }
+
+    setAiGenerating(true);
+    setAiGeneratedQuestions([]);
+    setAiSelectedQuestions(new Set());
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            topic: aiTopic,
+            subject: exam?.subject,
+            gradeLevel: exam?.grade_level,
+            questionTypes: aiQuestionTypes,
+            numQuestions: aiNumQuestions,
+            difficulty: aiDifficulty,
+          }),
+        }
+      );
+
+      if (response.status === 429) {
+        toast.error('Too many requests. Please wait a moment.');
+        return;
+      }
+      if (response.status === 402) {
+        toast.error('AI credits exhausted. Please add credits.');
+        return;
+      }
+      if (!response.ok) throw new Error('Generation failed');
+
+      const data = await response.json();
+      if (data.questions?.length) {
+        setAiGeneratedQuestions(data.questions);
+        // Select all by default
+        setAiSelectedQuestions(new Set(data.questions.map((_: any, i: number) => i)));
+        toast.success(`Generated ${data.questions.length} questions! Review and add below.`);
+      } else {
+        toast.error('No questions generated. Try a different topic description.');
+      }
+    } catch (error) {
+      console.error('AI generation error:', error);
+      toast.error('Failed to generate questions. Please try again.');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleAddAiQuestions = async () => {
+    const selected = aiGeneratedQuestions.filter((_, i) => aiSelectedQuestions.has(i));
+    if (selected.length === 0) {
+      toast.error('Select at least one question to add');
+      return;
+    }
+
+    try {
+      const startOrder = questions.length + 1;
+      const inserts = selected.map((q, i) => ({
+        exam_id: examId,
+        question_text: q.question_text,
+        question_type: q.question_type,
+        options: q.question_type === 'multiple_choice' ? q.options : null,
+        correct_answer: q.correct_answer || null,
+        marks: q.marks || 1,
+        order_number: startOrder + i,
+      }));
+
+      const { error } = await supabase.from('exam_questions').insert(inserts);
+      if (error) throw error;
+
+      toast.success(`Added ${selected.length} questions to the exam!`);
+      setIsAiDialogOpen(false);
+      setAiGeneratedQuestions([]);
+      setAiTopic('');
+      loadData();
+    } catch (error) {
+      console.error('Error adding AI questions:', error);
+      toast.error('Failed to add questions');
+    }
+  };
+
+  const toggleAiQuestion = (index: number) => {
+    setAiSelectedQuestions(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   };
 
   const handlePdfUpload = async (e: React.FormEvent) => {
@@ -314,6 +435,154 @@ export default function ExamQuestions() {
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {/* AI Generate Button */}
+            <Dialog open={isAiDialogOpen} onOpenChange={(open) => {
+              setIsAiDialogOpen(open);
+              if (!open) {
+                setAiGeneratedQuestions([]);
+                setAiSelectedQuestions(new Set());
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-primary/30 text-primary hover:bg-primary/10">
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  AI Generate
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    AI Question Generator
+                  </DialogTitle>
+                  <DialogDescription>
+                    Describe a topic and AI will generate exam questions for you to review and add.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Topic Description</Label>
+                    <Textarea
+                      value={aiTopic}
+                      onChange={(e) => setAiTopic(e.target.value)}
+                      placeholder="e.g. Photosynthesis process, light and dark reactions, factors affecting rate of photosynthesis..."
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Number of Questions</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={aiNumQuestions}
+                        onChange={(e) => setAiNumQuestions(parseInt(e.target.value) || 10)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Difficulty</Label>
+                      <Select value={aiDifficulty} onValueChange={setAiDifficulty}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Easy">Easy</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="Hard">Hard</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block">Question Types</Label>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { value: 'multiple_choice', label: 'Multiple Choice' },
+                        { value: 'true_false', label: 'True/False' },
+                        { value: 'short_answer', label: 'Short Answer' },
+                        { value: 'essay', label: 'Essay' },
+                      ].map((t) => (
+                        <label key={t.value} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox
+                            checked={aiQuestionTypes.includes(t.value)}
+                            onCheckedChange={() => toggleAiQuestionType(t.value)}
+                          />
+                          <span className="text-sm">{t.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <Button onClick={handleAiGenerate} disabled={aiGenerating} className="w-full">
+                    {aiGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Questions...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Questions
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Generated Questions Preview */}
+                  {aiGeneratedQuestions.length > 0 && (
+                    <div className="space-y-3 border-t pt-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Generated Questions ({aiGeneratedQuestions.length})</h3>
+                        <span className="text-sm text-muted-foreground">
+                          {aiSelectedQuestions.size} selected
+                        </span>
+                      </div>
+                      {aiGeneratedQuestions.map((q, i) => (
+                        <Card key={i} className={`cursor-pointer transition-colors ${aiSelectedQuestions.has(i) ? 'border-primary/50 bg-primary/5' : 'opacity-60'}`}
+                          onClick={() => toggleAiQuestion(i)}>
+                          <CardContent className="py-3 px-4">
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={aiSelectedQuestions.has(i)}
+                                onCheckedChange={() => toggleAiQuestion(i)}
+                                className="mt-1"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{q.question_text}</p>
+                                <div className="flex gap-2 mt-1">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {q.question_type.replace('_', ' ')}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {q.marks} marks
+                                  </Badge>
+                                </div>
+                                {q.options && (
+                                  <div className="mt-2 space-y-1">
+                                    {q.options.map((opt: string, j: number) => (
+                                      <p key={j} className={`text-xs ${opt === q.correct_answer ? 'text-green-600 dark:text-green-400 font-medium' : 'text-muted-foreground'}`}>
+                                        {String.fromCharCode(65 + j)}. {opt} {opt === q.correct_answer && '✓'}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                                {q.correct_answer && q.question_type !== 'multiple_choice' && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    <span className="font-medium">Answer:</span> {q.correct_answer.substring(0, 100)}{q.correct_answer.length > 100 ? '...' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      <Button onClick={handleAddAiQuestions} className="w-full">
+                        <Check className="mr-2 h-4 w-4" />
+                        Add {aiSelectedQuestions.size} Selected Questions
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">
