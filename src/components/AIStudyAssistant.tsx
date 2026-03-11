@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Brain, Send, X, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
+import { Brain, Send, X, Sparkles, RotateCcw, Loader2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
