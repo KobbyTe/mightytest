@@ -736,6 +736,35 @@ export default function AdminDashboard() {
             </TabsContent>
 
           <TabsContent value="attempts" className="space-y-4">
+            {/* Bulk AI Grading */}
+            {attempts.some(a => a.status === 'completed' || a.status === 'grading') && (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="flex items-center justify-between py-4">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Bulk AI Grading</p>
+                      <p className="text-sm text-muted-foreground">
+                        {bulkGrading ? bulkGradingProgress : `Auto-grade ${attempts.filter(a => a.status === 'completed' || a.status === 'grading').length} pending submission(s) with AI`}
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={handleBulkAiGrade} disabled={bulkGrading}>
+                    {bulkGrading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Grading...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Auto-Grade All
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
             <Card>
               <CardHeader>
                 <CardTitle>Student Exam Attempts</CardTitle>
