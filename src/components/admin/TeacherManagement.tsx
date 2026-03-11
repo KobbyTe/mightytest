@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { CheckCircle, XCircle, Clock, UserCheck, Loader2, BookOpen, Plus, Trash2, Mail, Phone, GraduationCap, Building2, CalendarDays, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, UserCheck, Loader2, BookOpen, Plus, Trash2, Mail, Phone, GraduationCap, Building2, CalendarDays, Sparkles, Eye, Shield, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
