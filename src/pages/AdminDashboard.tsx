@@ -283,6 +283,11 @@ export default function AdminDashboard() {
     );
   }
 
+  // Render dedicated teacher dashboard
+  if (isTeacher) {
+    return <TeacherDashboard />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Header */}
