@@ -565,144 +565,212 @@ export default function TeacherManagement() {
 
       {/* Teacher Profile Dialog */}
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
           {profileTeacher && (() => {
             const initials = profileTeacher.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
             const statusConfig = {
-              approved: { label: 'Approved', cls: 'bg-success/15 text-success border-success/30' },
-              pending: { label: 'Pending', cls: 'bg-primary/15 text-primary border-primary/30' },
-              rejected: { label: 'Rejected', cls: 'bg-destructive/15 text-destructive border-destructive/30' },
-            }[profileTeacher.status] || { label: profileTeacher.status, cls: 'bg-muted text-muted-foreground' };
+              approved: { label: 'Verified Educator', cls: 'bg-success/15 text-success border-success/30', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+              pending: { label: 'Pending Verification', cls: 'bg-primary/15 text-primary border-primary/30', icon: <Clock className="h-3.5 w-3.5" /> },
+              rejected: { label: 'Access Revoked', cls: 'bg-destructive/15 text-destructive border-destructive/30', icon: <XCircle className="h-3.5 w-3.5" /> },
+            }[profileTeacher.status] || { label: profileTeacher.status, cls: 'bg-muted text-muted-foreground', icon: null };
+
+            const accountAge = Math.floor((Date.now() - new Date(profileTeacher.created_at).getTime()) / (1000 * 60 * 60 * 24));
+            const accountAgeLabel = accountAge > 365 ? `${Math.floor(accountAge / 365)}y ${accountAge % 365}d` : `${accountAge} days`;
 
             return (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-                <div className="flex flex-col items-center text-center pb-5 border-b border-border/50">
-                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/25 to-accent/25 flex items-center justify-center text-2xl font-bold text-foreground border-2 border-border/50 shadow-lg mb-3">
-                    {initials}
-                  </div>
-                  <h2 className="text-xl font-bold text-foreground">{profileTeacher.full_name}</h2>
-                  <Badge variant="outline" className={`mt-2 text-xs border ${statusConfig.cls}`}>
-                    {statusConfig.label}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 py-5">
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Mail className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Email</p>
-                      <p className="text-sm text-foreground truncate">{profileTeacher.email}</p>
-                    </div>
-                  </div>
-
-                  {profileTeacher.phone_number && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Phone className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Phone</p>
-                        <p className="text-sm text-foreground">{profileTeacher.phone_number}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {profileTeacher.subject_specialty && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                      <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                        <GraduationCap className="h-4 w-4 text-accent" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Subject Specialty</p>
-                        <Badge variant="outline" className={`text-xs border ${subjectColorMap[profileTeacher.subject_specialty] || 'bg-muted'}`}>
-                          {profileTeacher.subject_specialty}
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-
-                  {profileTeacher.school && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                      <div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                        <Building2 className="h-4 w-4 text-accent" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">School</p>
-                        <p className="text-sm text-foreground">{profileTeacher.school.name}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <CalendarDays className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Joined</p>
-                        <p className="text-sm text-foreground">{new Date(profileTeacher.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    {profileTeacher.approved_at && (
-                      <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                        <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-                          <Shield className="h-4 w-4 text-success" />
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Approved</p>
-                          <p className="text-sm text-foreground">{new Date(profileTeacher.approved_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
+                {/* Hero Banner */}
+                <div className="relative h-32 bg-gradient-to-br from-accent via-primary to-secondary overflow-hidden rounded-t-lg">
+                  <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 80% 20%, hsl(var(--primary)) 0%, transparent 50%)' }} />
+                  <div className="absolute top-3 right-3">
+                    {profileTeacher.status === 'approved' && (
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="flex items-center gap-1.5 bg-background/90 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-lg">
+                        <Shield className="h-4 w-4 text-success" />
+                        <span className="text-[11px] font-bold text-success">VERIFIED</span>
+                      </motion.div>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30">
-                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <Hash className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">User ID</p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">{profileTeacher.user_id}</p>
-                    </div>
-                  </div>
                 </div>
 
-                <div className="pt-4 border-t border-border/50">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Assigned Classes ({profileAssignments.length})
-                  </Label>
-                  {profileAssignments.length > 0 ? (
-                    <div className="space-y-2 mt-3">
-                      {profileAssignments.map((a, i) => (
-                        <motion.div
-                          key={a.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className="flex items-center gap-2.5 p-3 rounded-xl border border-border/50 bg-muted/20"
-                        >
-                          <div className="h-8 w-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                            <BookOpen className="h-4 w-4 text-accent" />
+                {/* Avatar + Name Section */}
+                <div className="relative px-6 pb-4">
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.15, duration: 0.3 }}
+                    className="flex items-end gap-4 -mt-12"
+                  >
+                    <div className="relative shrink-0">
+                      <div className="h-24 w-24 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-3xl font-black text-primary-foreground border-4 border-background shadow-xl">
+                        {initials}
+                      </div>
+                      {profileTeacher.status === 'approved' && (
+                        <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-success flex items-center justify-center border-2 border-background shadow-md">
+                          <CheckCircle className="h-4 w-4 text-success-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="pb-1 min-w-0">
+                      <h2 className="text-xl font-black text-foreground tracking-tight truncate">{profileTeacher.full_name}</h2>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge variant="outline" className={`text-[11px] border font-semibold gap-1 ${statusConfig.cls}`}>
+                          {statusConfig.icon}
+                          {statusConfig.label}
+                        </Badge>
+                        {profileTeacher.subject_specialty && (
+                          <Badge variant="outline" className={`text-[11px] border ${subjectColorMap[profileTeacher.subject_specialty] || 'bg-muted'}`}>
+                            {profileTeacher.subject_specialty}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                </div>
+
+                <div className="px-6 pb-6 space-y-5">
+                  {/* Contact & Professional Section */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                    <h3 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-border" />
+                      Contact & Professional
+                      <div className="h-px flex-1 bg-border" />
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => { navigator.clipboard.writeText(profileTeacher.email); toast.success('Email copied'); }}>
+                        <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/20 transition-colors">
+                          <Mail className="h-5 w-5 text-accent" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Email Address</p>
+                          <p className="text-sm font-medium text-foreground truncate">{profileTeacher.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => { if (profileTeacher.phone_number) { navigator.clipboard.writeText(profileTeacher.phone_number); toast.success('Phone copied'); } }}>
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                          <Phone className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Phone Number</p>
+                          <p className="text-sm font-medium text-foreground">{profileTeacher.phone_number || 'Not provided'}</p>
+                        </div>
+                      </div>
+
+                      {profileTeacher.school && (
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/50 shadow-sm">
+                          <div className="h-10 w-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="h-5 w-5 text-secondary" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-foreground">{a.class_info?.name || 'Unknown Class'}</p>
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="outline" className={`text-[10px] border ${subjectColorMap[a.subject] || 'bg-muted'}`}>
-                                {a.subject}
-                              </Badge>
-                              {a.class_info?.school && (
-                                <span className="text-[10px] text-muted-foreground">{a.class_info.school.name}</span>
-                              )}
-                            </div>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">School Affiliation</p>
+                            <p className="text-sm font-medium text-foreground">{profileTeacher.school.name}</p>
                           </div>
-                        </motion.div>
-                      ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/50 shadow-sm">
+                        <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                          <Hash className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Teacher ID</p>
+                          <p className="text-xs text-muted-foreground font-mono truncate">TCH-{profileTeacher.id.slice(0, 8).toUpperCase()}</p>
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground mt-2">No classes assigned yet.</p>
-                  )}
+                  </motion.div>
+
+                  {/* Account Timeline & Security */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                    <h3 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-border" />
+                      Security & Verification
+                      <div className="h-px flex-1 bg-border" />
+                    </h3>
+                    <div className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
+                      {/* Timeline */}
+                      <div className="flex items-start gap-4">
+                        <div className="flex flex-col items-center gap-0">
+                          <div className="h-3 w-3 rounded-full bg-primary border-2 border-primary shadow-sm" />
+                          <div className="w-0.5 h-8 bg-border" />
+                          <div className={`h-3 w-3 rounded-full border-2 shadow-sm ${profileTeacher.approved_at ? 'bg-success border-success' : 'bg-muted border-border'}`} />
+                        </div>
+                        <div className="flex-1 space-y-4 -mt-1">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Account Registered</p>
+                            <p className="text-sm font-medium text-foreground">{new Date(profileTeacher.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                              {profileTeacher.approved_at ? 'Verified & Approved' : 'Awaiting Verification'}
+                            </p>
+                            <p className="text-sm font-medium text-foreground">
+                              {profileTeacher.approved_at
+                                ? new Date(profileTeacher.approved_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                                : 'Pending review'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Trust indicators */}
+                      <div className="mt-4 pt-4 border-t border-border/50 flex items-center gap-3 flex-wrap">
+                        <div className="flex items-center gap-1.5 bg-muted/50 rounded-full px-3 py-1.5">
+                          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-[11px] font-semibold text-muted-foreground">Account age: {accountAgeLabel}</span>
+                        </div>
+                        {profileTeacher.status === 'approved' && (
+                          <div className="flex items-center gap-1.5 bg-success/10 rounded-full px-3 py-1.5">
+                            <Shield className="h-3.5 w-3.5 text-success" />
+                            <span className="text-[11px] font-semibold text-success">Identity Verified</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Assigned Classes */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                    <h3 className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold mb-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-border" />
+                      Assigned Classes ({profileAssignments.length})
+                      <div className="h-px flex-1 bg-border" />
+                    </h3>
+                    {profileAssignments.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {profileAssignments.map((a, i) => (
+                          <motion.div
+                            key={a.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 + i * 0.06 }}
+                            className="flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow"
+                          >
+                            <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                              <BookOpen className="h-5 w-5 text-accent" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{a.class_info?.name || 'Unknown Class'}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <Badge variant="outline" className={`text-[10px] border ${subjectColorMap[a.subject] || 'bg-muted'}`}>
+                                  {a.subject}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground">
+                                  Since {new Date(a.assigned_at || '').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                </span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-8 rounded-xl bg-muted/20 border border-dashed border-border/50">
+                        <BookOpen className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                        <p className="text-sm text-muted-foreground">No classes assigned yet</p>
+                        <p className="text-xs text-muted-foreground/60 mt-0.5">Assign classes from the management tab</p>
+                      </div>
+                    )}
+                  </motion.div>
                 </div>
               </motion.div>
             );
