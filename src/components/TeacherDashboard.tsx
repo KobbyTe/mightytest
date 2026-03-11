@@ -414,25 +414,6 @@ export default function TeacherDashboard() {
           ))}
         </motion.div>
 
-        {/* ─── SCOPE INDICATOR ─── */}
-        {assignments.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="border-primary/20 bg-primary/5 backdrop-blur-sm">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Briefcase className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-xs font-medium text-muted-foreground">Your scope:</span>
-                  {assignments.map((a, idx) => (
-                    <Badge key={idx} variant="secondary" className={`text-xs border ${subjectColors[a.subject] || 'bg-muted'}`}>
-                      {a.class_name || 'Class'} — {a.subject}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
         {/* ─── TABS ─── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <Tabs defaultValue="exams" className="w-full">
