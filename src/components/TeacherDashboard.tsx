@@ -441,6 +441,7 @@ export default function TeacherDashboard() {
                 <TabsList className="w-full bg-transparent gap-1 flex overflow-x-auto">
                   {[
                     { value: 'exams', label: 'Exams', icon: FileText, count: exams.length },
+                    { value: 'performance', label: 'Performance', icon: Trophy },
                     { value: 'schools', label: 'Schools', icon: Building2 },
                     { value: 'assignments', label: 'Assignments', icon: ClipboardList },
                     { value: 'attempts', label: 'Attempts', icon: Eye, count: attempts.length },
