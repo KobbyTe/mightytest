@@ -9,8 +9,9 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { 
   Users, 
@@ -20,8 +21,9 @@ import {
   FileSpreadsheet, 
   Loader2,
   ArrowLeft,
-  X
+  Trophy
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import StudentPerformanceTable from './StudentPerformanceTable';
 import StudentReportCard from './StudentReportCard';
 import ClassAssessmentReport from './ClassAssessmentReport';
@@ -86,7 +88,7 @@ export default function ClassPerformancePortal({
   const [selectedStudent, setSelectedStudent] = useState<StudentPerformance | null>(null);
   const [adminRemarks, setAdminRemarks] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'students' | 'performance' | 'reports'>('students');
+  const [activeTab, setActiveTab] = useState<'rankings' | 'students' | 'performance' | 'reports'>('rankings');
 
   const REPORT_EXPORT_ID = 'class-assessment-report-export';
 
@@ -106,7 +108,6 @@ export default function ClassPerformancePortal({
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Get all students in this class
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, full_name, email, grade, created_at')
@@ -123,7 +124,6 @@ export default function ClassPerformancePortal({
 
       const studentIds = studentsData.map(s => s.id);
 
-      // 2. Get all exam attempts for these students (graded ones)
       const { data: attemptsData, error: attemptsError } = await supabase
         .from('exam_attempts')
         .select(`
@@ -139,7 +139,6 @@ export default function ClassPerformancePortal({
 
       if (attemptsError) throw attemptsError;
 
-      // Group attempts by student
       const attemptsByStudent: Record<string, ExamAttemptWithExam[]> = {};
       (attemptsData || []).forEach((attempt: any) => {
         if (!attempt.exam) return;
@@ -159,7 +158,6 @@ export default function ClassPerformancePortal({
 
       setRawAttempts(attemptsByStudent);
 
-      // 3. Calculate performance for each student
       const studentPerformances: StudentPerformance[] = studentsData.map(student => {
         const attempts = attemptsByStudent[student.id] || [];
         const examsTaken = attempts.length;
@@ -193,7 +191,6 @@ export default function ClassPerformancePortal({
 
       setStudents(studentPerformances);
 
-      // 4. Build exam data for class assessment
       const examMap: Record<string, ExamData> = {};
       (attemptsData || []).forEach((attempt: any) => {
         if (!attempt.exam) return;
@@ -218,7 +215,6 @@ export default function ClassPerformancePortal({
       });
 
       setExamData(Object.values(examMap));
-
     } catch (error: any) {
       console.error('Error loading class data:', error);
       toast.error('Failed to load class data');
@@ -227,17 +223,9 @@ export default function ClassPerformancePortal({
     }
   };
 
-  const waitForReportMount = () =>
-    new Promise<void>((resolve) => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => resolve());
-      });
-    });
-
   const handleExportPDF = async () => {
     setExporting(true);
     try {
-      // Use server-side report generation for reliability
       const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
         body: { class_id: classId },
       });
@@ -247,14 +235,12 @@ export default function ClassPerformancePortal({
 
       const report = data.report;
 
-      // Generate PDF from structured data (no html2canvas needed)
       const { default: jsPDF } = await import('jspdf');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pw = pdf.internal.pageSize.getWidth();
       const margin = 15;
       let y = 20;
 
-      // Header
       pdf.setFontSize(20);
       pdf.setFont('helvetica', 'bold');
       pdf.text(report.schoolName, pw / 2, y, { align: 'center' });
@@ -269,7 +255,6 @@ export default function ClassPerformancePortal({
       pdf.text(`Class Average: ${report.classAverage}% | Total Students: ${report.totalStudents}`, pw / 2, y, { align: 'center' });
       y += 8;
 
-      // AI Summary
       if (report.aiSummary) {
         pdf.setFontSize(9);
         pdf.setFont('helvetica', 'italic');
@@ -278,12 +263,10 @@ export default function ClassPerformancePortal({
         y += summaryLines.length * 4 + 5;
       }
 
-      // Separator
       pdf.setDrawColor(200);
       pdf.line(margin, y, pw - margin, y);
       y += 6;
 
-      // Table header
       pdf.setFontSize(8);
       pdf.setFont('helvetica', 'bold');
       const cols = [margin, margin + 45, margin + 80, margin + 100, margin + 120, margin + 145];
@@ -297,7 +280,6 @@ export default function ClassPerformancePortal({
       pdf.line(margin, y, pw - margin, y);
       y += 4;
 
-      // Table rows
       pdf.setFont('helvetica', 'normal');
       for (const student of report.students) {
         if (y > pdf.internal.pageSize.getHeight() - 20) {
@@ -349,6 +331,30 @@ export default function ClassPerformancePortal({
     }));
   };
 
+  // Rank students by percentage
+  const rankedStudents = [...students]
+    .sort((a, b) => b.averagePercentage - a.averagePercentage)
+    .map((s, idx) => ({ ...s, position: idx + 1 }));
+
+  // Build a unified exam list (sorted chronologically by earliest attempt)
+  const allExamIds = [...new Set(
+    Object.values(rawAttempts).flat().map(a => a.exam.id)
+  )];
+  const examOrder = allExamIds.map(examId => {
+    const firstAttempt = Object.values(rawAttempts).flat()
+      .filter(a => a.exam.id === examId)
+      .sort((a, b) => {
+        const da = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const db = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return da - db;
+      })[0];
+    return { examId, title: firstAttempt?.exam.title || 'Exam', totalMarks: firstAttempt?.exam.total_marks || 0, date: firstAttempt?.completed_at || '' };
+  }).sort((a, b) => {
+    const da = a.date ? new Date(a.date).getTime() : 0;
+    const db = b.date ? new Date(b.date).getTime() : 0;
+    return da - db;
+  });
+
   // Calculate summary stats
   const totalStudents = students.length;
   const studentsWithExams = students.filter(s => s.examsTaken > 0);
@@ -358,6 +364,20 @@ export default function ClassPerformancePortal({
   const overallPassRate = studentsWithExams.length > 0
     ? studentsWithExams.reduce((sum, s) => sum + s.passRate, 0) / studentsWithExams.length
     : 0;
+
+  const getPercentageColor = (pct: number) => {
+    if (pct >= 75) return 'text-emerald-600';
+    if (pct >= 60) return 'text-amber-600';
+    return 'text-destructive';
+  };
+
+  const getRemarkText = (pct: number) => {
+    if (pct >= 90) return 'Excellent';
+    if (pct >= 75) return 'Very Good';
+    if (pct >= 60) return 'Good';
+    if (pct >= 50) return 'Fair';
+    return 'Needs Improvement';
+  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -400,13 +420,14 @@ export default function ClassPerformancePortal({
             <StudentReportCard
               student={selectedStudent}
               examAttempts={getStudentExamAttempts(selectedStudent.studentId)}
+              position={rankedStudents.find(s => s.studentId === selectedStudent.studentId)?.position}
             />
           </div>
         ) : (
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <Card>
+              <Card className="backdrop-blur-xl bg-card/80 border-border/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
@@ -417,10 +438,10 @@ export default function ClassPerformancePortal({
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="backdrop-blur-xl bg-card/80 border-border/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-blue-500" />
+                    <TrendingUp className="h-5 w-5 text-accent" />
                     <div>
                       <p className="text-2xl font-bold">{classAverage.toFixed(1)}%</p>
                       <p className="text-xs text-muted-foreground">Class Average</p>
@@ -428,7 +449,7 @@ export default function ClassPerformancePortal({
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="backdrop-blur-xl bg-card/80 border-border/50">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2">
                     <FileText className="h-5 w-5 text-emerald-500" />
@@ -442,8 +463,12 @@ export default function ClassPerformancePortal({
             </div>
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'students' | 'performance' | 'reports')} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-4">
+                <TabsTrigger value="rankings">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Rankings
+                </TabsTrigger>
                 <TabsTrigger value="students">
                   <Users className="h-4 w-4 mr-2" />
                   Students
@@ -457,6 +482,117 @@ export default function ClassPerformancePortal({
                   Reports
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="rankings">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="backdrop-blur-xl bg-card/80 border-border/50 shadow-md">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-primary" />
+                        Class Rankings — All Students
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {rankedStudents.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">No exam data available yet.</p>
+                      ) : (
+                        <div className="relative w-full overflow-x-auto rounded-lg border border-border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/70">
+                                <TableHead className="font-bold text-foreground whitespace-nowrap">Student</TableHead>
+                                {examOrder.map((exam, idx) => (
+                                  <TableHead key={exam.examId} className="font-bold text-foreground text-center whitespace-nowrap">
+                                    Test {idx + 1}
+                                  </TableHead>
+                                ))}
+                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Total</TableHead>
+                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Average</TableHead>
+                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Percentage (100%)</TableHead>
+                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Position</TableHead>
+                                <TableHead className="font-bold text-foreground text-center whitespace-nowrap">Remark</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {rankedStudents.map((student) => {
+                                const studentAttempts = rawAttempts[student.studentId] || [];
+                                let totalObtained = 0;
+                                let totalPossible = 0;
+                                
+                                return (
+                                  <TableRow 
+                                    key={student.studentId} 
+                                    className="hover:bg-muted/30 cursor-pointer"
+                                    onClick={() => handleViewStudent(student)}
+                                  >
+                                    <TableCell className="font-medium whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        {student.position <= 3 && (
+                                          <Trophy className={`h-4 w-4 ${
+                                            student.position === 1 ? 'text-yellow-500' :
+                                            student.position === 2 ? 'text-gray-400' :
+                                            'text-amber-700'
+                                          }`} />
+                                        )}
+                                        {student.studentName}
+                                      </div>
+                                    </TableCell>
+                                    {examOrder.map((exam) => {
+                                      const attempt = studentAttempts.find(a => a.exam.id === exam.examId);
+                                      const marks = attempt?.marks_obtained || 0;
+                                      const total = exam.totalMarks;
+                                      if (attempt) {
+                                        totalObtained += marks;
+                                        totalPossible += total;
+                                      }
+                                      const pct = total > 0 ? (marks / total) * 100 : 0;
+                                      return (
+                                        <TableCell key={exam.examId} className="text-center whitespace-nowrap">
+                                          {attempt ? (
+                                            <>
+                                              <span className={`font-semibold ${getPercentageColor(pct)}`}>
+                                                {marks}
+                                              </span>
+                                              <span className="text-muted-foreground">/{total}</span>
+                                            </>
+                                          ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                          )}
+                                        </TableCell>
+                                      );
+                                    })}
+                                    <TableCell className="text-center font-bold whitespace-nowrap">
+                                      {student.marksObtained}/{student.totalMarks}
+                                    </TableCell>
+                                    <TableCell className="text-center font-semibold whitespace-nowrap">
+                                      {student.examsTaken > 0 ? (student.marksObtained / student.examsTaken).toFixed(1) : '0'}
+                                    </TableCell>
+                                    <TableCell className={`text-center font-bold whitespace-nowrap ${getPercentageColor(student.averagePercentage)}`}>
+                                      {student.averagePercentage.toFixed(1)}%
+                                    </TableCell>
+                                    <TableCell className="text-center font-bold whitespace-nowrap">
+                                      {student.position}
+                                    </TableCell>
+                                    <TableCell className="text-center whitespace-nowrap">
+                                      <Badge variant="outline" className={`${getPercentageColor(student.averagePercentage)} border-current text-xs`}>
+                                        {getRemarkText(student.averagePercentage)}
+                                      </Badge>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
 
               <TabsContent value="students">
                 <StudentPerformanceTable 
