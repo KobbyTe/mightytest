@@ -414,25 +414,6 @@ export default function TeacherDashboard() {
           ))}
         </motion.div>
 
-        {/* ─── SCOPE INDICATOR ─── */}
-        {assignments.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-            <Card className="border-primary/20 bg-primary/5 backdrop-blur-sm">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Briefcase className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-xs font-medium text-muted-foreground">Your scope:</span>
-                  {assignments.map((a, idx) => (
-                    <Badge key={idx} variant="secondary" className={`text-xs border ${subjectColors[a.subject] || 'bg-muted'}`}>
-                      {a.class_name || 'Class'} — {a.subject}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
         {/* ─── TABS ─── */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <Tabs defaultValue="exams" className="w-full">
@@ -805,14 +786,14 @@ export default function TeacherDashboard() {
 
       {/* ─── MY PROFILE DIALOG ─── */}
       <Dialog open={showProfile} onOpenChange={setShowProfile}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden max-h-[85vh]">
           {/* Hero Banner */}
-          <div className="relative h-28 bg-gradient-to-br from-primary via-accent to-secondary">
+          <div className="relative h-28 bg-gradient-to-br from-primary via-accent to-secondary shrink-0">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxLjUiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPjwvc3ZnPg==')] opacity-60" />
           </div>
 
           {/* Profile Header */}
-          <div className="relative px-6 pb-3 -mt-10 flex items-end gap-4">
+          <div className="relative px-6 pb-3 -mt-10 flex items-end gap-4 shrink-0">
             <Avatar className="h-20 w-20 border-4 border-background shadow-xl rounded-2xl">
               <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold rounded-2xl">{initials}</AvatarFallback>
             </Avatar>
@@ -836,7 +817,34 @@ export default function TeacherDashboard() {
             </div>
           </div>
 
-          <div className="px-6 pb-6 space-y-4">
+          {/* Scrollable Content */}
+          <div className="overflow-y-auto px-6 pb-6 space-y-4">
+            {/* Teaching Scope */}
+            {assignments.length > 0 && (
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Teaching Scope
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {assignments.map((a, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <GraduationCap className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{a.class_name || 'Class'}</p>
+                        <div className="flex items-center gap-1.5">
+                          <Badge className={`text-[10px] border ${subjectColors[a.subject] || 'bg-muted'}`}>{a.subject}</Badge>
+                          {a.school_name && <span className="text-[10px] text-muted-foreground truncate">{a.school_name}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Contact Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div
@@ -921,26 +929,6 @@ export default function TeacherDashboard() {
                 <p className="text-xs text-muted-foreground">Active for {accountAge} days • Secure educator account</p>
               </div>
             </div>
-
-            {/* Assigned Classes */}
-            {assignments.length > 0 && (
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Assigned Classes</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {assignments.map((a, idx) => (
-                    <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50">
-                      <div className="h-9 w-9 rounded-lg bg-accent/20 flex items-center justify-center">
-                        <GraduationCap className="h-4 w-4 text-accent-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{a.class_name || 'Class'}</p>
-                        <Badge className={`text-[10px] border ${subjectColors[a.subject] || 'bg-muted'}`}>{a.subject}</Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </DialogContent>
       </Dialog>
