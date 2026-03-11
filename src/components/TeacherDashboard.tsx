@@ -386,7 +386,7 @@ export default function TeacherDashboard() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* ─── STAT CARDS ─── */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-2 lg:grid-cols-5 gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -396,7 +396,8 @@ export default function TeacherDashboard() {
             { label: 'Active Exams', value: activeExams, icon: Calendar, gradient: 'from-emerald-500/15 to-emerald-500/5', iconColor: 'text-emerald-500' },
             { label: 'Assigned Classes', value: assignments.length, icon: Building2, gradient: 'from-amber-500/15 to-amber-500/5', iconColor: 'text-amber-500' },
             { label: 'Students', value: studentCount, icon: Users, gradient: 'from-violet-500/15 to-violet-500/5', iconColor: 'text-violet-500' },
-          ].map((stat, i) => (
+            { label: 'Performance', value: `${performanceScore}%`, icon: awardTier.icon, gradient: awardTier.gradient, iconColor: awardTier.color, extra: awardTier.label },
+          ].map((stat) => (
             <motion.div key={stat.label} variants={itemVariants}>
               <Card className="border-border/50 bg-background/60 backdrop-blur-sm hover:shadow-md transition-all duration-300">
                 <CardContent className="p-4 flex items-center gap-3">
@@ -405,7 +406,7 @@ export default function TeacherDashboard() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    <p className="text-xs text-muted-foreground">{stat.extra || stat.label}</p>
                   </div>
                 </CardContent>
               </Card>
