@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Brain, Send, X, Sparkles, RotateCcw, Loader2 } from 'lucide-react';
+import { Brain, Send, X, Sparkles, RotateCcw, Loader2, Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -28,10 +29,100 @@ interface StudentContext {
 
 const QUICK_ACTIONS = [
   { label: '🔍 Explain my wrong answers', prompt: 'Can you explain the questions I got wrong on my recent exams and help me understand the correct answers?' },
-  { label: '📝 Practice questions', prompt: 'Generate some practice questions based on my weak areas to help me improve.' },
+  { label: '📝 Practice quiz', prompt: 'Generate a practice quiz with 10 questions based on my weak areas. Format each question with a number, the question text, multiple choice options labeled A-D, and put the correct answer at the end of each question. Include a mix of question types covering my weakest subjects.', isQuiz: true },
   { label: '📊 Study plan', prompt: 'Based on my exam results, can you create a quick study plan for the areas I need to improve?' },
   { label: '💡 Tips to improve', prompt: 'What are the best study tips and strategies for improving my scores based on my performance?' },
 ];
+
+function generateQuizPDF(content: string, weakSubjects: string[]) {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const maxWidth = pageWidth - margin * 2;
+  let y = 20;
+
+  // Header
+  doc.setFillColor(124, 58, 237); // violet-600
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MightyTest Practice Quiz', margin, 22);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generated: ${new Date().toLocaleDateString()} | Focus: ${weakSubjects.length ? weakSubjects.join(', ') : 'General'}`, margin, 30);
+
+  y = 45;
+  doc.setTextColor(40, 40, 40);
+
+  // Parse content into lines and render
+  const lines = content.split('\n');
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      y += 4;
+      continue;
+    }
+
+    // Check for new page
+    if (y > doc.internal.pageSize.getHeight() - 25) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // Detect question numbers (e.g., "1.", "**1.", "Q1", "Question 1")
+    const isQuestion = /^(\*{0,2})(\d+[\.\):]|\*{0,2}Q(uestion)?\s*\d+)/i.test(trimmed);
+    // Detect answer options
+    const isOption = /^[A-D][\.\):\s]/i.test(trimmed);
+    // Detect correct answer lines
+    const isAnswer = /^(\*{0,2})(correct\s*answer|answer)[:\s]/i.test(trimmed);
+
+    // Strip markdown bold markers for PDF
+    const cleanText = trimmed.replace(/\*{1,2}/g, '');
+
+    if (isQuestion) {
+      y += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 6;
+    } else if (isOption) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth - 8);
+      doc.text(splitLines, margin + 8, y);
+      y += splitLines.length * 5.5;
+    } else if (isAnswer) {
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(9);
+      doc.setTextColor(34, 139, 34);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 5;
+      doc.setTextColor(40, 40, 40);
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const splitLines = doc.splitTextToSize(cleanText, maxWidth);
+      doc.text(splitLines, margin, y);
+      y += splitLines.length * 5.5;
+    }
+  }
+
+  // Footer on last page
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i} of ${pageCount} — MightyTest Study Buddy`, margin, doc.internal.pageSize.getHeight() - 10);
+  }
+
+  doc.save('MightyTest-Practice-Quiz.pdf');
+}
 
 export function AIStudyAssistant() {
   const [isOpen, setIsOpen] = useState(false);
@@ -317,7 +408,7 @@ export function AIStudyAssistant() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
             <div
               className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
                 msg.role === 'user'
@@ -333,6 +424,18 @@ export function AIStudyAssistant() {
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               )}
             </div>
+            {msg.role === 'assistant' && !isLoading && msg.content.length > 100 && (
+              <button
+                onClick={() => {
+                  generateQuizPDF(msg.content, studentContext?.weakSubjects || []);
+                  toast.success('Practice quiz PDF downloaded!');
+                }}
+                className="flex items-center gap-1 mt-1 text-[10px] px-2 py-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Download className="h-3 w-3" />
+                Download as PDF
+              </button>
+            )}
           </div>
         ))}
 
@@ -350,7 +453,7 @@ export function AIStudyAssistant() {
       {/* Quick actions after conversation started */}
       {messages.length > 0 && !isLoading && (
         <div className="px-3 pb-1 flex gap-1 overflow-x-auto shrink-0">
-          {QUICK_ACTIONS.slice(0, 2).map((action) => (
+          {QUICK_ACTIONS.slice(0, 3).map((action) => (
             <button
               key={action.label}
               onClick={() => sendMessage(action.prompt)}
