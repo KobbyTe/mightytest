@@ -393,7 +393,6 @@ export default function AdminDashboard() {
     if (gradedCount > 0) {
       toast.success(`AI graded ${gradedCount} submission(s)${failedCount > 0 ? `, ${failedCount} failed` : ''}. Review grades in each attempt.`);
       loadExams();
-      loadAttempts();
     } else if (failedCount > 0) {
       toast.error(`Failed to grade ${failedCount} submission(s)`);
     }
