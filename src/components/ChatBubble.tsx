@@ -428,12 +428,14 @@ export function ChatBubble() {
       }
     }
 
-    // Load admins (exclude self)
-    const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
-    if (adminRoles) {
-      for (const ar of adminRoles) {
-        if (ar.user_id !== user?.id) {
-          results.push({ user_id: ar.user_id, full_name: 'Admin', identifier: null, type: 'admin' });
+    // Load admins (exclude self) - always show, filter by "admin" keyword if searching
+    if (!search.trim() || 'admin'.includes(search.trim().toLowerCase())) {
+      const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+      if (adminRoles) {
+        for (const ar of adminRoles) {
+          if (ar.user_id !== user?.id) {
+            results.push({ user_id: ar.user_id, full_name: 'Admin', identifier: null, type: 'admin' });
+          }
         }
       }
     }
