@@ -240,9 +240,8 @@ export default function ClassPerformancePortal({
       }
 
       const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
+      const pw = 297; // A4 landscape width mm
+      const ph = 210; // A4 landscape height mm
       const margin = 14;
 
       // ── Color palette (refined, professional) ──
