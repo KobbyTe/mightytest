@@ -139,14 +139,15 @@ export default function ClassPerformancePortal({
 
       if (attemptsError) throw attemptsError;
 
-      const attemptsByStudent: Record<string, ExamAttemptWithExam[]> = {};
+      // Group all attempts by student, then deduplicate per exam (keep best score)
+      const allAttemptsByStudent: Record<string, ExamAttemptWithExam[]> = {};
       (attemptsData || []).forEach((attempt: any) => {
         if (!attempt.exam) return;
         const studentId = attempt.student_id;
-        if (!attemptsByStudent[studentId]) {
-          attemptsByStudent[studentId] = [];
+        if (!allAttemptsByStudent[studentId]) {
+          allAttemptsByStudent[studentId] = [];
         }
-        attemptsByStudent[studentId].push({
+        allAttemptsByStudent[studentId].push({
           id: attempt.id,
           student_id: attempt.student_id,
           marks_obtained: attempt.marks_obtained,
@@ -154,6 +155,19 @@ export default function ClassPerformancePortal({
           status: attempt.status,
           exam: attempt.exam
         });
+      });
+
+      // Deduplicate: keep only best-scoring attempt per exam per student
+      const attemptsByStudent: Record<string, ExamAttemptWithExam[]> = {};
+      Object.entries(allAttemptsByStudent).forEach(([studentId, attempts]) => {
+        const bestByExam: Record<string, ExamAttemptWithExam> = {};
+        attempts.forEach(a => {
+          const examId = a.exam.id;
+          if (!bestByExam[examId] || (a.marks_obtained || 0) > (bestByExam[examId].marks_obtained || 0)) {
+            bestByExam[examId] = a;
+          }
+        });
+        attemptsByStudent[studentId] = Object.values(bestByExam);
       });
 
       setRawAttempts(attemptsByStudent);
@@ -583,9 +597,12 @@ export default function ClassPerformancePortal({
     }));
   };
 
-  // Rank students by percentage
+  // Rank students by total marks obtained (primary), then percentage (tiebreaker)
   const rankedStudents = [...students]
-    .sort((a, b) => b.averagePercentage - a.averagePercentage)
+    .sort((a, b) => {
+      if (b.marksObtained !== a.marksObtained) return b.marksObtained - a.marksObtained;
+      return b.averagePercentage - a.averagePercentage;
+    })
     .map((s, idx) => ({ ...s, position: idx + 1 }));
 
   // Build a unified exam list (sorted chronologically by earliest attempt)
