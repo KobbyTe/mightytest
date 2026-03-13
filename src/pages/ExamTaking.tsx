@@ -53,6 +53,7 @@ export default function ExamTaking() {
   const [examStarted, setExamStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [networkOnline, setNetworkOnline] = useState(navigator.onLine);
+  const readingAssistant = useReadingAssistant();
   const [resultData, setResultData] = useState<{
     marks: number;
     totalMarks: number;
