@@ -75,6 +75,7 @@ export function ChatBubble() {
   const [showConversations, setShowConversations] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAdmin = role === 'admin';
+  const isStaff = role === 'admin' || role === 'teacher';
 
   // Admin recipient picker state
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
