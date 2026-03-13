@@ -25,7 +25,7 @@ export function useReadingAssistant() {
     utterance.onerror = () => setIsSpeaking(false);
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [speed]);
 
   const stop = useCallback(() => {
     if (!('speechSynthesis' in window)) return;
