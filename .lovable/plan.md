@@ -1,37 +1,52 @@
 
 
-## Plan: Scrollable Student Profile + Exam Reading Assistant
+# Show Individual Test Results with Numbered List + Average
 
-### 1. Make Student Profile Dialog Scrollable
+## What Changes
 
-**File: `src/components/admin/StudentManagement.tsx`**
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-- Add `max-h-[85vh] overflow-y-auto` to the inner `motion.div` container (line 572) so the profile content scrolls when it exceeds viewport height
-- The hero banner stays part of the scroll flow (natural scroll behavior)
+## Changes by Dashboard
 
-### 2. Add Reading Assistant to Exam Taking Page
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-**File: `src/pages/ExamTaking.tsx`**
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-Add an optional "Reading Assistant" feature that uses the Web Speech API (`speechSynthesis`) to read questions and options aloud for students who have difficulty reading.
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-**UI**:
-- Add a toggle button (e.g., `Volume2` icon from lucide) in the exam header area, labeled "Reading Assistant"
-- When enabled, show a floating mini toolbar near each question with a "Read Aloud" button
-- Clicking "Read Aloud" uses `window.speechSynthesis.speak()` to read: the question text, then each option (for MCQ/True-False), or "This is an essay question" for essays
-- Add a "Stop" button to cancel speech mid-read
-- The toggle persists for the session via local state (`readingAssistantEnabled`)
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-**Implementation**:
-- Create a small inline component/helper `useReadingAssistant` hook that wraps `speechSynthesis` with `speak(text)`, `stop()`, and `isSpeaking` state
-- No backend needed — Web Speech API is browser-native and free
-- Add the toggle in the header next to the timer controls
-- Add a "Read Question" button inside the question card (between the question header and the answer options)
-- Style it with a subtle accent color so it's noticeable but not distracting
+## Technical Details
 
-**No edge function or AI model needed** — this uses the browser's built-in text-to-speech, which is instant and works offline.
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
 
-### Files Changed
-1. `src/components/admin/StudentManagement.tsx` — Add scroll overflow to profile dialog
-2. `src/pages/ExamTaking.tsx` — Add reading assistant toggle + read-aloud button using Web Speech API
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

@@ -8,7 +8,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award, WifiOff, Wifi } from 'lucide-react';
+import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award, WifiOff, Wifi, Volume2, VolumeX, Square } from 'lucide-react';
+import { useReadingAssistant } from '@/hooks/useReadingAssistant';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -52,6 +53,7 @@ export default function ExamTaking() {
   const [examStarted, setExamStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [networkOnline, setNetworkOnline] = useState(navigator.onLine);
+  const readingAssistant = useReadingAssistant();
   const [resultData, setResultData] = useState<{
     marks: number;
     totalMarks: number;
@@ -680,7 +682,20 @@ export default function ExamTaking() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Reading Assistant Toggle */}
+              <button
+                onClick={readingAssistant.toggle}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                  readingAssistant.enabled
+                    ? 'bg-accent/20 text-accent border-accent/50'
+                    : 'bg-muted text-muted-foreground border-muted hover:bg-muted/80'
+                }`}
+                title={readingAssistant.enabled ? 'Disable Reading Assistant' : 'Enable Reading Assistant'}
+              >
+                {readingAssistant.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                <span className="hidden sm:inline">Reading Assistant</span>
+              </button>
               {/* Network Status */}
               {!networkOnline && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/20 text-secondary border border-secondary/50 animate-pulse">
@@ -801,6 +816,47 @@ export default function ExamTaking() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Reading Assistant - Read Aloud Button */}
+                {readingAssistant.enabled && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-accent/40 text-accent hover:bg-accent/10"
+                      onClick={() => {
+                        if (readingAssistant.isSpeaking) {
+                          readingAssistant.stop();
+                        } else {
+                          let text = `Question ${currentQuestionIndex + 1}. ${currentQuestion.question_text}`;
+                          if (currentQuestion.question_type === 'multiple_choice' && Array.isArray(currentQuestion.options)) {
+                            text += '. Options: ' + currentQuestion.options.map((opt: string, i: number) => `Option ${i + 1}: ${opt}`).join('. ');
+                          } else if (currentQuestion.question_type === 'true_false') {
+                            text += '. Choose True or False.';
+                          } else if (currentQuestion.question_type === 'essay') {
+                            text += '. This is an essay question. Write your answer in the text box.';
+                          }
+                          readingAssistant.speak(text);
+                        }
+                      }}
+                    >
+                      {readingAssistant.isSpeaking ? (
+                        <>
+                          <Square className="h-3.5 w-3.5 fill-current" />
+                          Stop Reading
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="h-3.5 w-3.5" />
+                          Read Question Aloud
+                        </>
+                      )}
+                    </Button>
+                    {readingAssistant.isSpeaking && (
+                      <span className="text-xs text-accent animate-pulse">🔊 Reading...</span>
+                    )}
+                  </div>
+                )}
                 {currentQuestion.question_type === 'multiple_choice' && currentQuestion.options && (
                   <RadioGroup
                     value={answers[currentQuestion.id] || ''}
