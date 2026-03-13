@@ -261,7 +261,8 @@ serve(async (req) => {
       success: true,
       questionsCreated: dbQuestions.length,
       message,
-      warning: truncationWarning ? 'Some questions may not have been extracted due to document size.' : undefined
+      warning: truncationWarning ? 'Some questions may not have been extracted due to document size.' : undefined,
+      diagnostics: { extracted: rawCount, valid: rawCount - droppedEmpty, unique: dbQuestions.length, duplicatesRemoved: droppedDupe, emptyDropped: droppedEmpty }
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
