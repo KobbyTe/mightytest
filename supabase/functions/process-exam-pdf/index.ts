@@ -99,24 +99,33 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
+    const normalizeText = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    
     const buildQuestionKey = (q: any) => {
-      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200);
-      const type = q.question_type || '';
-      return `${text}::${type}`;
+      const text = normalizeText(q.question_text);
+      const type = normalizeText(q.question_type);
+      const opts = Array.isArray(q.options) 
+        ? q.options.map((o: string) => normalizeText(String(o))).sort().join('|') 
+        : '';
+      const ans = normalizeText(String(q.correct_answer || ''));
+      return `${type}::${text}::${opts}::${ans}`;
     };
 
     const dedupeQuestions = (items: any[]) => {
       const seen = new Set<string>();
       const deduped: any[] = [];
+      let droppedEmpty = 0;
+      let droppedDupe = 0;
       for (const q of items) {
         const text = (q.question_text || '').trim();
-        if (!text) continue;
+        if (!text) { droppedEmpty++; continue; }
         const key = buildQuestionKey(q);
-        if (seen.has(key)) continue;
+        if (seen.has(key)) { droppedDupe++; continue; }
         seen.add(key);
         deduped.push(q);
       }
-      return deduped;
+      console.log(`Dedup stats: ${items.length} input, ${deduped.length} unique, ${droppedDupe} duplicates, ${droppedEmpty} empty/invalid`);
+      return { deduped, droppedDupe, droppedEmpty };
     };
 
     console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
