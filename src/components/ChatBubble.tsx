@@ -609,7 +609,7 @@ export function ChatBubble() {
                   <Input
                     value={recipientSearch}
                     onChange={(e) => setRecipientSearch(e.target.value)}
-                    placeholder="Search students & parents..."
+                    placeholder="Search users..."
                     className="text-sm h-8 pl-8"
                     autoFocus
                   />
