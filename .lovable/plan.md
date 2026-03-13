@@ -1,52 +1,56 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+## Plan: Fix Total Marks Calculation and Ranking Logic
 
-## What Changes
+### Problem Identified
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+Two bugs in `ClassPerformancePortal.tsx`:
 
-## Changes by Dashboard
+1. **Inflated totals from duplicate attempts**: The code sums ALL attempt rows, including retakes of the same exam. Example: "Setor Enam Agbenu" has 6 graded attempts on "1st ASSESSMENT TEST" (each 30 marks) + 1 attempt on "2ND ASSESSMENT TEST" (30 marks) = 210 total possible, when it should reflect only the distinct exams taken (2 exams = 60 total possible). The student's obtained marks are also inflated (193 instead of the real latest/best score).
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+2. **Unfair ranking**: Currently ranked by `averagePercentage`. A student with 1 test at 96.7% outranks a student with all tests completed at a lower percentage. User wants ranking by **total marks obtained** (students who completed more tests and scored more total marks rank higher).
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+### Changes
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+**File: `src/components/admin/ClassPerformancePortal.tsx`**
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+**1) Deduplicate attempts per student per exam** (lines 142-190)
 
-## Technical Details
+When building `attemptsByStudent`, keep only the **best-scoring** attempt per student per exam (since user chose "keep all attempts" for display but the totals need to reflect distinct exams):
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+- After grouping attempts by student, for each student, deduplicate by `exam.id` keeping the attempt with the highest `marks_obtained`
+- This fixes `totalMarks` (e.g., 2 exams * 30 = 60, not 210) and `marksObtained` (best score per exam summed)
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+**2) Change ranking sort to total marks first** (line 587-589)
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+Replace:
+```ts
+.sort((a, b) => b.averagePercentage - a.averagePercentage)
+```
+With:
+```ts
+.sort((a, b) => {
+  // Primary: total marks obtained (more exams + higher scores = better rank)
+  if (b.marksObtained !== a.marksObtained) return b.marksObtained - a.marksObtained;
+  // Tiebreaker: percentage
+  return b.averagePercentage - a.averagePercentage;
+})
+```
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+**3) Update UI table Total column** (lines 773-823)
+
+The UI Rankings table currently calculates `totalObtained`/`totalPossible` inline by iterating `examOrder`. This inline logic should also use the deduplicated data (already fixed if the underlying `rawAttempts` is deduplicated) — verify it stays consistent.
+
+**4) Update PDF export** (lines 456-545)
+
+The PDF export also reads from `rawAttempts` and `rankedStudents`. Since deduplication happens at data load time, the PDF will automatically use corrected values. Verify the Total column in PDF uses `student.marksObtained/student.totalMarks` from the fixed data.
+
+**5) Update StudentReportCard** (already receives deduplicated `examAttempts` via `getStudentExamAttempts`)
+
+The `getStudentExamAttempts` function (line 574-584) returns all raw attempts. Apply the same deduplication here so individual report cards also show correct totals.
+
+### Result
+- Total marks will correctly reflect distinct exams only (best score per exam)
+- Rankings will sort by total marks obtained, rewarding students who completed more tests
+- Both UI table and PDF export will show consistent, correct data
 
