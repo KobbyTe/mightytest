@@ -428,12 +428,14 @@ export function ChatBubble() {
       }
     }
 
-    // Load admins (exclude self)
-    const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
-    if (adminRoles) {
-      for (const ar of adminRoles) {
-        if (ar.user_id !== user?.id) {
-          results.push({ user_id: ar.user_id, full_name: 'Admin', identifier: null, type: 'admin' });
+    // Load admins (exclude self) - always show, filter by "admin" keyword if searching
+    if (!search.trim() || 'admin'.includes(search.trim().toLowerCase())) {
+      const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+      if (adminRoles) {
+        for (const ar of adminRoles) {
+          if (ar.user_id !== user?.id) {
+            results.push({ user_id: ar.user_id, full_name: 'Admin', identifier: null, type: 'admin' });
+          }
         }
       }
     }
@@ -607,7 +609,7 @@ export function ChatBubble() {
                   <Input
                     value={recipientSearch}
                     onChange={(e) => setRecipientSearch(e.target.value)}
-                    placeholder="Search students & parents..."
+                    placeholder="Search users..."
                     className="text-sm h-8 pl-8"
                     autoFocus
                   />
@@ -628,7 +630,11 @@ export function ChatBubble() {
                       >
                         <div className={cn(
                           'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
-                          r.type === 'parent'
+                          r.type === 'admin'
+                            ? 'bg-gradient-to-br from-destructive/20 to-primary/20'
+                            : r.type === 'teacher'
+                            ? 'bg-gradient-to-br from-secondary/30 to-accent/20'
+                            : r.type === 'parent'
                             ? 'bg-gradient-to-br from-accent/20 to-secondary/20'
                             : 'bg-gradient-to-br from-primary/20 to-secondary/20'
                         )}>
