@@ -99,24 +99,33 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
+    const normalizeText = (s: string) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    
     const buildQuestionKey = (q: any) => {
-      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200);
-      const type = q.question_type || '';
-      return `${text}::${type}`;
+      const text = normalizeText(q.question_text);
+      const type = normalizeText(q.question_type);
+      const opts = Array.isArray(q.options) 
+        ? q.options.map((o: string) => normalizeText(String(o))).sort().join('|') 
+        : '';
+      const ans = normalizeText(String(q.correct_answer || ''));
+      return `${type}::${text}::${opts}::${ans}`;
     };
 
     const dedupeQuestions = (items: any[]) => {
       const seen = new Set<string>();
       const deduped: any[] = [];
+      let droppedEmpty = 0;
+      let droppedDupe = 0;
       for (const q of items) {
         const text = (q.question_text || '').trim();
-        if (!text) continue;
+        if (!text) { droppedEmpty++; continue; }
         const key = buildQuestionKey(q);
-        if (seen.has(key)) continue;
+        if (seen.has(key)) { droppedDupe++; continue; }
         seen.add(key);
         deduped.push(q);
       }
-      return deduped;
+      console.log(`Dedup stats: ${items.length} input, ${deduped.length} unique, ${droppedDupe} duplicates, ${droppedEmpty} empty/invalid`);
+      return { deduped, droppedDupe, droppedEmpty };
     };
 
     console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
@@ -193,8 +202,17 @@ serve(async (req) => {
       }
     }
 
-    allQuestions = dedupeQuestions(allQuestions);
-    console.log('Total unique questions after dedup:', allQuestions.length);
+    const rawCount = allQuestions.length;
+    const { deduped, droppedDupe, droppedEmpty } = dedupeQuestions(allQuestions);
+    allQuestions = deduped;
+    
+    // Suspicious collapse guardrail: if we extracted many but kept very few, something is wrong
+    const collapseRatio = rawCount > 0 ? allQuestions.length / rawCount : 1;
+    if (rawCount >= 10 && collapseRatio < 0.5) {
+      console.warn(`SUSPICIOUS COLLAPSE: extracted ${rawCount} but only ${allQuestions.length} survived dedup (${droppedDupe} dupes, ${droppedEmpty} empty). Ratio: ${collapseRatio.toFixed(2)}`);
+    }
+    
+    console.log(`Final: extracted=${rawCount}, valid=${rawCount - droppedEmpty}, unique=${allQuestions.length}, dropped_dupes=${droppedDupe}, dropped_empty=${droppedEmpty}`);
 
     if (allQuestions.length === 0) {
       return new Response(JSON.stringify({
@@ -243,7 +261,8 @@ serve(async (req) => {
       success: true,
       questionsCreated: dbQuestions.length,
       message,
-      warning: truncationWarning ? 'Some questions may not have been extracted due to document size.' : undefined
+      warning: truncationWarning ? 'Some questions may not have been extracted due to document size.' : undefined,
+      diagnostics: { extracted: rawCount, valid: rawCount - droppedEmpty, unique: dbQuestions.length, duplicatesRemoved: droppedDupe, emptyDropped: droppedEmpty }
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
