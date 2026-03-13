@@ -1,52 +1,46 @@
 
+Goal: eliminate the PDF extraction undercount (30 extracted -> 5 saved) and make the pipeline robust against future regressions.
 
-# Show Individual Test Results with Numbered List + Average
+What I found from thorough debugging:
+1. Backend logs prove extraction is succeeding:
+   - `Initial extraction: 30 questions, finish_reason=stop`
+   - then immediately `Total unique questions after dedup: 5`
+2. So the failure is not AI extraction; it is post-processing deduplication.
+3. Root cause is in `supabase/functions/process-exam-pdf/index.ts`:
+   - dedupe key uses only `question_type + first 200 chars of question_text`
+   - this collapses distinct questions that share long common stems/passage prefixes.
+4. Frontend is not limiting to 5; it simply displays what backend inserted.
 
-## What Changes
+Implementation plan:
+1. Replace fragile dedupe key with strict composite normalization
+   - Use full normalized question text (no 200-char truncation)
+   - Include normalized `question_type`, `options`, and `correct_answer`
+   - Keep dedupe exact-match only (remove only truly identical questions)
+2. Add question normalization/validation before dedupe
+   - Normalize whitespace and labels
+   - Coerce/repair common field variations (if model drifts)
+   - Track dropped items with explicit reasons (e.g., missing question_text)
+3. Add “suspicious collapse” guardrail
+   - If extracted count is high (e.g., >=20) and dedupe drops an unusually large percentage, flag and run a recovery pass instead of silently shrinking to 5
+   - Recovery pass asks AI for “remaining unique questions not in this list,” then re-merge
+4. Improve observability in function logs + response payload
+   - Log: extracted_count, valid_count, deduped_count, dropped_invalid_count
+   - Include warning metadata in response so UI can show “high dedupe detected” messages
+5. Keep database behavior safe
+   - Continue replace-by-exam flow (delete then insert), but only after validated final question set is ready
+   - No schema/RLS changes needed
+6. Verification workflow
+   - Re-run with the same 30+ PDF
+   - Confirm logs show extracted_count ≈ final_inserted_count (not collapsing to 5)
+   - Confirm `exam_questions` count for that exam matches response `questionsCreated`
+   - Repeat once with a different PDF format to ensure fix is general
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+Technical details:
+- Primary file to update: `supabase/functions/process-exam-pdf/index.ts`
+- Optional UI touchpoint: `src/pages/ExamQuestions.tsx` (display backend diagnostics/warnings)
+- No migrations required.
+- This will directly address the exact observed failure signature in logs (30 extracted, 5 after dedupe).
 
-## Changes by Dashboard
-
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
-
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
-
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
-
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
-
-## Technical Details
-
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
-
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
-
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
-
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
-
+Expected outcome after fix:
+- If AI extracts 30 real questions, backend will save ~30 (minus only true exact duplicates), instead of collapsing to 5.
+- Future regressions become detectable immediately via new extraction/dedupe diagnostics.
