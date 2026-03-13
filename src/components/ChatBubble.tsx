@@ -274,6 +274,9 @@ export function ChatBubble() {
         } else if (otherRole === 'parent') {
           const { data } = await supabase.from('parents').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
+        } else if (otherRole === 'teacher') {
+          const { data } = await supabase.from('teachers').select('full_name').eq('user_id', otherUserId).maybeSingle();
+          if (data) otherName = data.full_name;
         } else if (otherRole === 'admin') {
           otherName = 'Admin';
         }
