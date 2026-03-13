@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Clock, CheckCircle, AlertCircle, Send, Sparkles, Trophy, Brain, ChevronLeft, ChevronRight, Timer, AlertTriangle, Star, ArrowRight, Award, WifiOff, Wifi, Volume2, VolumeX, Square } from 'lucide-react';
-import { useReadingAssistant } from '@/hooks/useReadingAssistant';
+import { useReadingAssistant, type SpeechSpeed } from '@/hooks/useReadingAssistant';
 import { toast } from 'sonner';
 import { Progress } from '@/components/ui/progress';
 import {
