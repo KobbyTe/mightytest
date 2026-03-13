@@ -684,18 +684,38 @@ export default function ExamTaking() {
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {/* Reading Assistant Toggle */}
-              <button
-                onClick={readingAssistant.toggle}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
-                  readingAssistant.enabled
-                    ? 'bg-accent/20 text-accent border-accent/50'
-                    : 'bg-muted text-muted-foreground border-muted hover:bg-muted/80'
-                }`}
-                title={readingAssistant.enabled ? 'Disable Reading Assistant' : 'Enable Reading Assistant'}
-              >
-                {readingAssistant.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                <span className="hidden sm:inline">Reading Assistant</span>
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={readingAssistant.toggle}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                    readingAssistant.enabled
+                      ? 'bg-accent/20 text-accent border-accent/50'
+                      : 'bg-muted text-muted-foreground border-muted hover:bg-muted/80'
+                  }`}
+                  title={readingAssistant.enabled ? 'Disable Reading Assistant' : 'Enable Reading Assistant'}
+                >
+                  {readingAssistant.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                  <span className="hidden sm:inline">Reading Assistant</span>
+                </button>
+                {readingAssistant.enabled && (
+                  <div className="flex items-center bg-muted/60 rounded-lg border border-border/50 overflow-hidden">
+                    {(['slow', 'normal', 'fast'] as SpeechSpeed[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => readingAssistant.setSpeed(s)}
+                        className={`px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          readingAssistant.speed === s
+                            ? 'bg-accent text-accent-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title={`${s} speed`}
+                      >
+                        {s === 'slow' ? '0.5×' : s === 'normal' ? '1×' : '1.5×'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* Network Status */}
               {!networkOnline && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/20 text-secondary border border-secondary/50 animate-pulse">

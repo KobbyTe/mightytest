@@ -51,5 +51,5 @@ export function useReadingAssistant() {
     };
   }, []);
 
-  return { enabled, isSpeaking, speak, stop, toggle };
+  return { enabled, isSpeaking, speed, setSpeed, speak, stop, toggle };
 }
