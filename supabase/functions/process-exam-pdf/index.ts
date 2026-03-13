@@ -202,8 +202,17 @@ serve(async (req) => {
       }
     }
 
-    allQuestions = dedupeQuestions(allQuestions);
-    console.log('Total unique questions after dedup:', allQuestions.length);
+    const rawCount = allQuestions.length;
+    const { deduped, droppedDupe, droppedEmpty } = dedupeQuestions(allQuestions);
+    allQuestions = deduped;
+    
+    // Suspicious collapse guardrail: if we extracted many but kept very few, something is wrong
+    const collapseRatio = rawCount > 0 ? allQuestions.length / rawCount : 1;
+    if (rawCount >= 10 && collapseRatio < 0.5) {
+      console.warn(`SUSPICIOUS COLLAPSE: extracted ${rawCount} but only ${allQuestions.length} survived dedup (${droppedDupe} dupes, ${droppedEmpty} empty). Ratio: ${collapseRatio.toFixed(2)}`);
+    }
+    
+    console.log(`Final: extracted=${rawCount}, valid=${rawCount - droppedEmpty}, unique=${allQuestions.length}, dropped_dupes=${droppedDupe}, dropped_empty=${droppedEmpty}`);
 
     if (allQuestions.length === 0) {
       return new Response(JSON.stringify({
