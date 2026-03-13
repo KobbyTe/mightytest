@@ -6,67 +6,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const SYSTEM_PROMPT = `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers. You MUST extract EVERY SINGLE question from the ENTIRE document — do NOT stop early or summarize.
+const SYSTEM_PROMPT = `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers.
 
 CRITICAL RULES:
-- Extract ALL questions from ALL pages of the document. Documents may contain 50, 60, 100+ questions.
-- Do NOT stop after a few questions. Continue until you have processed every page and every question.
-- If the document has 60 questions, you must return exactly 60 questions. Missing even one is unacceptable.
-- Go through the document page by page, section by section, and extract every question you find.
+- You MUST extract EVERY SINGLE question from the ENTIRE document — do NOT stop early or summarize.
+- Go through the document page by page, section by section.
+- If the document has 30 questions, return 30. If 60, return 60. Missing even one is unacceptable.
+- Count the questions as you go and verify your count matches the document.
 
 For each question, determine:
 - question_text: The full question text
 - question_type: One of "multiple_choice", "true_false", or "essay"
-- options: For multiple_choice, an array of option strings (e.g. ["Option A text", "Option B text", "Option C text", "Option D text"]). For true_false, use ["True", "False"]. For essay, use an empty array [].
-- correct_answer: The correct answer text. For multiple_choice, use the full text of the correct option. For true_false, use "True" or "False". For essay, use an empty string "".
+- options: For multiple_choice, an array of option strings. For true_false, use ["True", "False"]. For essay, use [].
+- correct_answer: The correct answer text. For multiple_choice, use the full text of the correct option. For true_false, use "True" or "False". For essay, use "".
 - marks: The marks/points for the question if specified, otherwise default to 1.
 
-Extract questions regardless of formatting style (numbered, lettered, bulleted, etc).`;
+You MUST respond with ONLY a valid JSON object in this exact format:
+{"questions": [...]}
 
-const TOOL_DEF = {
-  type: 'function' as const,
-  function: {
-    name: 'extract_questions',
-    description: 'Extract structured exam questions from a document',
-    parameters: {
-      type: 'object',
-      properties: {
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              question_text: { type: 'string', description: 'The full question text' },
-              question_type: { type: 'string', enum: ['multiple_choice', 'true_false', 'essay'], description: 'Type of question' },
-              options: { type: 'array', items: { type: 'string' }, description: 'Answer options (empty array for essay)' },
-              correct_answer: { type: 'string', description: 'The correct answer text' },
-              marks: { type: 'number', description: 'Points for this question' }
-            },
-            required: ['question_text', 'question_type', 'options', 'correct_answer', 'marks'],
-            additionalProperties: false
-          }
-        }
-      },
-      required: ['questions'],
-      additionalProperties: false
-    }
+Do NOT include any text before or after the JSON. Do NOT use markdown code blocks.`;
+
+async function callAI(apiKey: string, messages: any[], useJson: boolean = true): Promise<any> {
+  const body: any = {
+    model: 'google/gemini-2.5-pro',
+    max_tokens: 131072,
+    messages,
+  };
+
+  if (useJson) {
+    body.response_format = { type: 'json_object' };
   }
-};
 
-async function callAI(apiKey: string, messages: any[]): Promise<any> {
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-pro',
-      max_tokens: 131072,
-      messages,
-      tools: [TOOL_DEF],
-      tool_choice: { type: 'function', function: { name: 'extract_questions' } }
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -78,21 +55,36 @@ async function callAI(apiKey: string, messages: any[]): Promise<any> {
   return await response.json();
 }
 
-function parseToolCallQuestions(aiData: any): { questions: any[], finishReason: string } {
+function parseJsonQuestions(aiData: any): { questions: any[], finishReason: string } {
   const finishReason = aiData.choices?.[0]?.finish_reason || 'unknown';
-  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  const content = aiData.choices?.[0]?.message?.content || '';
 
-  if (!toolCall || toolCall.function.name !== 'extract_questions') {
-    console.error('Unexpected AI response structure:', JSON.stringify(aiData).substring(0, 500));
+  if (!content) {
+    // Fallback: check for tool_calls
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall) {
+      try {
+        const parsed = JSON.parse(toolCall.function.arguments);
+        return { questions: Array.isArray(parsed.questions) ? parsed.questions : [], finishReason };
+      } catch { /* fall through */ }
+    }
+    console.error('No content in AI response');
     return { questions: [], finishReason };
   }
 
   try {
-    const parsed = JSON.parse(toolCall.function.arguments);
-    const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+    // Clean up content - remove markdown code blocks if present
+    let cleaned = content.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    const parsed = JSON.parse(cleaned);
+    const questions = Array.isArray(parsed.questions) ? parsed.questions : 
+                      Array.isArray(parsed) ? parsed : [];
     return { questions, finishReason };
   } catch (parseErr) {
-    console.error('Failed to parse tool call arguments:', (parseErr as Error).message);
+    console.error('Failed to parse JSON response:', (parseErr as Error).message, 'Content preview:', content.substring(0, 300));
     return { questions: [], finishReason };
   }
 }
@@ -108,43 +100,36 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
     const buildQuestionKey = (q: any) => {
-      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const optionsKey = Array.isArray(q.options)
-        ? q.options.map((o: string) => String(o).trim().toLowerCase()).join('|')
-        : '';
-      const answerKey = (q.correct_answer || '').trim().toLowerCase();
-      return `${text}::${q.question_type || ''}::${optionsKey}::${answerKey}`;
+      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 200);
+      const type = q.question_type || '';
+      return `${text}::${type}`;
     };
 
     const dedupeQuestions = (items: any[]) => {
       const seen = new Set<string>();
       const deduped: any[] = [];
-
       for (const q of items) {
-        const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const text = (q.question_text || '').trim();
         if (!text) continue;
-
         const key = buildQuestionKey(q);
         if (seen.has(key)) continue;
-
         seen.add(key);
         deduped.push(q);
       }
-
       return deduped;
     };
 
     console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
 
-    // ---- ITERATION 1: Initial extraction ----
-    const initialMessages = [
+    // ---- Single-pass extraction with JSON response format ----
+    const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
         content: [
           {
             type: 'text',
-            text: 'Extract ALL exam questions from this PDF document. The document may contain many questions (50+). Make sure you go through EVERY page and extract EVERY question. Do NOT stop early. Return all of them using the extract_questions tool.'
+            text: `Extract ALL exam questions from this PDF document. The document may contain 30, 50, or even 100+ questions. Go through EVERY page and extract EVERY question. Count them as you go and make sure your total matches the document. Return the complete JSON with all questions.`
           },
           {
             type: 'image_url',
@@ -154,9 +139,8 @@ serve(async (req) => {
       }
     ];
 
-    const aiData = await callAI(LOVABLE_API_KEY, initialMessages);
+    const aiData = await callAI(LOVABLE_API_KEY, messages);
 
-    // Handle HTTP-level errors from AI gateway
     if (aiData.error) {
       if (aiData.status === 429) {
         return new Response(JSON.stringify({
@@ -173,36 +157,25 @@ serve(async (req) => {
       throw new Error(`AI processing failed (${aiData.status})`);
     }
 
-    let { questions: allQuestions, finishReason } = parseToolCallQuestions(aiData);
-    allQuestions = dedupeQuestions(allQuestions);
-    console.log(`Iteration 1: extracted ${allQuestions.length} questions, finish_reason=${finishReason}`);
+    let { questions: allQuestions, finishReason } = parseJsonQuestions(aiData);
+    console.log(`Initial extraction: ${allQuestions.length} questions, finish_reason=${finishReason}`);
 
-    // ---- CONTINUATION LOOP: continue even when finish_reason is not "length" ----
-    // Some model responses stop early (e.g. 5 questions) with finish_reason="stop".
-    // We ask for additional batches until there is no progress.
-    const MAX_ITERATIONS = 8;
-    let noProgressCount = 0;
-    let truncationWarning = false;
-
-    for (let iteration = 2; iteration <= MAX_ITERATIONS; iteration++) {
-      const knownQuestionsPreview = allQuestions
-        .slice(0, 80)
-        .map((q: any, idx: number) => `${idx + 1}. ${String(q.question_text || '').replace(/\s+/g, ' ').slice(0, 180)}`)
+    // If we got very few questions and finish_reason is 'length' (truncated), do a continuation pass
+    if (finishReason === 'length' && allQuestions.length > 0) {
+      console.log('Response was truncated, attempting continuation...');
+      
+      const knownPreview = allQuestions
+        .map((q: any, i: number) => `${i + 1}. ${String(q.question_text || '').slice(0, 100)}`)
         .join('\n');
 
-      const continuationMessages = [
+      const contMessages = [
         { role: 'system', content: SYSTEM_PROMPT },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `You have already extracted ${allQuestions.length} questions.
-Extract ONLY additional questions that are NOT in the list below.
-If there are no remaining questions, return an empty array for questions.
-
-ALREADY EXTRACTED (do not repeat):
-${knownQuestionsPreview || 'none yet'}`
+              text: `You already extracted these ${allQuestions.length} questions:\n${knownPreview}\n\nNow extract ONLY the REMAINING questions from this PDF that are NOT in the list above. Return them as JSON: {"questions": [...]}`
             },
             {
               type: 'image_url',
@@ -212,43 +185,16 @@ ${knownQuestionsPreview || 'none yet'}`
         }
       ];
 
-      const contData = await callAI(LOVABLE_API_KEY, continuationMessages);
-
-      if (contData.error) {
-        console.warn(`Continuation iteration ${iteration} failed with status ${contData.status}. Proceeding with ${allQuestions.length} questions.`);
-        truncationWarning = true;
-        break;
-      }
-
-      const { questions: moreQuestionsRaw, finishReason: contFinish } = parseToolCallQuestions(contData);
-      const beforeCount = allQuestions.length;
-      allQuestions = dedupeQuestions([...allQuestions, ...moreQuestionsRaw]);
-      const addedCount = allQuestions.length - beforeCount;
-
-      console.log(`Iteration ${iteration}: received ${moreQuestionsRaw.length}, added ${addedCount}, total=${allQuestions.length}, finish_reason=${contFinish}`);
-
-      finishReason = contFinish;
-
-      if (addedCount === 0) {
-        noProgressCount += 1;
-      } else {
-        noProgressCount = 0;
-      }
-
-      // Stop when model cannot provide new questions anymore.
-      if (noProgressCount >= 2) {
-        break;
-      }
-
-      // If model says finished and gave a very small batch, likely done.
-      if (contFinish !== 'length' && addedCount > 0 && addedCount < 3) {
-        break;
+      const contData = await callAI(LOVABLE_API_KEY, contMessages);
+      if (!contData.error) {
+        const { questions: moreQuestions } = parseJsonQuestions(contData);
+        console.log(`Continuation: found ${moreQuestions.length} additional questions`);
+        allQuestions = [...allQuestions, ...moreQuestions];
       }
     }
 
-    if (finishReason === 'length') {
-      truncationWarning = true;
-    }
+    allQuestions = dedupeQuestions(allQuestions);
+    console.log('Total unique questions after dedup:', allQuestions.length);
 
     if (allQuestions.length === 0) {
       return new Response(JSON.stringify({
@@ -257,19 +203,8 @@ ${knownQuestionsPreview || 'none yet'}`
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('Total extracted unique count:', allQuestions.length);
-
-    const uniqueQuestions = allQuestions;
-    const duplicatesRemoved = 0;
-
-    if (duplicatesRemoved > 0) {
-      console.warn(`Removed ${duplicatesRemoved} duplicate questions from AI output`);
-    }
-
-    console.log('Unique questions to insert:', uniqueQuestions.length);
-
     // Build database rows
-    const dbQuestions = uniqueQuestions.map((q: any, i: number) => ({
+    const dbQuestions = allQuestions.map((q: any, i: number) => ({
       exam_id: examId,
       question_text: q.question_text,
       question_type: q.question_type || 'essay',
@@ -284,7 +219,7 @@ ${knownQuestionsPreview || 'none yet'}`
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // --- CLEANUP: delete any existing questions for this exam before inserting ---
+    // Cleanup existing questions for this exam
     const { error: deleteError } = await supabase
       .from('exam_questions')
       .delete()
@@ -298,9 +233,10 @@ ${knownQuestionsPreview || 'none yet'}`
 
     console.log('Created', dbQuestions.length, 'questions in database');
 
+    const truncationWarning = finishReason === 'length';
     let message = `Successfully created ${dbQuestions.length} questions from PDF`;
     if (truncationWarning) {
-      message += `. Warning: The PDF may contain more questions than could be extracted. Consider splitting large PDFs into smaller files.`;
+      message += `. Warning: The PDF may contain more questions than could be extracted.`;
     }
 
     return new Response(JSON.stringify({
