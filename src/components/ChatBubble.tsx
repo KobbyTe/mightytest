@@ -543,7 +543,7 @@ export function ChatBubble() {
             )}
             <MessageCircle className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-sm flex-1">
-              {showRecipientPicker ? 'New Message' : showConversations ? (isAdmin ? 'Messages' : 'Chat with Admin') : 'Conversation'}
+              {showRecipientPicker ? 'New Message' : showConversations ? (isStaff ? 'Messages' : 'Chat with Admin') : 'Conversation'}
             </h3>
             {showConversations && !showRecipientPicker && (
               <Button size="sm" variant="ghost" onClick={startNewConversation} className="text-xs h-7 gap-1">
