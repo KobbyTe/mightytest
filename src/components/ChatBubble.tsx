@@ -75,6 +75,7 @@ export function ChatBubble() {
   const [showConversations, setShowConversations] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAdmin = role === 'admin';
+  const isStaff = role === 'admin' || role === 'teacher';
 
   // Admin recipient picker state
   const [showRecipientPicker, setShowRecipientPicker] = useState(false);
@@ -359,7 +360,7 @@ export function ChatBubble() {
   };
 
   const startNewConversation = async () => {
-    if (isAdmin) {
+    if (isStaff) {
       setShowRecipientPicker(true);
       setRecipientSearch('');
       loadRecipients('');
@@ -542,7 +543,7 @@ export function ChatBubble() {
             )}
             <MessageCircle className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-sm flex-1">
-              {showRecipientPicker ? 'New Message' : showConversations ? (isAdmin ? 'Messages' : 'Chat with Admin') : 'Conversation'}
+              {showRecipientPicker ? 'New Message' : showConversations ? (isStaff ? 'Messages' : 'Chat with Admin') : 'Conversation'}
             </h3>
             {showConversations && !showRecipientPicker && (
               <Button size="sm" variant="ghost" onClick={startNewConversation} className="text-xs h-7 gap-1">
