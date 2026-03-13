@@ -317,8 +317,7 @@ export default function ClassPerformancePortal({
       }
 
       // ── Actual rendering ──
-      const { default: jsPDF2 } = await import('jspdf');
-      const p = new jsPDF2({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      p = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       let currentPage = 1;
       let y = 0;
 
