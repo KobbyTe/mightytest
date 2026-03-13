@@ -85,6 +85,7 @@ export default function StudentManagement() {
   const [linkParentStudent, setLinkParentStudent] = useState<Student | null>(null);
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
   const [linkingParent, setLinkingParent] = useState(false);
+  const [showMissingParents, setShowMissingParents] = useState(false);
 
   useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
