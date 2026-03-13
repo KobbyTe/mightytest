@@ -682,7 +682,20 @@ export default function ExamTaking() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Reading Assistant Toggle */}
+              <button
+                onClick={readingAssistant.toggle}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                  readingAssistant.enabled
+                    ? 'bg-accent/20 text-accent border-accent/50'
+                    : 'bg-muted text-muted-foreground border-muted hover:bg-muted/80'
+                }`}
+                title={readingAssistant.enabled ? 'Disable Reading Assistant' : 'Enable Reading Assistant'}
+              >
+                {readingAssistant.enabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                <span className="hidden sm:inline">Reading Assistant</span>
+              </button>
               {/* Network Status */}
               {!networkOnline && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/20 text-secondary border border-secondary/50 animate-pulse">
