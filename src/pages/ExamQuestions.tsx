@@ -57,8 +57,8 @@ export default function ExamQuestions() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user || role !== 'admin') {
-      navigate('/admin');
+    if (!user || (role !== 'admin' && role !== 'teacher')) {
+      navigate(role === 'teacher' ? '/teacher' : '/admin');
       return;
     }
     loadData();
