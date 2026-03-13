@@ -341,9 +341,19 @@ export default function StudentManagement() {
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">Link parent accounts for full platform access and communication.</p>
             </div>
-            <Badge variant="secondary" className="shrink-0 text-xs font-mono">
-              {studentsWithoutParent.length}
-            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1.5 text-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary))]/10 rounded-lg"
+              onClick={() => {
+                setSearch('');
+                setSchoolFilter('all');
+                setShowMissingParents(prev => !prev);
+              }}
+            >
+              <UserPlus className="h-4 w-4" />
+              <span className="text-xs font-semibold">Link Parents</span>
+            </Button>
           </div>
         </motion.div>
       )}
