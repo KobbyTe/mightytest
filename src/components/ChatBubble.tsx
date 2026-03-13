@@ -37,7 +37,7 @@ interface RecipientOption {
   user_id: string;
   full_name: string;
   identifier: string | null;
-  type: 'student' | 'parent';
+  type: 'student' | 'parent' | 'teacher' | 'admin';
 }
 
 const playNotificationSound = () => {
