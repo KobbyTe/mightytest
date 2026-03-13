@@ -11,7 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare } from 'lucide-react';
+import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare, Mail, Phone, Calendar, GraduationCap, School, BookOpen, User, Heart } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 
 interface Student {
@@ -558,58 +561,198 @@ export default function StudentManagement() {
 
       {/* View Student Details */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Student Details</DialogTitle>
-            <DialogDescription>{viewStudent?.full_name}</DialogDescription>
-          </DialogHeader>
-          {viewStudent && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Student Information</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Student ID</span>
-                  <span className="font-mono">{viewStudent.student_id_code || '—'}</span>
-                  <span className="text-muted-foreground">Email</span>
-                  <span>{viewStudent.email}</span>
-                  <span className="text-muted-foreground">Date of Birth</span>
-                  <span>{viewStudent.date_of_birth ? new Date(viewStudent.date_of_birth).toLocaleDateString() : '—'}</span>
-                  <span className="text-muted-foreground">Gender</span>
-                  <span className="capitalize">{viewStudent.gender || '—'}</span>
-                  <span className="text-muted-foreground">Phone</span>
-                  <span>{viewStudent.phone_number || '—'}</span>
-                  <span className="text-muted-foreground">Grade</span>
-                  <span>{viewStudent.grade || '—'}</span>
-                  <span className="text-muted-foreground">School</span>
-                  <span>{viewStudent.school?.name || '—'}</span>
-                  <span className="text-muted-foreground">Class</span>
-                  <span>{viewStudent.class?.name || '—'}</span>
+        <DialogContent className="max-w-lg p-0 overflow-hidden border-0 bg-transparent shadow-2xl">
+          <AnimatePresence>
+            {viewStudent && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className="bg-card rounded-2xl overflow-hidden"
+              >
+                {/* Hero Banner */}
+                <div className="relative bg-gradient-to-br from-primary via-primary/80 to-accent h-32">
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tOC02aDJ2LTJoLTJ2MnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.4 }}
+                    className="absolute -bottom-10 left-6"
+                  >
+                    <Avatar className="h-20 w-20 border-4 border-card shadow-xl">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                        {viewStudent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </motion.div>
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>Student Details</DialogTitle>
+                    <DialogDescription>{viewStudent.full_name}</DialogDescription>
+                  </DialogHeader>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Parent / Guardian</h4>
-                {viewStudent.parent ? (
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <span className="text-muted-foreground">Name</span>
-                    <span>{viewStudent.parent.full_name}</span>
-                    <span className="text-muted-foreground">Phone</span>
-                    <span>{viewStudent.parent.phone_number || '—'}</span>
-                    <span className="text-muted-foreground">Relationship</span>
-                    <span className="capitalize">{viewStudent.parent.relationship_to_student || '—'}</span>
+
+                {/* Name & Badge Section */}
+                <motion.div
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.15, duration: 0.4 }}
+                  className="pt-14 px-6 pb-2"
+                >
+                  <h2 className="text-xl font-bold text-foreground">{viewStudent.full_name}</h2>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {viewStudent.student_id_code && (
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {viewStudent.student_id_code}
+                      </Badge>
+                    )}
+                    {viewStudent.grade && (
+                      <Badge variant="outline" className="text-xs">
+                        {viewStudent.grade}
+                      </Badge>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-sm text-yellow-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3.5 w-3.5" /> No parent linked
-                    </p>
-                    <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }}>
-                      <UserPlus className="h-4 w-4 mr-1" /> Create Parent Account
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+                </motion.div>
+
+                {/* Info Cards */}
+                <div className="px-6 pb-5 pt-3 space-y-4">
+                  {/* Contact & Personal Details */}
+                  <motion.div
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2, duration: 0.4 }}
+                    className="rounded-xl border bg-muted/30 p-4 space-y-3"
+                  >
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Details</h4>
+                    <div className="grid gap-3">
+                      {viewStudent.email && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                            <Mail className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs text-muted-foreground">Email</p>
+                            <p className="text-sm font-medium text-foreground truncate">{viewStudent.email}</p>
+                          </div>
+                        </div>
+                      )}
+                      {viewStudent.phone_number && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                            <Phone className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="text-sm font-medium text-foreground">{viewStudent.phone_number}</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                          <Calendar className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Date of Birth</p>
+                          <p className="text-sm font-medium text-foreground">
+                            {viewStudent.date_of_birth ? new Date(viewStudent.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                          </p>
+                        </div>
+                      </div>
+                      {viewStudent.gender && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                            <User className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Gender</p>
+                            <p className="text-sm font-medium text-foreground capitalize">{viewStudent.gender}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* Academic Details */}
+                  <motion.div
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3, duration: 0.4 }}
+                    className="rounded-xl border bg-muted/30 p-4 space-y-3"
+                  >
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Academic Info</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
+                          <School className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">School</p>
+                          <p className="text-sm font-medium text-foreground truncate">{viewStudent.school?.name || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
+                          <BookOpen className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Class</p>
+                          <p className="text-sm font-medium text-foreground">{viewStudent.class?.name || '—'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
+                          <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Grade</p>
+                          <p className="text-sm font-medium text-foreground">{viewStudent.grade || '—'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Parent / Guardian */}
+                  <motion.div
+                    initial={{ y: 15, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4, duration: 0.4 }}
+                    className="rounded-xl border bg-muted/30 p-4 space-y-3"
+                  >
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parent / Guardian</h4>
+                    {viewStudent.parent ? (
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-10 w-10 mt-0.5">
+                          <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
+                            {viewStudent.parent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-foreground">{viewStudent.parent.full_name}</p>
+                          {viewStudent.parent.relationship_to_student && (
+                            <Badge variant="outline" className="text-xs capitalize">{viewStudent.parent.relationship_to_student}</Badge>
+                          )}
+                          {viewStudent.parent.phone_number && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Phone className="h-3 w-3" /> {viewStudent.parent.phone_number}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                          <AlertTriangle className="h-4 w-4 text-destructive" /> No parent linked to this student
+                        </p>
+                        <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }} className="gap-1.5">
+                          <UserPlus className="h-4 w-4" /> Create Parent Account
+                        </Button>
+                      </div>
+                    )}
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </DialogContent>
       </Dialog>
 
