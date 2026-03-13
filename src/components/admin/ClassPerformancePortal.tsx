@@ -597,9 +597,12 @@ export default function ClassPerformancePortal({
     }));
   };
 
-  // Rank students by percentage
+  // Rank students by total marks obtained (primary), then percentage (tiebreaker)
   const rankedStudents = [...students]
-    .sort((a, b) => b.averagePercentage - a.averagePercentage)
+    .sort((a, b) => {
+      if (b.marksObtained !== a.marksObtained) return b.marksObtained - a.marksObtained;
+      return b.averagePercentage - a.averagePercentage;
+    })
     .map((s, idx) => ({ ...s, position: idx + 1 }));
 
   // Build a unified exam list (sorted chronologically by earliest attempt)
