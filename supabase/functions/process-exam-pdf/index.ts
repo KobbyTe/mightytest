@@ -107,6 +107,33 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
+    const buildQuestionKey = (q: any) => {
+      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const optionsKey = Array.isArray(q.options)
+        ? q.options.map((o: string) => String(o).trim().toLowerCase()).join('|')
+        : '';
+      const answerKey = (q.correct_answer || '').trim().toLowerCase();
+      return `${text}::${q.question_type || ''}::${optionsKey}::${answerKey}`;
+    };
+
+    const dedupeQuestions = (items: any[]) => {
+      const seen = new Set<string>();
+      const deduped: any[] = [];
+
+      for (const q of items) {
+        const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        if (!text) continue;
+
+        const key = buildQuestionKey(q);
+        if (seen.has(key)) continue;
+
+        seen.add(key);
+        deduped.push(q);
+      }
+
+      return deduped;
+    };
+
     console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
 
     // ---- ITERATION 1: Initial extraction ----
@@ -147,14 +174,21 @@ serve(async (req) => {
     }
 
     let { questions: allQuestions, finishReason } = parseToolCallQuestions(aiData);
+    allQuestions = dedupeQuestions(allQuestions);
     console.log(`Iteration 1: extracted ${allQuestions.length} questions, finish_reason=${finishReason}`);
 
-    // ---- CONTINUATION LOOP: If truncated, ask AI to continue ----
-    const MAX_CONTINUATIONS = 3;
+    // ---- CONTINUATION LOOP: continue even when finish_reason is not "length" ----
+    // Some model responses stop early (e.g. 5 questions) with finish_reason="stop".
+    // We ask for additional batches until there is no progress.
+    const MAX_ITERATIONS = 8;
+    let noProgressCount = 0;
     let truncationWarning = false;
 
-    for (let iteration = 2; iteration <= MAX_CONTINUATIONS + 1 && finishReason === 'length'; iteration++) {
-      console.log(`Response truncated. Starting continuation iteration ${iteration}...`);
+    for (let iteration = 2; iteration <= MAX_ITERATIONS; iteration++) {
+      const knownQuestionsPreview = allQuestions
+        .slice(0, 80)
+        .map((q: any, idx: number) => `${idx + 1}. ${String(q.question_text || '').replace(/\s+/g, ' ').slice(0, 180)}`)
+        .join('\n');
 
       const continuationMessages = [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -163,7 +197,12 @@ serve(async (req) => {
           content: [
             {
               type: 'text',
-              text: `You previously extracted ${allQuestions.length} questions from this PDF but your response was cut off. Continue extracting from question ${allQuestions.length + 1} onward. Extract ALL remaining questions that you haven't covered yet. Do NOT repeat any of the first ${allQuestions.length} questions.`
+              text: `You have already extracted ${allQuestions.length} questions.
+Extract ONLY additional questions that are NOT in the list below.
+If there are no remaining questions, return an empty array for questions.
+
+ALREADY EXTRACTED (do not repeat):
+${knownQuestionsPreview || 'none yet'}`
             },
             {
               type: 'image_url',
@@ -181,23 +220,34 @@ serve(async (req) => {
         break;
       }
 
-      const { questions: moreQuestions, finishReason: contFinish } = parseToolCallQuestions(contData);
-      console.log(`Iteration ${iteration}: extracted ${moreQuestions.length} more questions, finish_reason=${contFinish}`);
+      const { questions: moreQuestionsRaw, finishReason: contFinish } = parseToolCallQuestions(contData);
+      const beforeCount = allQuestions.length;
+      allQuestions = dedupeQuestions([...allQuestions, ...moreQuestionsRaw]);
+      const addedCount = allQuestions.length - beforeCount;
 
-      if (moreQuestions.length === 0) {
-        console.log('No additional questions returned. Stopping continuation.');
+      console.log(`Iteration ${iteration}: received ${moreQuestionsRaw.length}, added ${addedCount}, total=${allQuestions.length}, finish_reason=${contFinish}`);
+
+      finishReason = contFinish;
+
+      if (addedCount === 0) {
+        noProgressCount += 1;
+      } else {
+        noProgressCount = 0;
+      }
+
+      // Stop when model cannot provide new questions anymore.
+      if (noProgressCount >= 2) {
         break;
       }
 
-      allQuestions = [...allQuestions, ...moreQuestions];
-      finishReason = contFinish;
-
-      if (contFinish === 'length') {
-        console.warn(`Still truncated after iteration ${iteration}. Total so far: ${allQuestions.length}`);
-        if (iteration === MAX_CONTINUATIONS + 1) {
-          truncationWarning = true;
-        }
+      // If model says finished and gave a very small batch, likely done.
+      if (contFinish !== 'length' && addedCount > 0 && addedCount < 3) {
+        break;
       }
+    }
+
+    if (finishReason === 'length') {
+      truncationWarning = true;
     }
 
     if (allQuestions.length === 0) {
@@ -207,29 +257,11 @@ serve(async (req) => {
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('Total raw extracted count:', allQuestions.length);
+    console.log('Total extracted unique count:', allQuestions.length);
 
-    // --- DEDUPLICATION: remove repeated questions using composite key ---
-    const seen = new Set<string>();
-    const uniqueQuestions = allQuestions.filter((q: any) => {
-      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      if (!text) {
-        console.warn('Skipping question with empty text');
-        return false;
-      }
-      // Use composite key: question text + type + correct answer to avoid false positives
-      const optionsKey = Array.isArray(q.options) ? q.options.join('|').toLowerCase() : '';
-      const answerKey = (q.correct_answer || '').trim().toLowerCase();
-      const compositeKey = `${text}::${q.question_type || ''}::${optionsKey}::${answerKey}`;
-      if (seen.has(compositeKey)) {
-        console.warn('Duplicate found:', text.substring(0, 60));
-        return false;
-      }
-      seen.add(compositeKey);
-      return true;
-    });
+    const uniqueQuestions = allQuestions;
+    const duplicatesRemoved = 0;
 
-    const duplicatesRemoved = allQuestions.length - uniqueQuestions.length;
     if (duplicatesRemoved > 0) {
       console.warn(`Removed ${duplicatesRemoved} duplicate questions from AI output`);
     }
