@@ -37,7 +37,7 @@ interface RecipientOption {
   user_id: string;
   full_name: string;
   identifier: string | null;
-  type: 'student' | 'parent';
+  type: 'student' | 'parent' | 'teacher' | 'admin';
 }
 
 const playNotificationSound = () => {
@@ -274,6 +274,9 @@ export function ChatBubble() {
         } else if (otherRole === 'parent') {
           const { data } = await supabase.from('parents').select('full_name').eq('user_id', otherUserId).maybeSingle();
           if (data) otherName = data.full_name;
+        } else if (otherRole === 'teacher') {
+          const { data } = await supabase.from('teachers').select('full_name').eq('user_id', otherUserId).maybeSingle();
+          if (data) otherName = data.full_name;
         } else if (otherRole === 'admin') {
           otherName = 'Admin';
         }
@@ -411,6 +414,30 @@ export function ChatBubble() {
       }
     }
 
+    // Load teachers (exclude self)
+    let teacherQuery = supabase.from('teachers').select('user_id, full_name, email').eq('status', 'approved').order('full_name').limit(30);
+    if (search.trim()) {
+      teacherQuery = teacherQuery.or(`full_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`);
+    }
+    const { data: teachers } = await teacherQuery;
+    if (teachers) {
+      for (const t of teachers) {
+        if (t.user_id !== user?.id) {
+          results.push({ user_id: t.user_id, full_name: t.full_name, identifier: t.email, type: 'teacher' });
+        }
+      }
+    }
+
+    // Load admins (exclude self)
+    const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+    if (adminRoles) {
+      for (const ar of adminRoles) {
+        if (ar.user_id !== user?.id) {
+          results.push({ user_id: ar.user_id, full_name: 'Admin', identifier: null, type: 'admin' });
+        }
+      }
+    }
+
     setRecipientOptions(results);
     setLoadingRecipients(false);
   };
@@ -449,7 +476,7 @@ export function ChatBubble() {
         conversation_id: activeConversationId,
         sender_id: user.id,
         sender_role: role || 'student',
-        recipient_role: isAdmin ? activeRecipientRole : 'admin',
+        recipient_role: isStaff ? activeRecipientRole : 'admin',
         recipient_id: activeRecipientUserId || null,
         content: newMessage.trim(),
         is_read: false,
