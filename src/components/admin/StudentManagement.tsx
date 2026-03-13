@@ -85,6 +85,7 @@ export default function StudentManagement() {
   const [linkParentStudent, setLinkParentStudent] = useState<Student | null>(null);
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
   const [linkingParent, setLinkingParent] = useState(false);
+  const [showMissingParents, setShowMissingParents] = useState(false);
 
   useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
@@ -341,14 +342,92 @@ export default function StudentManagement() {
               </h4>
               <p className="text-xs text-muted-foreground mt-0.5">Link parent accounts for full platform access and communication.</p>
             </div>
-            <Badge variant="secondary" className="shrink-0 text-xs font-mono">
-              {studentsWithoutParent.length}
-            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1.5 text-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary))]/10 rounded-lg"
+              onClick={() => {
+                setSearch('');
+                setSchoolFilter('all');
+                setShowMissingParents(prev => !prev);
+              }}
+            >
+              <UserPlus className="h-4 w-4" />
+              <span className="text-xs font-semibold">Link Parents</span>
+            </Button>
           </div>
         </motion.div>
       )}
 
-      {/* Main Card */}
+      {/* Expandable Missing Parents Section */}
+      <AnimatePresence>
+        {showMissingParents && studentsWithoutParent.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <Card className="border border-[hsl(var(--secondary))]/20 shadow-md bg-card/90 backdrop-blur-xl">
+              <div className="px-5 pt-4 pb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-[hsl(var(--secondary))]" />
+                  <h3 className="text-sm font-semibold text-foreground">Students Without Parent Accounts</h3>
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setShowMissingParents(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <CardContent className="px-0 pb-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground pl-5">Student</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student ID</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">School</TableHead>
+                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground text-right pr-5">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {studentsWithoutParent.map((student) => (
+                        <TableRow key={student.id} className="hover:bg-muted/30">
+                          <TableCell className="pl-5">
+                            <div className="flex items-center gap-2.5">
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarFallback className={`bg-gradient-to-br ${getAvatarColor(student.full_name)} text-white text-[10px] font-bold`}>
+                                  {getInitials(student.full_name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium text-foreground">{student.full_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {student.student_id_code
+                              ? <Badge variant="outline" className="font-mono text-xs rounded-md">{student.student_id_code}</Badge>
+                              : <span className="text-sm text-muted-foreground">—</span>}
+                          </TableCell>
+                          <TableCell className="text-sm text-foreground">{student.school?.name || '—'}</TableCell>
+                          <TableCell className="text-right pr-5">
+                            <Button size="sm" variant="outline" onClick={() => openLinkParent(student)} className="h-8 text-xs gap-1.5 rounded-lg">
+                              <UserPlus className="h-3.5 w-3.5" /> Link Parent
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="px-5 py-2.5 border-t bg-muted/20">
+                  <p className="text-xs text-muted-foreground">{studentsWithoutParent.length} student{studentsWithoutParent.length !== 1 ? 's' : ''} need parent accounts</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-xl overflow-hidden">
         {/* Header */}
         <div className="px-6 pt-6 pb-4">
