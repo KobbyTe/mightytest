@@ -6,32 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-
-  try {
-    const { examId, pdfContent } = await req.json();
-    if (!examId || !pdfContent) throw new Error('Missing examId or pdfContent');
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
-
-    console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
-
-    // Call Lovable AI with the PDF content for extraction
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
-        max_tokens: 65536,
-        messages: [
-          {
-            role: 'system',
-            content: `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers. You MUST extract EVERY SINGLE question from the ENTIRE document — do NOT stop early or summarize.
+const SYSTEM_PROMPT = `You are an exam question extractor. You will receive a PDF document containing exam questions with their correct answers. You MUST extract EVERY SINGLE question from the ENTIRE document — do NOT stop early or summarize.
 
 CRITICAL RULES:
 - Extract ALL questions from ALL pages of the document. Documents may contain 50, 60, 100+ questions.
@@ -46,124 +21,204 @@ For each question, determine:
 - correct_answer: The correct answer text. For multiple_choice, use the full text of the correct option. For true_false, use "True" or "False". For essay, use an empty string "".
 - marks: The marks/points for the question if specified, otherwise default to 1.
 
-Extract questions regardless of formatting style (numbered, lettered, bulleted, etc).`
+Extract questions regardless of formatting style (numbered, lettered, bulleted, etc).`;
+
+const TOOL_DEF = {
+  type: 'function' as const,
+  function: {
+    name: 'extract_questions',
+    description: 'Extract structured exam questions from a document',
+    parameters: {
+      type: 'object',
+      properties: {
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              question_text: { type: 'string', description: 'The full question text' },
+              question_type: { type: 'string', enum: ['multiple_choice', 'true_false', 'essay'], description: 'Type of question' },
+              options: { type: 'array', items: { type: 'string' }, description: 'Answer options (empty array for essay)' },
+              correct_answer: { type: 'string', description: 'The correct answer text' },
+              marks: { type: 'number', description: 'Points for this question' }
+            },
+            required: ['question_text', 'question_type', 'options', 'correct_answer', 'marks'],
+            additionalProperties: false
+          }
+        }
+      },
+      required: ['questions'],
+      additionalProperties: false
+    }
+  }
+};
+
+async function callAI(apiKey: string, messages: any[]): Promise<any> {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-pro',
+      max_tokens: 131072,
+      messages,
+      tools: [TOOL_DEF],
+      tool_choice: { type: 'function', function: { name: 'extract_questions' } }
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('AI gateway error:', response.status, errorText);
+    return { error: true, status: response.status, errorText };
+  }
+
+  return await response.json();
+}
+
+function parseToolCallQuestions(aiData: any): { questions: any[], finishReason: string } {
+  const finishReason = aiData.choices?.[0]?.finish_reason || 'unknown';
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+
+  if (!toolCall || toolCall.function.name !== 'extract_questions') {
+    console.error('Unexpected AI response structure:', JSON.stringify(aiData).substring(0, 500));
+    return { questions: [], finishReason };
+  }
+
+  try {
+    const parsed = JSON.parse(toolCall.function.arguments);
+    const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
+    return { questions, finishReason };
+  } catch (parseErr) {
+    console.error('Failed to parse tool call arguments:', (parseErr as Error).message);
+    return { questions: [], finishReason };
+  }
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { examId, pdfContent } = await req.json();
+    if (!examId || !pdfContent) throw new Error('Missing examId or pdfContent');
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
+
+    console.log('Processing exam:', examId, '| PDF base64 length:', pdfContent.length);
+
+    // ---- ITERATION 1: Initial extraction ----
+    const initialMessages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: 'Extract ALL exam questions from this PDF document. The document may contain many questions (50+). Make sure you go through EVERY page and extract EVERY question. Do NOT stop early. Return all of them using the extract_questions tool.'
           },
           {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract ALL exam questions from this PDF document. The document may contain many questions (50+). Make sure you go through EVERY page and extract EVERY question. Do NOT stop early. Return all of them using the extract_questions tool.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfContent}`
-                }
-              }
-            ]
+            type: 'image_url',
+            image_url: { url: `data:application/pdf;base64,${pdfContent}` }
           }
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'extract_questions',
-              description: 'Extract structured exam questions from a document',
-              parameters: {
-                type: 'object',
-                properties: {
-                  questions: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        question_text: { type: 'string', description: 'The full question text' },
-                        question_type: { type: 'string', enum: ['multiple_choice', 'true_false', 'essay'], description: 'Type of question' },
-                        options: { type: 'array', items: { type: 'string' }, description: 'Answer options (empty array for essay)' },
-                        correct_answer: { type: 'string', description: 'The correct answer text' },
-                        marks: { type: 'number', description: 'Points for this question' }
-                      },
-                      required: ['question_text', 'question_type', 'options', 'correct_answer', 'marks'],
-                      additionalProperties: false
-                    }
-                  }
-                },
-                required: ['questions'],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: 'function', function: { name: 'extract_questions' } }
-      }),
-    });
+        ]
+      }
+    ];
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errorText);
+    const aiData = await callAI(LOVABLE_API_KEY, initialMessages);
 
-      if (aiResponse.status === 429) {
+    // Handle HTTP-level errors from AI gateway
+    if (aiData.error) {
+      if (aiData.status === 429) {
         return new Response(JSON.stringify({
           success: false, questionsCreated: 0,
           error: 'AI service is temporarily busy. Please try again in a few moments.'
         }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      if (aiResponse.status === 402) {
+      if (aiData.status === 402) {
         return new Response(JSON.stringify({
           success: false, questionsCreated: 0,
           error: 'AI usage limit reached. Please add credits to your workspace.'
         }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      throw new Error(`AI processing failed (${aiResponse.status})`);
+      throw new Error(`AI processing failed (${aiData.status})`);
     }
 
-    const aiData = await aiResponse.json();
-    console.log('AI response received, finish_reason:', aiData.choices?.[0]?.finish_reason);
+    let { questions: allQuestions, finishReason } = parseToolCallQuestions(aiData);
+    console.log(`Iteration 1: extracted ${allQuestions.length} questions, finish_reason=${finishReason}`);
 
-    // Extract questions from tool call response
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall || toolCall.function.name !== 'extract_questions') {
-      console.error('Unexpected AI response structure:', JSON.stringify(aiData).substring(0, 500));
-      throw new Error('AI did not return structured question data');
+    // ---- CONTINUATION LOOP: If truncated, ask AI to continue ----
+    const MAX_CONTINUATIONS = 3;
+    let truncationWarning = false;
+
+    for (let iteration = 2; iteration <= MAX_CONTINUATIONS + 1 && finishReason === 'length'; iteration++) {
+      console.log(`Response truncated. Starting continuation iteration ${iteration}...`);
+
+      const continuationMessages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `You previously extracted ${allQuestions.length} questions from this PDF but your response was cut off. Continue extracting from question ${allQuestions.length + 1} onward. Extract ALL remaining questions that you haven't covered yet. Do NOT repeat any of the first ${allQuestions.length} questions.`
+            },
+            {
+              type: 'image_url',
+              image_url: { url: `data:application/pdf;base64,${pdfContent}` }
+            }
+          ]
+        }
+      ];
+
+      const contData = await callAI(LOVABLE_API_KEY, continuationMessages);
+
+      if (contData.error) {
+        console.warn(`Continuation iteration ${iteration} failed with status ${contData.status}. Proceeding with ${allQuestions.length} questions.`);
+        truncationWarning = true;
+        break;
+      }
+
+      const { questions: moreQuestions, finishReason: contFinish } = parseToolCallQuestions(contData);
+      console.log(`Iteration ${iteration}: extracted ${moreQuestions.length} more questions, finish_reason=${contFinish}`);
+
+      if (moreQuestions.length === 0) {
+        console.log('No additional questions returned. Stopping continuation.');
+        break;
+      }
+
+      allQuestions = [...allQuestions, ...moreQuestions];
+      finishReason = contFinish;
+
+      if (contFinish === 'length') {
+        console.warn(`Still truncated after iteration ${iteration}. Total so far: ${allQuestions.length}`);
+        if (iteration === MAX_CONTINUATIONS + 1) {
+          truncationWarning = true;
+        }
+      }
     }
 
-    let parsed: any;
-    try {
-      parsed = JSON.parse(toolCall.function.arguments);
-    } catch (parseErr) {
-      console.error('Failed to parse AI tool call arguments (likely truncated):', (parseErr as Error).message);
-      throw new Error('AI response was truncated. The PDF may be too large — try splitting it into smaller files.');
-    }
-
-    const extractedQuestions = parsed.questions;
-
-    if (!Array.isArray(extractedQuestions) || extractedQuestions.length === 0) {
+    if (allQuestions.length === 0) {
       return new Response(JSON.stringify({
         success: false, questionsCreated: 0,
         error: 'No questions could be found in the PDF. Please ensure the document contains clearly formatted exam questions with answers.'
       }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Check if AI response was truncated (finish_reason = "length")
-    const finishReason = aiData.choices?.[0]?.finish_reason;
-    if (finishReason === 'length') {
-      console.warn('AI response was truncated (finish_reason=length). Extracted', extractedQuestions.length, 'questions but there may be more.');
-    }
-
-    console.log('Raw extracted count:', extractedQuestions.length);
+    console.log('Total raw extracted count:', allQuestions.length);
 
     // --- DEDUPLICATION: remove repeated questions ---
     const seen = new Set<string>();
-    const uniqueQuestions = extractedQuestions.filter((q: any) => {
-      // Normalize question text: trim, lowercase, collapse whitespace
+    const uniqueQuestions = allQuestions.filter((q: any) => {
       const key = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
-    const duplicatesRemoved = extractedQuestions.length - uniqueQuestions.length;
+    const duplicatesRemoved = allQuestions.length - uniqueQuestions.length;
     if (duplicatesRemoved > 0) {
       console.warn(`Removed ${duplicatesRemoved} duplicate questions from AI output`);
     }
@@ -193,17 +248,23 @@ Extract questions regardless of formatting style (numbered, lettered, bulleted, 
       .eq('exam_id', examId);
     if (deleteError) {
       console.error('Failed to clean up old questions:', deleteError.message);
-      // Non-fatal — continue with insert
     }
 
     const { error } = await supabase.from('exam_questions').insert(dbQuestions);
     if (error) throw new Error('Database error: ' + error.message);
 
     console.log('Created', dbQuestions.length, 'questions in database');
+
+    let message = `Successfully created ${dbQuestions.length} questions from PDF`;
+    if (truncationWarning) {
+      message += `. Warning: The PDF may contain more questions than could be extracted. Consider splitting large PDFs into smaller files.`;
+    }
+
     return new Response(JSON.stringify({
       success: true,
       questionsCreated: dbQuestions.length,
-      message: `Successfully created ${dbQuestions.length} questions from PDF`
+      message,
+      warning: truncationWarning ? 'Some questions may not have been extracted due to document size.' : undefined
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
