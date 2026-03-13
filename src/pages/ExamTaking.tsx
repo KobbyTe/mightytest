@@ -816,6 +816,47 @@ export default function ExamTaking() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Reading Assistant - Read Aloud Button */}
+                {readingAssistant.enabled && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-accent/40 text-accent hover:bg-accent/10"
+                      onClick={() => {
+                        if (readingAssistant.isSpeaking) {
+                          readingAssistant.stop();
+                        } else {
+                          let text = `Question ${currentQuestionIndex + 1}. ${currentQuestion.question_text}`;
+                          if (currentQuestion.question_type === 'multiple_choice' && Array.isArray(currentQuestion.options)) {
+                            text += '. Options: ' + currentQuestion.options.map((opt: string, i: number) => `Option ${i + 1}: ${opt}`).join('. ');
+                          } else if (currentQuestion.question_type === 'true_false') {
+                            text += '. Choose True or False.';
+                          } else if (currentQuestion.question_type === 'essay') {
+                            text += '. This is an essay question. Write your answer in the text box.';
+                          }
+                          readingAssistant.speak(text);
+                        }
+                      }}
+                    >
+                      {readingAssistant.isSpeaking ? (
+                        <>
+                          <Square className="h-3.5 w-3.5 fill-current" />
+                          Stop Reading
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="h-3.5 w-3.5" />
+                          Read Question Aloud
+                        </>
+                      )}
+                    </Button>
+                    {readingAssistant.isSpeaking && (
+                      <span className="text-xs text-accent animate-pulse">🔊 Reading...</span>
+                    )}
+                  </div>
+                )}
                 {currentQuestion.question_type === 'multiple_choice' && currentQuestion.options && (
                   <RadioGroup
                     value={answers[currentQuestion.id] || ''}
