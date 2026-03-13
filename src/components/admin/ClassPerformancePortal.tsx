@@ -321,6 +321,21 @@ export default function ClassPerformancePortal({
       let currentPage = 1;
       let y = 0;
 
+      // ── Load logo as base64 for PDF embedding ──
+      let logoBase64: string | null = null;
+      try {
+        const logoModule = await import('@/assets/mighty-test-logo.png');
+        const response = await fetch(logoModule.default);
+        const blob = await response.blob();
+        logoBase64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.warn('Could not load logo for PDF, continuing without it');
+      }
+
       // ── Draw page header ──
       function drawPageHeaderOn(doc: any) {
         let y = 0;
@@ -335,6 +350,18 @@ export default function ClassPerformancePortal({
           const b = Math.round(brandDark[2] + (brandAccent[2] - brandDark[2]) * ratio);
           doc.setFillColor(r, g, b);
           doc.rect(i * stepW, 0, stepW + 0.5, bandH, 'F');
+        }
+
+        // Add logo to header band (left side)
+        const logoSize = 16;
+        const logoX = margin + 2;
+        const logoY = (bandH - logoSize) / 2;
+        if (logoBase64) {
+          try {
+            doc.addImage(logoBase64, 'PNG', logoX, logoY, logoSize, logoSize);
+          } catch (e) {
+            console.warn('Failed to add logo to PDF page');
+          }
         }
 
         doc.setFontSize(16);
