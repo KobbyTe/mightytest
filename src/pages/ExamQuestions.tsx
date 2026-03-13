@@ -307,6 +307,7 @@ export default function ExamQuestions() {
     }
 
     setUploadingPdf(true);
+    setPdfProgress({ step: 1, message: 'Reading PDF file...', questionsFound: 0 });
     
     try {
       // Read file as base64
@@ -315,15 +316,31 @@ export default function ExamQuestions() {
         try {
           const base64Content = event.target?.result as string;
           
-          console.log('Uploading PDF...');
+          setPdfProgress({ step: 2, message: 'Uploading to AI for analysis...', questionsFound: 0 });
+          
+          // Start a simulated progress timer for long processing
+          const progressSteps = [
+            { delay: 3000, step: 3, message: 'AI is reading the document...' },
+            { delay: 8000, step: 4, message: 'Extracting questions and answers...' },
+            { delay: 15000, step: 5, message: 'Processing multiple choice options...' },
+            { delay: 22000, step: 6, message: 'Validating correct answers...' },
+            { delay: 30000, step: 7, message: 'Almost done — finalizing extraction...' },
+          ];
+          
+          const timers = progressSteps.map(({ delay, step, message }) =>
+            setTimeout(() => setPdfProgress(prev => ({ ...prev, step, message })), delay)
+          );
           
           // Call edge function to process PDF
           const { data, error } = await supabase.functions.invoke('process-exam-pdf', {
             body: { 
               examId,
-              pdfContent: base64Content.split(',')[1] // Remove data:application/pdf;base64, prefix
+              pdfContent: base64Content.split(',')[1]
             }
           });
+
+          // Clear all progress timers
+          timers.forEach(clearTimeout);
 
           if (error) {
             console.error('Edge function error:', error);
@@ -333,7 +350,7 @@ export default function ExamQuestions() {
           console.log('PDF processing result:', data);
 
           if (!data.success) {
-            // Show detailed error with suggestions
+            setPdfProgress({ step: 0, message: '', questionsFound: 0 });
             const errorMsg = data.error || 'Failed to process PDF';
             const suggestions = data.suggestions || [];
             
@@ -356,17 +373,23 @@ export default function ExamQuestions() {
             return;
           }
 
-          // Success!
+          // Success — show final count
+          setPdfProgress({ step: 8, message: 'Done!', questionsFound: data.questionsCreated });
+
           if (data.questionsCreated > 0) {
             toast.success(
               <div className="space-y-1">
                 <div className="font-semibold">✅ Success!</div>
                 <div>Created {data.questionsCreated} questions from PDF</div>
+                {data.warning && <div className="text-xs text-amber-200">{data.warning}</div>}
               </div>,
               { duration: 5000 }
             );
             
-            setIsPdfDialogOpen(false);
+            setTimeout(() => {
+              setIsPdfDialogOpen(false);
+              setPdfProgress({ step: 0, message: '', questionsFound: 0 });
+            }, 1500);
             await loadData();
           } else {
             toast.error('No questions were created. Please check the PDF format.');
@@ -374,6 +397,7 @@ export default function ExamQuestions() {
           
         } catch (innerError) {
           console.error('Error in PDF processing:', innerError);
+          setPdfProgress({ step: 0, message: '', questionsFound: 0 });
           toast.error(
             <div className="space-y-2">
               <div className="font-semibold">Failed to process PDF</div>
@@ -392,6 +416,7 @@ export default function ExamQuestions() {
       reader.onerror = () => {
         toast.error('Failed to read PDF file');
         setUploadingPdf(false);
+        setPdfProgress({ step: 0, message: '', questionsFound: 0 });
       };
       
       reader.readAsDataURL(file);
@@ -400,6 +425,7 @@ export default function ExamQuestions() {
       console.error('Error uploading PDF:', error);
       toast.error('Failed to upload PDF file');
       setUploadingPdf(false);
+      setPdfProgress({ step: 0, message: '', questionsFound: 0 });
     }
   };
 
