@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,10 +11,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare, Mail, Phone, Calendar, GraduationCap, School, BookOpen, User, Heart } from 'lucide-react';
+import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare, Mail, Phone, Calendar, GraduationCap, School, BookOpen, User, Heart, MoreHorizontal, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
 interface Student {
@@ -35,22 +36,36 @@ interface Student {
   parent: { full_name: string; phone_number: string | null; relationship_to_student: string | null } | null;
 }
 
-interface School { id: string; name: string; }
+interface SchoolItem { id: string; name: string; }
 interface ClassItem { id: string; name: string; school_id: string; grade_level: string | null; }
+
+const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+const AVATAR_COLORS = [
+  'from-[hsl(var(--primary))] to-[hsl(var(--secondary))]',
+  'from-[hsl(var(--accent))] to-[hsl(var(--purple))]',
+  'from-[hsl(var(--success))] to-[hsl(var(--accent))]',
+  'from-[hsl(var(--secondary))] to-[hsl(var(--destructive))]',
+  'from-[hsl(var(--purple))] to-[hsl(var(--primary))]',
+];
+
+const getAvatarColor = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
 
 export default function StudentManagement() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [schools, setSchools] = useState<School[]>([]);
+  const [schools, setSchools] = useState<SchoolItem[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<string>('all');
   const { scopedClassIds, loading: scopeLoading } = useTeacherScope();
 
-  // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Change class dialog (single & bulk)
   const [changeClassOpen, setChangeClassOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedSchoolId, setSelectedSchoolId] = useState('');
@@ -58,17 +73,14 @@ export default function StudentManagement() {
   const [saving, setSaving] = useState(false);
   const [isBulkClassAssign, setIsBulkClassAssign] = useState(false);
 
-  // Delete dialog
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [isBulkDelete, setIsBulkDelete] = useState(false);
 
-  // View details dialog
   const [viewOpen, setViewOpen] = useState(false);
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
 
-  // Link parent dialog
   const [linkParentOpen, setLinkParentOpen] = useState(false);
   const [linkParentStudent, setLinkParentStudent] = useState<Student | null>(null);
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
@@ -84,7 +96,6 @@ export default function StudentManagement() {
         .order('full_name')
         .limit(1000);
 
-      // Scope to teacher's assigned classes
       if (scopedClassIds !== null) {
         if (scopedClassIds.length > 0) {
           studentsQuery = studentsQuery.in('class_id', scopedClassIds);
@@ -119,7 +130,6 @@ export default function StudentManagement() {
   const studentsWithoutParent = students.filter(s => !s.parent_id);
   const filteredClasses = classes.filter((c) => c.school_id === selectedSchoolId);
 
-  // Selection helpers
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -136,9 +146,6 @@ export default function StudentManagement() {
     }
   };
 
-  const selectedStudents = students.filter(s => selectedIds.has(s.id));
-
-  // Single class change
   const openChangeClass = (student: Student) => {
     setSelectedStudent(student);
     setSelectedSchoolId(student.school_id || '');
@@ -147,7 +154,6 @@ export default function StudentManagement() {
     setChangeClassOpen(true);
   };
 
-  // Bulk class change
   const openBulkClassAssign = () => {
     setSelectedStudent(null);
     setSelectedSchoolId('');
@@ -190,7 +196,6 @@ export default function StudentManagement() {
     }
   };
 
-  // Delete (single & bulk)
   const openDeleteDialog = (student: Student) => {
     setStudentToDelete(student);
     setIsBulkDelete(false);
@@ -232,7 +237,6 @@ export default function StudentManagement() {
     }
   };
 
-  // Bulk grade export
   const handleBulkGradeExport = async () => {
     try {
       const ids = Array.from(selectedIds);
@@ -251,26 +255,10 @@ export default function StudentManagement() {
         const s = studentMap.get(a.student_id);
         const pct = a.marks_obtained !== null && a.exams?.total_marks ? ((a.marks_obtained / a.exams.total_marks) * 100).toFixed(1) : 'N/A';
         const passed = a.marks_obtained !== null && a.exams?.passing_marks ? (a.marks_obtained >= a.exams.passing_marks ? 'Passed' : 'Failed') : 'N/A';
-        return [
-          s?.full_name || 'Unknown',
-          s?.student_id_code || 'N/A',
-          s?.email || 'N/A',
-          a.exams?.title || 'Unknown',
-          a.exams?.subject || 'N/A',
-          a.marks_obtained ?? 'N/A',
-          a.exams?.total_marks || 'N/A',
-          pct,
-          passed,
-        ];
+        return [s?.full_name || 'Unknown', s?.student_id_code || 'N/A', s?.email || 'N/A', a.exams?.title || 'Unknown', a.exams?.subject || 'N/A', a.marks_obtained ?? 'N/A', a.exams?.total_marks || 'N/A', pct, passed];
       });
 
-      const csv = [
-        `Bulk Grade Export - ${new Date().toLocaleDateString()}`,
-        '',
-        headers.join(','),
-        ...rows.map(r => r.map(c => `"${c}"`).join(','))
-      ].join('\n');
-
+      const csv = [`Bulk Grade Export - ${new Date().toLocaleDateString()}`, '', headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -284,7 +272,6 @@ export default function StudentManagement() {
     }
   };
 
-  // Link parent
   const openLinkParent = (student: Student) => {
     setLinkParentStudent(student);
     setParentForm({ name: '', email: '', phone: '', relationship: '' });
@@ -325,179 +312,282 @@ export default function StudentManagement() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center py-12"><div className="animate-pulse text-lg">Loading students...</div></div>;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Loading students…</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {/* Students Missing Parent Accounts */}
+      {/* Missing Parent Alert */}
       {studentsWithoutParent.length > 0 && (
-        <Card className="border-yellow-500/50 bg-yellow-500/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-yellow-600">
-              <AlertTriangle className="h-5 w-5" />
-              Students Missing Parent Accounts ({studentsWithoutParent.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">These students don't have a linked parent account.</p>
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Student ID</TableHead>
-                    <TableHead>School</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {studentsWithoutParent.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell className="font-medium">{student.full_name}</TableCell>
-                      <TableCell>{student.student_id_code ? <Badge variant="outline" className="font-mono text-xs">{student.student_id_code}</Badge> : '—'}</TableCell>
-                      <TableCell>{student.school?.name || '—'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" variant="outline" onClick={() => openLinkParent(student)}>
-                          <UserPlus className="h-4 w-4 mr-1" /> Link Parent
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-[hsl(var(--secondary))]/30 bg-[hsl(var(--secondary))]/5 backdrop-blur-sm p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--secondary))]/15">
+              <AlertTriangle className="h-4.5 w-4.5 text-[hsl(var(--secondary))]" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-foreground">
+                {studentsWithoutParent.length} student{studentsWithoutParent.length !== 1 ? 's' : ''} missing parent accounts
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Link parent accounts for full platform access and communication.</p>
+            </div>
+            <Badge variant="secondary" className="shrink-0 text-xs font-mono">
+              {studentsWithoutParent.length}
+            </Badge>
+          </div>
+        </motion.div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Student Management ({students.length} students)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search, Filter, and Bulk Actions */}
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search by name or email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      {/* Main Card */}
+      <Card className="border-0 shadow-lg bg-card/80 backdrop-blur-xl overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(var(--secondary))] shadow-md">
+                <Users className="h-5 w-5 text-primary-foreground" />
               </div>
-              <Select value={schoolFilter} onValueChange={setSchoolFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filter by school" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Schools</SelectItem>
-                  {schools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div>
+                <h2 className="text-lg font-bold text-foreground tracking-tight">Student Management</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {filteredStudents.length} of {students.length} students
+                </p>
+              </div>
             </div>
-
-            {/* Bulk Action Bar */}
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{selectedIds.size} selected</span>
-                <div className="flex-1" />
-                <Button size="sm" variant="outline" onClick={openBulkClassAssign}>
-                  <ArrowRightLeft className="h-3.5 w-3.5 mr-1" /> Assign Class
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleBulkGradeExport}>
-                  <Download className="h-3.5 w-3.5 mr-1" /> Export Grades
-                </Button>
-                <Button size="sm" variant="destructive" onClick={openBulkDelete}>
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>Clear</Button>
-              </div>
-            )}
           </div>
 
-          {/* Students Table */}
-          <div className="rounded-md border overflow-x-auto">
+          {/* Search & Filter Row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search students by name or email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 bg-muted/50 border-border/60 focus:bg-card transition-colors"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Select value={schoolFilter} onValueChange={setSchoolFilter}>
+              <SelectTrigger className="w-full sm:w-[200px] h-10 bg-muted/50 border-border/60">
+                <SelectValue placeholder="Filter by school" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Schools</SelectItem>
+                {schools.map((school) => (
+                  <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedIds.size > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="mx-6 mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[hsl(var(--primary))]/8 border border-[hsl(var(--primary))]/20">
+                <CheckSquare className="h-4 w-4 text-[hsl(var(--primary))]" />
+                <span className="text-sm font-semibold text-foreground">{selectedIds.size} selected</span>
+                <div className="flex-1" />
+                <div className="flex items-center gap-1.5">
+                  <Button size="sm" variant="outline" onClick={openBulkClassAssign} className="h-8 text-xs gap-1.5 rounded-lg">
+                    <ArrowRightLeft className="h-3.5 w-3.5" /> Assign Class
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleBulkGradeExport} className="h-8 text-xs gap-1.5 rounded-lg">
+                    <Download className="h-3.5 w-3.5" /> Export
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={openBulkDelete} className="h-8 text-xs gap-1.5 rounded-lg">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </Button>
+                  <Separator orientation="vertical" className="h-5 mx-1" />
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} className="h-8 text-xs rounded-lg text-muted-foreground">
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Table */}
+        <CardContent className="px-0 pb-0">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
+                <TableRow className="bg-muted/40 hover:bg-muted/40 border-t">
+                  <TableHead className="w-12 pl-6">
                     <Checkbox
                       checked={filteredStudents.length > 0 && selectedIds.size === filteredStudents.length}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Student ID</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>School</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Student</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">School</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Class</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Grade</TableHead>
+                  <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      {search || schoolFilter !== 'all' ? 'No students match your search' : 'No students found'}
+                    <TableCell colSpan={7} className="text-center py-16">
+                      <div className="flex flex-col items-center gap-2">
+                        <Users className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground font-medium">
+                          {search || schoolFilter !== 'all' ? 'No students match your filters' : 'No students found'}
+                        </p>
+                        {(search || schoolFilter !== 'all') && (
+                          <Button variant="link" size="sm" onClick={() => { setSearch(''); setSchoolFilter('all'); }} className="text-xs">
+                            Clear filters
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStudents.map((student) => (
-                    <TableRow key={student.id} className={selectedIds.has(student.id) ? 'bg-primary/5' : ''}>
-                      <TableCell>
+                  filteredStudents.map((student, index) => (
+                    <motion.tr
+                      key={student.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: Math.min(index * 0.015, 0.3) }}
+                      className={`border-b transition-colors group cursor-pointer ${
+                        selectedIds.has(student.id)
+                          ? 'bg-[hsl(var(--primary))]/5'
+                          : 'hover:bg-muted/30'
+                      }`}
+                      onClick={() => { setViewStudent(student); setViewOpen(true); }}
+                    >
+                      <td className="p-4 pl-6" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedIds.has(student.id)}
                           onCheckedChange={() => toggleSelect(student.id)}
                         />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {student.full_name}
-                          {!student.parent_id && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">No Parent</Badge>}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 shrink-0 shadow-sm">
+                            <AvatarFallback className={`bg-gradient-to-br ${getAvatarColor(student.full_name)} text-white text-xs font-bold`}>
+                              {getInitials(student.full_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{student.full_name}</p>
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{student.email || '—'}</p>
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {student.student_id_code ? <Badge variant="outline" className="font-mono text-xs">{student.student_id_code}</Badge> : <span className="text-muted-foreground text-sm">—</span>}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{student.email}</TableCell>
-                      <TableCell>{student.school ? <Badge variant="outline">{student.school.name}</Badge> : <span className="text-muted-foreground text-sm">—</span>}</TableCell>
-                      <TableCell>{student.class ? <Badge variant="secondary">{student.class.name}</Badge> : <span className="text-muted-foreground text-sm">—</span>}</TableCell>
-                      <TableCell>{student.grade || '—'}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => { setViewStudent(student); setViewOpen(true); }} title="View Details">
-                            <Eye className="h-4 w-4 mr-1" /> View
-                          </Button>
-                          {!student.parent_id && (
-                            <Button variant="ghost" size="sm" onClick={() => openLinkParent(student)} className="text-yellow-600 hover:text-yellow-700">
-                              <UserPlus className="h-4 w-4 mr-1" /> Parent
+                      </td>
+                      <td className="p-4">
+                        {student.school ? (
+                          <span className="text-sm text-foreground">{student.school.name}</span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {student.class ? (
+                          <Badge variant="secondary" className="font-medium text-xs rounded-md">
+                            {student.class.name}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {student.grade ? (
+                          <Badge variant="outline" className="font-medium text-xs rounded-md">
+                            {student.grade}
+                          </Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {!student.parent_id ? (
+                          <Badge variant="destructive" className="text-[10px] font-medium rounded-md gap-1">
+                            <AlertTriangle className="h-3 w-3" /> No Parent
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] font-medium rounded-md bg-[hsl(var(--success))]/10 text-[hsl(var(--success))] border-[hsl(var(--success))]/30">
+                            Active
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="p-4 pr-6" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button variant="ghost" size="sm" onClick={() => openChangeClass(student)} title="Change Class">
-                            <ArrowRightLeft className="h-4 w-4 mr-1" /> Class
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => openDeleteDialog(student)} className="text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem onClick={() => { setViewStudent(student); setViewOpen(true); }}>
+                              <Eye className="h-3.5 w-3.5 mr-2" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openChangeClass(student)}>
+                              <ArrowRightLeft className="h-3.5 w-3.5 mr-2" /> Change Class
+                            </DropdownMenuItem>
+                            {!student.parent_id && (
+                              <DropdownMenuItem onClick={() => openLinkParent(student)}>
+                                <UserPlus className="h-3.5 w-3.5 mr-2" /> Link Parent
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDeleteDialog(student)} className="text-destructive focus:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Student
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </motion.tr>
                   ))
                 )}
               </TableBody>
             </Table>
           </div>
+
+          {/* Footer */}
+          {filteredStudents.length > 0 && (
+            <div className="px-6 py-3 border-t bg-muted/20 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Showing {filteredStudents.length} of {students.length} students
+              </p>
+              {selectedIds.size > 0 && (
+                <p className="text-xs font-medium text-[hsl(var(--primary))]">
+                  {selectedIds.size} selected
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Change Class Dialog (single & bulk) */}
+      {/* Change Class Dialog */}
       <Dialog open={changeClassOpen} onOpenChange={setChangeClassOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{isBulkClassAssign ? `Assign Class to ${selectedIds.size} Students` : `Change Class for ${selectedStudent?.full_name}`}</DialogTitle>
             <DialogDescription>
@@ -506,15 +596,15 @@ export default function StudentManagement() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {!isBulkClassAssign && selectedStudent && (
-              <div>
-                <Label>Current Class</Label>
-                <p className="text-sm text-muted-foreground mt-1">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Current placement</p>
+                <p className="text-sm font-medium mt-0.5">
                   {selectedStudent.school?.name || 'No school'} → {selectedStudent.class?.name || 'No class'}
                 </p>
               </div>
             )}
-            <div>
-              <Label>School</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">School</Label>
               <Select value={selectedSchoolId} onValueChange={(v) => { setSelectedSchoolId(v); setSelectedClassId(''); }}>
                 <SelectTrigger><SelectValue placeholder="Select school" /></SelectTrigger>
                 <SelectContent>
@@ -522,8 +612,8 @@ export default function StudentManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Class</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Class</Label>
               <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                 <SelectTrigger><SelectValue placeholder={selectedSchoolId ? 'Select class' : 'Select a school first'} /></SelectTrigger>
                 <SelectContent>
@@ -531,14 +621,14 @@ export default function StudentManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleChangeClass} disabled={saving || !selectedClassId} className="w-full">
+            <Button onClick={handleChangeClass} disabled={saving || !selectedClassId} className="w-full h-10">
               {saving ? 'Saving...' : isBulkClassAssign ? `Assign ${selectedIds.size} Students` : 'Save Changes'}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation (single & bulk) */}
+      {/* Delete Confirmation */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -568,21 +658,21 @@ export default function StudentManagement() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
                 className="bg-card rounded-2xl overflow-y-auto max-h-[85vh]"
               >
                 {/* Hero Banner */}
-                <div className="relative bg-gradient-to-br from-primary via-primary/80 to-accent h-32">
-                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0djItSDI0di0yaDEyem0wLTRWMjhIMjR2Mmgxem0tOC02aDJ2LTJoLTJ2MnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-30" />
+                <div className="relative bg-gradient-to-br from-[hsl(var(--primary))] via-[hsl(var(--primary-light))] to-[hsl(var(--accent))] h-28">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_60%)]" />
                   <motion.div
-                    initial={{ y: 20, opacity: 0 }}
+                    initial={{ y: 15, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.1, duration: 0.4 }}
+                    transition={{ delay: 0.1, duration: 0.35 }}
                     className="absolute -bottom-10 left-6"
                   >
                     <Avatar className="h-20 w-20 border-4 border-card shadow-xl">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                        {viewStudent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      <AvatarFallback className={`bg-gradient-to-br ${getAvatarColor(viewStudent.full_name)} text-white text-xl font-bold`}>
+                        {getInitials(viewStudent.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   </motion.div>
@@ -592,67 +682,63 @@ export default function StudentManagement() {
                   </DialogHeader>
                 </div>
 
-                {/* Name & Badge Section */}
+                {/* Name Section */}
                 <motion.div
                   initial={{ y: 10, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.15, duration: 0.4 }}
+                  transition={{ delay: 0.15, duration: 0.35 }}
                   className="pt-14 px-6 pb-2"
                 >
                   <h2 className="text-xl font-bold text-foreground">{viewStudent.full_name}</h2>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     {viewStudent.student_id_code && (
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {viewStudent.student_id_code}
-                      </Badge>
+                      <Badge variant="secondary" className="font-mono text-xs rounded-md">{viewStudent.student_id_code}</Badge>
                     )}
                     {viewStudent.grade && (
-                      <Badge variant="outline" className="text-xs">
-                        {viewStudent.grade}
-                      </Badge>
+                      <Badge variant="outline" className="text-xs rounded-md">{viewStudent.grade}</Badge>
                     )}
                   </div>
                 </motion.div>
 
                 {/* Info Cards */}
-                <div className="px-6 pb-5 pt-3 space-y-4">
-                  {/* Contact & Personal Details */}
+                <div className="px-6 pb-5 pt-3 space-y-3">
+                  {/* Personal Details */}
                   <motion.div
-                    initial={{ y: 15, opacity: 0 }}
+                    initial={{ y: 12, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.4 }}
+                    transition={{ delay: 0.2, duration: 0.35 }}
                     className="rounded-xl border bg-muted/30 p-4 space-y-3"
                   >
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Personal Details</h4>
-                    <div className="grid gap-3">
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Personal Details</h4>
+                    <div className="grid gap-2.5">
                       {viewStudent.email && (
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                            <Mail className="h-4 w-4 text-primary" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--primary))]/10">
+                            <Mail className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs text-muted-foreground">Email</p>
+                            <p className="text-[11px] text-muted-foreground">Email</p>
                             <p className="text-sm font-medium text-foreground truncate">{viewStudent.email}</p>
                           </div>
                         </div>
                       )}
                       {viewStudent.phone_number && (
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                            <Phone className="h-4 w-4 text-primary" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--primary))]/10">
+                            <Phone className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="text-[11px] text-muted-foreground">Phone</p>
                             <p className="text-sm font-medium text-foreground">{viewStudent.phone_number}</p>
                           </div>
                         </div>
                       )}
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                          <Calendar className="h-4 w-4 text-primary" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--primary))]/10">
+                          <Calendar className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Date of Birth</p>
+                          <p className="text-[11px] text-muted-foreground">Date of Birth</p>
                           <p className="text-sm font-medium text-foreground">
                             {viewStudent.date_of_birth ? new Date(viewStudent.date_of_birth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                           </p>
@@ -660,11 +746,11 @@ export default function StudentManagement() {
                       </div>
                       {viewStudent.gender && (
                         <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                            <User className="h-4 w-4 text-primary" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--primary))]/10">
+                            <User className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Gender</p>
+                            <p className="text-[11px] text-muted-foreground">Gender</p>
                             <p className="text-sm font-medium text-foreground capitalize">{viewStudent.gender}</p>
                           </div>
                         </div>
@@ -674,37 +760,37 @@ export default function StudentManagement() {
 
                   {/* Academic Details */}
                   <motion.div
-                    initial={{ y: 15, opacity: 0 }}
+                    initial={{ y: 12, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3, duration: 0.4 }}
+                    transition={{ delay: 0.3, duration: 0.35 }}
                     className="rounded-xl border bg-muted/30 p-4 space-y-3"
                   >
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Academic Info</h4>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Academic Info</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
-                          <School className="h-4 w-4 text-accent-foreground" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--accent))]/15">
+                          <School className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">School</p>
+                          <p className="text-[11px] text-muted-foreground">School</p>
                           <p className="text-sm font-medium text-foreground truncate">{viewStudent.school?.name || '—'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
-                          <BookOpen className="h-4 w-4 text-accent-foreground" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--accent))]/15">
+                          <BookOpen className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Class</p>
+                          <p className="text-[11px] text-muted-foreground">Class</p>
                           <p className="text-sm font-medium text-foreground">{viewStudent.class?.name || '—'}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20">
-                          <GraduationCap className="h-4 w-4 text-accent-foreground" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--accent))]/15">
+                          <GraduationCap className="h-3.5 w-3.5 text-[hsl(var(--accent))]" />
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Grade</p>
+                          <p className="text-[11px] text-muted-foreground">Grade</p>
                           <p className="text-sm font-medium text-foreground">{viewStudent.grade || '—'}</p>
                         </div>
                       </div>
@@ -713,23 +799,23 @@ export default function StudentManagement() {
 
                   {/* Parent / Guardian */}
                   <motion.div
-                    initial={{ y: 15, opacity: 0 }}
+                    initial={{ y: 12, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.4 }}
+                    transition={{ delay: 0.4, duration: 0.35 }}
                     className="rounded-xl border bg-muted/30 p-4 space-y-3"
                   >
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Parent / Guardian</h4>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Parent / Guardian</h4>
                     {viewStudent.parent ? (
                       <div className="flex items-start gap-3">
                         <Avatar className="h-10 w-10 mt-0.5">
-                          <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
-                            {viewStudent.parent.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          <AvatarFallback className="bg-gradient-to-br from-[hsl(var(--secondary))] to-[hsl(var(--primary))] text-white text-sm font-semibold">
+                            {getInitials(viewStudent.parent.full_name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="space-y-0.5">
                           <p className="text-sm font-semibold text-foreground">{viewStudent.parent.full_name}</p>
                           {viewStudent.parent.relationship_to_student && (
-                            <Badge variant="outline" className="text-xs capitalize">{viewStudent.parent.relationship_to_student}</Badge>
+                            <Badge variant="outline" className="text-xs capitalize rounded-md">{viewStudent.parent.relationship_to_student}</Badge>
                           )}
                           {viewStudent.parent.phone_number && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
@@ -741,9 +827,9 @@ export default function StudentManagement() {
                     ) : (
                       <div className="space-y-2.5">
                         <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <AlertTriangle className="h-4 w-4 text-destructive" /> No parent linked to this student
+                          <AlertTriangle className="h-4 w-4 text-destructive" /> No parent linked
                         </p>
-                        <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }} className="gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }} className="gap-1.5 rounded-lg">
                           <UserPlus className="h-4 w-4" /> Create Parent Account
                         </Button>
                       </div>
@@ -758,7 +844,7 @@ export default function StudentManagement() {
 
       {/* Link Parent Dialog */}
       <Dialog open={linkParentOpen} onOpenChange={setLinkParentOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Parent Account</DialogTitle>
             <DialogDescription>
@@ -766,20 +852,20 @@ export default function StudentManagement() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <div>
-              <Label>Parent Full Name *</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Parent Full Name *</Label>
               <Input value={parentForm.name} onChange={(e) => setParentForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. John Doe" />
             </div>
-            <div>
-              <Label>Parent Email *</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Parent Email *</Label>
               <Input type="email" value={parentForm.email} onChange={(e) => setParentForm(p => ({ ...p, email: e.target.value }))} placeholder="e.g. parent@example.com" />
             </div>
-            <div>
-              <Label>Phone Number</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Phone Number</Label>
               <Input value={parentForm.phone} onChange={(e) => setParentForm(p => ({ ...p, phone: e.target.value }))} placeholder="Optional" />
             </div>
-            <div>
-              <Label>Relationship</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Relationship</Label>
               <Select value={parentForm.relationship} onValueChange={(v) => setParentForm(p => ({ ...p, relationship: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
                 <SelectContent>
@@ -790,7 +876,7 @@ export default function StudentManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleLinkParent} disabled={linkingParent || !parentForm.name || !parentForm.email} className="w-full">
+            <Button onClick={handleLinkParent} disabled={linkingParent || !parentForm.name || !parentForm.email} className="w-full h-10">
               {linkingParent ? 'Creating...' : 'Create & Link Parent Account'}
             </Button>
           </div>
