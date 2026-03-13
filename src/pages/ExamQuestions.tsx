@@ -624,28 +624,77 @@ export default function ExamQuestions() {
                     Upload any PDF containing exam questions and answers. Our AI will analyze the document and automatically extract all questions, options, and correct answers — regardless of formatting.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handlePdfUpload} className="space-y-4">
-                  <div>
-                    <Label htmlFor="pdf-file">PDF File</Label>
-                    <Input
-                      id="pdf-file"
-                      type="file"
-                      accept="application/pdf"
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Supports any PDF format — text-based, scanned, or image-based. AI will detect and extract questions automatically.
-                    </p>
+                {uploadingPdf ? (
+                  <div className="space-y-5 py-4">
+                    {/* Progress steps */}
+                    {[
+                      { minStep: 1, icon: FileText, label: 'Reading PDF file' },
+                      { minStep: 2, icon: Upload, label: 'Uploading to AI' },
+                      { minStep: 3, icon: Brain, label: 'Analyzing document' },
+                      { minStep: 4, icon: Sparkles, label: 'Extracting questions' },
+                      { minStep: 6, icon: CheckCircle2, label: 'Validating answers' },
+                      { minStep: 8, icon: Check, label: 'Complete' },
+                    ].map(({ minStep, icon: Icon, label }) => {
+                      const isActive = pdfProgress.step >= minStep;
+                      const isCurrent = pdfProgress.step >= minStep && pdfProgress.step < (minStep === 8 ? 99 : minStep + 2);
+                      return (
+                        <div key={minStep} className={`flex items-center gap-3 transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-30'}`}>
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 transition-colors duration-300 ${
+                            pdfProgress.step >= 8 && minStep <= 8
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : isCurrent
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : isActive
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-muted text-muted-foreground'
+                          }`}>
+                            {isActive && !isCurrent ? (
+                              <Check className="h-4 w-4" />
+                            ) : isCurrent ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Icon className="h-4 w-4" />
+                            )}
+                          </div>
+                          <span className={`text-sm font-medium ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Current status message */}
+                    <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
+                      <p className="text-sm text-center text-muted-foreground">
+                        {pdfProgress.message}
+                      </p>
+                      {pdfProgress.questionsFound > 0 && (
+                        <p className="text-center text-lg font-bold text-primary mt-1">
+                          {pdfProgress.questionsFound} questions extracted ✓
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <Button type="submit" className="w-full" disabled={uploadingPdf}>
-                    {uploadingPdf ? '🤖 Analyzing PDF with AI...' : 'Upload and Process'}
-                  </Button>
-                  {uploadingPdf && (
-                    <p className="text-xs text-muted-foreground text-center">
-                      This may take 15-30 seconds depending on document size.
-                    </p>
-                  )}
-                </form>
+                ) : (
+                  <form onSubmit={handlePdfUpload} className="space-y-4">
+                    <div>
+                      <Label htmlFor="pdf-file">PDF File</Label>
+                      <Input
+                        id="pdf-file"
+                        type="file"
+                        accept="application/pdf"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Supports any PDF format — text-based, scanned, or image-based. AI will detect and extract questions automatically.
+                      </p>
+                    </div>
+                    <Button type="submit" className="w-full">
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload and Process
+                    </Button>
+                  </form>
+                )}
               </DialogContent>
             </Dialog>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
