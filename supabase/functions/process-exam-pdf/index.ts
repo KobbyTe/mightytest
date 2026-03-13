@@ -209,12 +209,23 @@ serve(async (req) => {
 
     console.log('Total raw extracted count:', allQuestions.length);
 
-    // --- DEDUPLICATION: remove repeated questions ---
+    // --- DEDUPLICATION: remove repeated questions using composite key ---
     const seen = new Set<string>();
     const uniqueQuestions = allQuestions.filter((q: any) => {
-      const key = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
+      const text = (q.question_text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!text) {
+        console.warn('Skipping question with empty text');
+        return false;
+      }
+      // Use composite key: question text + type + correct answer to avoid false positives
+      const optionsKey = Array.isArray(q.options) ? q.options.join('|').toLowerCase() : '';
+      const answerKey = (q.correct_answer || '').trim().toLowerCase();
+      const compositeKey = `${text}::${q.question_type || ''}::${optionsKey}::${answerKey}`;
+      if (seen.has(compositeKey)) {
+        console.warn('Duplicate found:', text.substring(0, 60));
+        return false;
+      }
+      seen.add(compositeKey);
       return true;
     });
 
