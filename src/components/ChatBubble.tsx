@@ -360,7 +360,7 @@ export function ChatBubble() {
   };
 
   const startNewConversation = async () => {
-    if (isAdmin) {
+    if (isStaff) {
       setShowRecipientPicker(true);
       setRecipientSearch('');
       loadRecipients('');
