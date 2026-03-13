@@ -1,37 +1,52 @@
 
 
-## Plan: Fix PDF Question Extraction Truncation Bug
+# Show Individual Test Results with Numbered List + Average
 
-### Root Cause
+## What Changes
 
-The edge function `process-exam-pdf/index.ts` sends the PDF to the AI model with `max_tokens: 65536`. When extracting many questions (30+), the AI's tool-call JSON response gets truncated (`finish_reason: 'length'`). The truncated JSON may still parse successfully but only contains the first ~5 questions. The function logs a warning but proceeds to insert only those 5 questions and reports "success" — so the user sees 5 questions created with no error.
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-### Fix Strategy
+## Changes by Dashboard
 
-**File: `supabase/functions/process-exam-pdf/index.ts`**
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-1. **Increase `max_tokens`** to `131072` (128K) to give the model more room for large question sets.
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-2. **Implement a continuation loop**: After the first AI call, if `finish_reason === 'length'`, make follow-up API calls asking the model to "continue extracting from question N+1 onward" — appending results until `finish_reason !== 'length'` or a max iteration cap (3 rounds).
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-3. **Add a truncation warning in the response**: If after all retries the result still appears truncated, include a warning message in the success response (e.g., "Extracted 15 questions but the PDF may contain more — try splitting the PDF").
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-4. **Move the `finish_reason` check before DB insert**: Only proceed with the insert after all continuation rounds are done, so the full question set is accumulated first.
+## Technical Details
 
-### Implementation Detail
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
 
-```
-Loop (max 3 iterations):
-  1. Call AI with PDF + prompt
-  2. Parse tool_call arguments → append to allQuestions[]
-  3. If finish_reason !== 'length' → break
-  4. Else → follow-up call: "You extracted N questions so far. Continue from question N+1. Extract the remaining questions."
-  
-Deduplicate allQuestions → insert into DB
-```
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
 
-The follow-up calls will reference the count of already-extracted questions and instruct the model to continue, avoiding duplicates via the existing deduplication logic.
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
 
-### Files Changed
-1. `supabase/functions/process-exam-pdf/index.ts` — Increase max_tokens, add continuation loop, improve truncation handling
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 
