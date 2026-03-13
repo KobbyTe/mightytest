@@ -34,6 +34,7 @@ export default function ExamQuestions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ step: 0, message: '', questionsFound: 0 });
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   
   // AI generation state
