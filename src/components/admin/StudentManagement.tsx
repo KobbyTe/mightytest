@@ -569,7 +569,7 @@ export default function StudentManagement() {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="bg-card rounded-2xl overflow-hidden"
+                className="bg-card rounded-2xl overflow-y-auto max-h-[85vh]"
               >
                 {/* Hero Banner */}
                 <div className="relative bg-gradient-to-br from-primary via-primary/80 to-accent h-32">
