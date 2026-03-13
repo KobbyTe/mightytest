@@ -258,10 +258,11 @@ export default function ClassPerformancePortal({
       const goldBg = [254, 249, 195]; const silverBg = [241, 245, 249]; const bronzeBg = [254, 237, 213];
       const summaryBg = [241, 245, 249];    // slate-100
 
-      // ── Helper: draw colored rect ──
+      // ── Helper: draw colored rect (uses `p` which is created below) ──
+      let p: any;
       const fillRect = (x: number, y: number, w: number, h: number, color: number[]) => {
-        pdf.setFillColor(color[0], color[1], color[2]);
-        pdf.rect(x, y, w, h, 'F');
+        p.setFillColor(color[0], color[1], color[2]);
+        p.rect(x, y, w, h, 'F');
       };
 
       // ── Helper: get remark ──
