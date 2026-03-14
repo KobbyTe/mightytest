@@ -418,35 +418,35 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
+      {/* Header — mobile-first */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3" id="teacher-tour-welcome">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2.5 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3" id="teacher-tour-welcome">
+            <GraduationCap className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0" />
+            <h1 className="text-lg sm:text-2xl font-bold truncate">{dashboardTitle}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
             {isTeacher && (
-              <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTour(true)} title="Take Tour">
                 <HelpCircle className="h-4 w-4" />
               </Button>
             )}
             {isAdmin && (
-              <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Analytics
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/analytics')} className="h-8 sm:h-9 text-xs sm:text-sm">
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Analytics</span>
               </Button>
             )}
-            <Button variant="ghost" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="h-8 sm:h-9 text-xs sm:text-sm">
+              <LogOut className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Teacher Scope Indicator */}
         {isTeacher && (
           <Card className="border-primary/30 bg-primary/5">
@@ -477,46 +477,46 @@ export default function AdminDashboard() {
 
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
-           <TabsList className="flex w-full overflow-x-auto">
-              <TabsTrigger value="exams" id="teacher-tour-exams">Exams</TabsTrigger>
-              <TabsTrigger value="schools" id="teacher-tour-schools">Schools</TabsTrigger>
-              <TabsTrigger value="assignments" id="teacher-tour-assignments">Assignments</TabsTrigger>
-              <TabsTrigger value="attempts" id="teacher-tour-attempts">Attempts</TabsTrigger>
-              <TabsTrigger value="students" id="teacher-tour-students">Students</TabsTrigger>
-              <TabsTrigger value="keys" id="teacher-tour-keys">Keys</TabsTrigger>
-              <TabsTrigger value="resits">Resits</TabsTrigger>
+           <TabsList className="flex w-full overflow-x-auto scrollbar-none gap-0.5 sm:gap-1 h-auto p-1">
+              <TabsTrigger value="exams" id="teacher-tour-exams" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Exams</TabsTrigger>
+              <TabsTrigger value="schools" id="teacher-tour-schools" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Schools</TabsTrigger>
+              <TabsTrigger value="assignments" id="teacher-tour-assignments" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Assign</span><span className="sm:hidden">Asgn</span></TabsTrigger>
+              <TabsTrigger value="attempts" id="teacher-tour-attempts" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Attempts</span><span className="sm:hidden">Atpt</span></TabsTrigger>
+              <TabsTrigger value="students" id="teacher-tour-students" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Students</span><span className="sm:hidden">Stud</span></TabsTrigger>
+              <TabsTrigger value="keys" id="teacher-tour-keys" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Keys</TabsTrigger>
+              <TabsTrigger value="resits" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Resits</TabsTrigger>
             </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Exams</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Exams</CardTitle>
+              <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{exams.length}</div>
+            <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold">{exams.length}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Exams</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Active</CardTitle>
+              <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold">
                 {exams.filter(e => e.status === 'active').length}
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Draft Exams</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 sm:pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Draft</CardTitle>
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold">
                 {exams.filter(e => e.status === 'draft').length}
               </div>
             </CardContent>
@@ -525,8 +525,8 @@ export default function AdminDashboard() {
 
             {/* Exams Management */}
             <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Manage Exams</h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-2xl font-bold">Manage Exams</h2>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) {
@@ -576,7 +576,7 @@ export default function AdminDashboard() {
                       rows={3}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="subject">Subject</Label>
                       <Select value={formData.subject} onValueChange={(value) => setFormData({ ...formData, subject: value })}>
@@ -608,7 +608,7 @@ export default function AdminDashboard() {
                       </Select>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="duration">Duration (min)</Label>
                       <Input
@@ -646,7 +646,7 @@ export default function AdminDashboard() {
                       onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="status">Status</Label>
                       <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
@@ -667,7 +667,7 @@ export default function AdminDashboard() {
             </Dialog>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {exams.map((exam) => (
               <Card key={exam.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -735,29 +735,29 @@ export default function AdminDashboard() {
               <ExamAssignment />
             </TabsContent>
 
-          <TabsContent value="attempts" className="space-y-4">
+          <TabsContent value="attempts" className="space-y-3 sm:space-y-4">
             {/* Bulk AI Grading */}
             {attempts.some(a => a.status === 'completed' || a.status === 'grading') && (
               <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="h-5 w-5 text-primary" />
+                <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3 sm:py-4 px-3 sm:px-6">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
                     <div>
-                      <p className="font-medium">Bulk AI Grading</p>
-                      <p className="text-sm text-muted-foreground">
-                        {bulkGrading ? bulkGradingProgress : `Auto-grade ${attempts.filter(a => a.status === 'completed' || a.status === 'grading').length} pending submission(s) with AI`}
+                      <p className="font-medium text-sm sm:text-base">Bulk AI Grading</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        {bulkGrading ? bulkGradingProgress : `Auto-grade ${attempts.filter(a => a.status === 'completed' || a.status === 'grading').length} pending submission(s)`}
                       </p>
                     </div>
                   </div>
-                  <Button onClick={handleBulkAiGrade} disabled={bulkGrading}>
+                  <Button onClick={handleBulkAiGrade} disabled={bulkGrading} size="sm" className="self-end sm:self-auto text-xs sm:text-sm h-8 sm:h-9">
                     {bulkGrading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                         Grading...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                         Auto-Grade All
                       </>
                     )}
@@ -766,12 +766,13 @@ export default function AdminDashboard() {
               </Card>
             )}
             <Card>
-              <CardHeader>
-                <CardTitle>Student Exam Attempts</CardTitle>
-                <CardDescription>View and manage all student exam submissions</CardDescription>
+              <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                <CardTitle className="text-base sm:text-2xl">Student Exam Attempts</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">View and manage all student exam submissions</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -807,26 +808,22 @@ export default function AdminDashboard() {
                             <TableCell>
                               {attempt.status === 'graded' && (
                                 <Badge variant="default" className="gap-1 bg-[hsl(var(--success))]">
-                                  <CheckCircle className="h-3 w-3" />
-                                  Graded
+                                  <CheckCircle className="h-3 w-3" />Graded
                                 </Badge>
                               )}
                               {attempt.status === 'completed' && (
                                 <Badge variant="default" className="gap-1">
-                                  <CheckCircle className="h-3 w-3" />
-                                  Completed
+                                  <CheckCircle className="h-3 w-3" />Completed
                                 </Badge>
                               )}
                               {attempt.status === 'pending' && (
                                 <Badge variant="secondary" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  In Progress
+                                  <Clock className="h-3 w-3" />In Progress
                                 </Badge>
                               )}
                               {attempt.status === 'grading' && (
                                 <Badge variant="secondary" className="gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  Awaiting Grading
+                                  <Clock className="h-3 w-3" />Awaiting Grading
                                 </Badge>
                               )}
                             </TableCell>
@@ -857,6 +854,52 @@ export default function AdminDashboard() {
                       )}
                     </TableBody>
                   </Table>
+                </div>
+
+                {/* Mobile card list */}
+                <div className="sm:hidden space-y-2">
+                  {attempts.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8 text-sm">No exam attempts yet</p>
+                  ) : (
+                    attempts.map((attempt) => (
+                      <div key={attempt.id} className="p-3 rounded-xl border bg-card space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{attempt.student?.full_name || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground truncate">{attempt.exam?.title || 'Unknown Exam'}</p>
+                          </div>
+                          {attempt.status === 'graded' && (
+                            <Badge className="bg-[hsl(var(--success))] text-[10px] shrink-0">Graded</Badge>
+                          )}
+                          {attempt.status === 'completed' && (
+                            <Badge className="text-[10px] shrink-0">Completed</Badge>
+                          )}
+                          {(attempt.status === 'pending' || attempt.status === 'grading') && (
+                            <Badge variant="secondary" className="text-[10px] shrink-0">{attempt.status === 'pending' ? 'In Progress' : 'Awaiting'}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">
+                            {new Date(attempt.attempted_at).toLocaleDateString()}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {attempt.marks_obtained !== null && (
+                              <span className="font-semibold">{attempt.marks_obtained}/{attempt.exam?.total_marks || 0}</span>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-7 text-xs px-2"
+                              onClick={() => navigate(`/admin/exam/grade/${attempt.id}`)}
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              {attempt.status === 'graded' ? 'View' : 'Grade'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

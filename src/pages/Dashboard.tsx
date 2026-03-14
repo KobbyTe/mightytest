@@ -90,7 +90,6 @@ export default function Dashboard() {
     // User exists — check role (may still be null while loadUserData runs)
     if (role === 'parent') navigate('/parent');
     else if (role === 'admin') navigate('/admin');
-    // If role is 'student' or still null, stay here (data will load once role resolves)
   }, [user, loading, role, navigate]);
 
   // Data loading
@@ -113,7 +112,6 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (data && !data.onboarding_completed) {
-        // Small delay so dashboard renders first
         setTimeout(() => setShowTour(true), 800);
       }
     } catch (e) {
@@ -196,8 +194,6 @@ export default function Dashboard() {
         }
       }
 
-      // No fallback — students only see exams assigned to their class
-      
       setAvailableExams(assignedExams);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -420,74 +416,75 @@ export default function Dashboard() {
         onStopPreview={readingAssistant.stop}
       />
 
-      {/* Animated Header */}
+      {/* Header — mobile-first */}
       <header id="tour-welcome" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <GraduationCap className="h-10 w-10 text-primary" />
-              <Sparkles className="absolute -top-1 -right-1 h-4 w-4 text-secondary animate-pulse" />
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+              <Sparkles className="absolute -top-1 -right-1 h-3 w-3 sm:h-4 sm:w-4 text-secondary animate-pulse" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">
                 Welcome back, {profile?.full_name?.split(' ')[0]}! 🎉
               </h1>
-              <p className="text-sm text-muted-foreground">Ready to conquer some exams today?</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Ready to conquer some exams today?</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour">
-              <HelpCircle className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour" className="h-8 w-8 sm:h-9 sm:w-9">
+              <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <Button variant="outline" onClick={handleSignOut} className="hover-lift">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="hover-lift text-xs sm:text-sm h-8 sm:h-9">
+              <LogOut className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">Sign Out</span>
+              <span className="xs:hidden">Exit</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Stats Cards */}
-        <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/20 flex items-center justify-center">
-                <BookOpen className="h-6 w-6 text-primary" />
+            <CardContent className="p-3 sm:p-6 text-center">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-primary/20 flex items-center justify-center">
+                <BookOpen className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
               </div>
-              <p className="text-3xl font-bold text-primary">{examAttempts.length}</p>
-              <p className="text-sm text-muted-foreground">Exams Taken</p>
+              <p className="text-xl sm:text-3xl font-bold text-primary">{examAttempts.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Exams Taken</p>
             </CardContent>
           </Card>
 
           <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--success))]/10 to-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(var(--success))]/20 flex items-center justify-center">
-                <Trophy className="h-6 w-6 text-[hsl(var(--success))]" />
+            <CardContent className="p-3 sm:p-6 text-center">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-[hsl(var(--success))]/20 flex items-center justify-center">
+                <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-[hsl(var(--success))]" />
               </div>
-              <p className="text-3xl font-bold text-[hsl(var(--success))]">{passedExams.length}</p>
-              <p className="text-sm text-muted-foreground">Exams Passed</p>
+              <p className="text-xl sm:text-3xl font-bold text-[hsl(var(--success))]">{passedExams.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Exams Passed</p>
             </CardContent>
           </Card>
 
           <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--purple))]/10 to-[hsl(var(--purple))]/5 border-[hsl(var(--purple))]/20">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[hsl(var(--purple))]/20 flex items-center justify-center">
-                <Star className="h-6 w-6 text-[hsl(var(--purple))]" />
+            <CardContent className="p-3 sm:p-6 text-center">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-[hsl(var(--purple))]/20 flex items-center justify-center">
+                <Star className="h-4 w-4 sm:h-6 sm:w-6 text-[hsl(var(--purple))]" />
               </div>
-              <p className="text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}%</p>
-              <p className="text-sm text-muted-foreground">Avg Score</p>
+              <p className="text-xl sm:text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}%</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Avg Score</p>
             </CardContent>
           </Card>
 
           <Card className="hover-lift bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
-            <CardContent className="p-6 text-center">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-secondary/20 flex items-center justify-center">
-                <Target className="h-6 w-6 text-secondary" />
+            <CardContent className="p-3 sm:p-6 text-center">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-secondary/20 flex items-center justify-center">
+                <Target className="h-4 w-4 sm:h-6 sm:w-6 text-secondary" />
               </div>
-              <p className="text-3xl font-bold text-secondary">{unregisteredExams.length}</p>
-              <p className="text-sm text-muted-foreground">Available</p>
+              <p className="text-xl sm:text-3xl font-bold text-secondary">{unregisteredExams.length}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
             </CardContent>
           </Card>
         </div>
@@ -507,33 +504,33 @@ export default function Dashboard() {
 
           return (
             <Card className="hover-lift overflow-hidden">
-              <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(var(--purple))] to-primary flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-primary-foreground" />
+              <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
+              <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[hsl(var(--purple))] to-primary flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
                   </div>
                   My Results Summary
                 </CardTitle>
-                <CardDescription>All your graded test results at a glance</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">All your graded test results at a glance</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
                 <div className="space-y-2">
                   {gradedExams.map((attempt, idx) => {
                     const percent = (attempt.marks_obtained! / attempt.exams.total_marks) * 100;
                     const passed = attempt.marks_obtained! >= attempt.exams.passing_marks;
                     return (
-                      <div key={attempt.id} className="flex items-center justify-between p-3 rounded-xl border bg-card hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-muted-foreground w-16 shrink-0">Test {idx + 1}</span>
-                          <div>
-                            <p className="font-medium">{attempt.exams.title}</p>
+                      <div key={attempt.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-2.5 sm:p-3 rounded-xl border bg-card hover:shadow-md transition-shadow gap-1.5 sm:gap-0">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <span className="text-xs sm:text-sm font-bold text-muted-foreground w-12 sm:w-16 shrink-0">Test {idx + 1}</span>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm sm:text-base truncate">{attempt.exams.title}</p>
                             <p className="text-xs text-muted-foreground">{attempt.exams.subject || 'General'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-semibold">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
-                          <Badge variant={passed ? 'default' : 'destructive'} className={passed ? 'bg-[hsl(var(--success))]' : ''}>
+                        <div className="flex items-center gap-2 sm:gap-3 pl-12 sm:pl-0">
+                          <span className="font-semibold text-sm sm:text-base">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
+                          <Badge variant={passed ? 'default' : 'destructive'} className={`text-xs ${passed ? 'bg-[hsl(var(--success))]' : ''}`}>
                             {passed ? 'Passed' : 'Failed'} ({percent.toFixed(0)}%)
                           </Badge>
                         </div>
@@ -541,10 +538,10 @@ export default function Dashboard() {
                     );
                   })}
                 </div>
-                <div className="mt-4 pt-4 border-t-2 border-primary/20">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-primary/10">
-                    <span className="text-lg font-bold">Overall Average</span>
-                    <span className="text-2xl font-bold text-primary">{avgPercent.toFixed(1)}%</span>
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t-2 border-primary/20">
+                  <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-primary/10">
+                    <span className="text-sm sm:text-lg font-bold">Overall Average</span>
+                    <span className="text-lg sm:text-2xl font-bold text-primary">{avgPercent.toFixed(1)}%</span>
                   </div>
                 </div>
               </CardContent>
@@ -553,51 +550,51 @@ export default function Dashboard() {
         })()}
 
         {/* Profile & Parent Info Grid */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Profile Card */}
           <Card id="tour-profile" className="hover-lift overflow-hidden">
-            <div className="h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary-foreground" />
+            <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
+            <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
                 </div>
                 My Profile
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
               {profile?.student_id_code && (
-                <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
+                <div className="p-3 sm:p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Student ID</p>
-                    <p className="font-bold text-lg text-primary mt-1">{profile.student_id_code}</p>
+                    <p className="font-bold text-base sm:text-lg text-primary mt-1">{profile.student_id_code}</p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => copyToClipboard(profile.student_id_code, 'studentId')}
-                    className="shrink-0"
+                    className="shrink-0 h-8 w-8"
                   >
                     {copiedField === 'studentId' ? <Check className="h-4 w-4 text-[hsl(var(--success))]" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-xl bg-muted/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/50">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Full Name</p>
-                  <p className="font-semibold mt-1">{profile?.full_name}</p>
+                  <p className="font-semibold mt-0.5 sm:mt-1 text-sm sm:text-base">{profile?.full_name}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/50">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/50">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Email</p>
-                  <p className="font-semibold mt-1 truncate">{profile?.email}</p>
+                  <p className="font-semibold mt-0.5 sm:mt-1 truncate text-sm sm:text-base">{profile?.email}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/50">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/50">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Grade</p>
-                  <p className="font-semibold mt-1">{profile?.grade || 'Not specified'}</p>
+                  <p className="font-semibold mt-0.5 sm:mt-1 text-sm sm:text-base">{profile?.grade || 'Not specified'}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-muted/50">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-muted/50">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">School</p>
-                  <p className="font-semibold mt-1">{profile?.school_name || 'Not specified'}</p>
+                  <p className="font-semibold mt-0.5 sm:mt-1 text-sm sm:text-base">{profile?.school_name || 'Not specified'}</p>
                 </div>
               </div>
             </CardContent>
@@ -607,48 +604,48 @@ export default function Dashboard() {
           <Card id="tour-parent" className="hover-lift overflow-hidden border-accent/30">
             {parentInfo ? (
               <>
-              <div className="h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center">
-                    <Users className="h-5 w-5 text-accent-foreground" />
+              <div className="h-1.5 sm:h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
+              <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-accent-foreground" />
                   </div>
                   Parent/Guardian Access
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Share these with your parent so they can track your progress! 📱
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
+              <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="p-2.5 sm:p-3 rounded-xl bg-accent/10 border border-accent/20">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                       <User className="h-3 w-3" />
                       Parent Name
                     </div>
-                    <p className="font-semibold">{parentInfo.name}</p>
+                    <p className="font-semibold text-sm sm:text-base">{parentInfo.name}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
+                  <div className="p-2.5 sm:p-3 rounded-xl bg-accent/10 border border-accent/20">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                       <Mail className="h-3 w-3" />
                       Email
                     </div>
                     <div className="flex items-center gap-1">
-                      <p className="font-semibold truncate text-sm">{parentInfo.email}</p>
+                      <p className="font-semibold truncate text-xs sm:text-sm">{parentInfo.email}</p>
                       <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyToClipboard(parentInfo.email, 'email')}>
                         {copiedField === 'email' ? <Check className="h-3 w-3 text-[hsl(var(--success))]" /> : <Copy className="h-3 w-3" />}
                       </Button>
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="p-3 sm:p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                       <Key className="h-3 w-3" />
                       Access Code
                     </div>
                     <div className="flex items-center gap-2">
-                      <code className="text-lg font-mono font-bold tracking-wider text-primary">
+                      <code className="text-base sm:text-lg font-mono font-bold tracking-wider text-primary">
                         {parentInfo.accessCode}
                       </code>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(parentInfo.accessCode, 'accessCode')}>
@@ -657,13 +654,13 @@ export default function Dashboard() {
                     </div>
                   </div>
                   {parentInfo.password ? (
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20">
+                    <div className="p-3 sm:p-4 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                         <Key className="h-3 w-3" />
                         Temp Password
                       </div>
                       <div className="flex items-center gap-2">
-                        <code className="text-lg font-mono font-bold tracking-wider text-secondary">
+                        <code className="text-base sm:text-lg font-mono font-bold tracking-wider text-secondary">
                           {parentInfo.password}
                         </code>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(parentInfo.password!, 'password')}>
@@ -672,7 +669,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   ) : (
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-muted">
+                    <div className="p-3 sm:p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-muted">
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
                         <Key className="h-3 w-3" />
                         Password
@@ -683,7 +680,7 @@ export default function Dashboard() {
                         variant="outline"
                         onClick={resendParentCredentials}
                         disabled={resendingCredentials}
-                        className="w-full"
+                        className="w-full text-xs"
                       >
                         {resendingCredentials ? (
                           <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
@@ -699,17 +696,17 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-              <div className="h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center">
-                    <Users className="h-5 w-5 text-accent-foreground" />
+              <div className="h-1.5 sm:h-2 bg-gradient-to-r from-accent via-[hsl(var(--fun-teal))] to-[hsl(var(--success))]" />
+              <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center">
+                    <Users className="h-4 w-4 sm:h-5 sm:w-5 text-accent-foreground" />
                   </div>
                   Parent/Guardian Access
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">
+              <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                <p className="text-muted-foreground text-xs sm:text-sm">
                   No parent/guardian account is linked to your profile yet. A parent account is automatically created when you register with a parent email. Contact your administrator if you need help.
                 </p>
               </CardContent>
@@ -720,59 +717,59 @@ export default function Dashboard() {
 
         {/* My Exams Section */}
         <div id="tour-exams">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
-              <BookOpen className="h-6 w-6 text-primary-foreground" />
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
+              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">My Exams</h2>
-              <p className="text-muted-foreground">Track your exam progress and achievements</p>
+              <h2 className="text-lg sm:text-2xl font-bold">My Exams</h2>
+              <p className="text-xs sm:text-base text-muted-foreground">Track your exam progress and achievements</p>
             </div>
           </div>
 
           {examAttempts.length === 0 ? (
             <Card className="hover-lift">
-              <CardContent className="py-12 text-center">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                  <BookOpen className="h-10 w-10 text-muted-foreground" />
+              <CardContent className="py-8 sm:py-12 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No Exams Yet</h3>
-                <p className="text-muted-foreground mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">No Exams Yet</h3>
+                <p className="text-sm sm:text-base text-muted-foreground mb-4">
                   You haven't registered for any exams yet. Browse available exams below and start your journey! 🚀
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
               {examAttempts.map((attempt) => {
                 const isPassed = attempt.status === 'graded' && attempt.marks_obtained !== null && attempt.marks_obtained >= attempt.exams.passing_marks;
                 const scorePercent = attempt.marks_obtained !== null ? (attempt.marks_obtained / attempt.exams.total_marks) * 100 : 0;
                 
                 return (
                   <Card key={attempt.id} className="hover-lift overflow-hidden group">
-                    <div className={`h-2 ${getSubjectColor(attempt.exams.subject)}`} />
-                    <CardHeader className="pb-3">
+                    <div className={`h-1.5 sm:h-2 ${getSubjectColor(attempt.exams.subject)}`} />
+                    <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl">{getSubjectIcon(attempt.exams.subject)}</span>
-                          <div>
-                            <CardTitle className="text-lg line-clamp-1">{attempt.exams.title}</CardTitle>
-                            <div className="flex gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">{attempt.exams.subject}</Badge>
-                              <Badge variant="outline" className="text-xs">{attempt.exams.grade_level}</Badge>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xl sm:text-2xl">{getSubjectIcon(attempt.exams.subject)}</span>
+                          <div className="min-w-0">
+                            <CardTitle className="text-sm sm:text-lg line-clamp-1">{attempt.exams.title}</CardTitle>
+                            <div className="flex gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                              <Badge variant="secondary" className="text-[10px] sm:text-xs">{attempt.exams.subject}</Badge>
+                              <Badge variant="outline" className="text-[10px] sm:text-xs">{attempt.exams.grade_level}</Badge>
                             </div>
                           </div>
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground line-clamp-2">{attempt.exams.description}</p>
-                      <div className="space-y-2">
+                    <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{attempt.exams.description}</p>
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Status</span>
+                          <span className="text-xs sm:text-sm text-muted-foreground">Status</span>
                           <Badge 
                             variant={attempt.status === 'graded' ? (isPassed ? 'default' : 'destructive') : 'secondary'}
-                            className={isPassed ? 'bg-[hsl(var(--success))]' : ''}
+                            className={`text-[10px] sm:text-xs ${isPassed ? 'bg-[hsl(var(--success))]' : ''}`}
                           >
                             {attempt.status === 'graded' ? (isPassed ? '✓ Passed' : '✗ Failed') : attempt.status}
                           </Badge>
@@ -780,46 +777,46 @@ export default function Dashboard() {
                         {attempt.status === 'graded' && attempt.marks_obtained !== null && (
                           <>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Score</span>
-                              <span className="font-bold text-lg">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground">Score</span>
+                              <span className="font-bold text-base sm:text-lg">{attempt.marks_obtained}/{attempt.exams.total_marks}</span>
                             </div>
-                            <Progress value={scorePercent} className="h-2" />
+                            <Progress value={scorePercent} className="h-1.5 sm:h-2" />
                           </>
                         )}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{attempt.exams.duration_minutes} min</span>
                           {attempt.exams.exam_date && (
                             <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(attempt.exams.exam_date).toLocaleDateString()}</span>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex gap-1.5 sm:gap-2 pt-1 sm:pt-2">
                         {attempt.status === 'graded' && isPassed && (
                           <Dialog>
                             <DialogTrigger asChild>
-                              <Button variant="outline" size="sm" className="flex-1 hover-lift">
-                                <Award className="mr-2 h-4 w-4" />Certificate
+                              <Button variant="outline" size="sm" className="flex-1 hover-lift text-xs h-8">
+                                <Award className="mr-1.5 h-3.5 w-3.5" />Certificate
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="max-w-[900px]">
+                            <DialogContent className="max-w-[95vw] sm:max-w-[900px]">
                               <DialogHeader><DialogTitle>🎉 Congratulations! Your Certificate</DialogTitle></DialogHeader>
                               <ExamCertificate studentName={profile?.full_name || ''} examTitle={attempt.exams.title} score={attempt.marks_obtained || 0} totalMarks={attempt.exams.total_marks} date={attempt.graded_at || attempt.completed_at || ''} />
                             </DialogContent>
                           </Dialog>
                         )}
                         {attempt.status === 'pending' && (
-                          <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90">
-                            <Play className="mr-2 h-4 w-4" />Start Exam
+                          <Button size="sm" onClick={() => handleTakeExam(attempt.id)} className="flex-1 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-xs h-8">
+                            <Play className="mr-1.5 h-3.5 w-3.5" />Start Exam
                           </Button>
                         )}
                         {attempt.status === 'graded' && (
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/exam/review/${attempt.id}`)}>
-                            <BookOpen className="mr-2 h-4 w-4" />Review Exam
+                          <Button variant="outline" size="sm" className="flex-1 text-xs h-8" onClick={() => navigate(`/exam/review/${attempt.id}`)}>
+                            <BookOpen className="mr-1.5 h-3.5 w-3.5" />Review
                           </Button>
                         )}
                         {attempt.status === 'completed' && (
-                          <Button variant="outline" size="sm" className="flex-1" disabled>
-                            <Check className="mr-2 h-4 w-4" />Awaiting Grade
+                          <Button variant="outline" size="sm" className="flex-1 text-xs h-8" disabled>
+                            <Check className="mr-1.5 h-3.5 w-3.5" />Awaiting Grade
                           </Button>
                         )}
                       </div>
@@ -833,24 +830,24 @@ export default function Dashboard() {
 
         {/* Available Exams Section */}
         <div id="tour-available">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
-              <Zap className="h-6 w-6 text-secondary-foreground" />
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
+              <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-secondary-foreground" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Available Exams</h2>
-              <p className="text-muted-foreground">New challenges await! Pick an exam to start</p>
+              <h2 className="text-lg sm:text-2xl font-bold">Available Exams</h2>
+              <p className="text-xs sm:text-base text-muted-foreground">New challenges await! Pick an exam to start</p>
             </div>
           </div>
 
           {unregisteredExams.length === 0 ? (
             <Card className="hover-lift">
-              <CardContent className="py-12 text-center">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                  <Zap className="h-10 w-10 text-muted-foreground" />
+              <CardContent className="py-8 sm:py-12 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">No Exams Available</h3>
-                <p className="text-muted-foreground mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">No Exams Available</h3>
+                <p className="text-sm sm:text-base text-muted-foreground mb-4">
                   {profile?.class_id 
                     ? "No new exams are assigned to your class yet. Check back later! 📚"
                     : "You haven't been assigned to a class yet. Contact your school administrator. 🏫"
@@ -859,47 +856,47 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
               {unregisteredExams.map((exam) => (
                 <Card key={exam.id} className="hover-lift overflow-hidden group border-dashed border-2 hover:border-solid hover:border-primary/50 transition-all">
-                  <div className={`h-2 ${getSubjectColor(exam.subject)} opacity-50 group-hover:opacity-100 transition-opacity`} />
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                  <div className={`h-1.5 sm:h-2 ${getSubjectColor(exam.subject)} opacity-50 group-hover:opacity-100 transition-opacity`} />
+                  <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-muted flex items-center justify-center text-xl sm:text-2xl group-hover:scale-110 transition-transform shrink-0">
                         {getSubjectIcon(exam.subject)}
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">{exam.title}</CardTitle>
-                        <div className="flex gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">{exam.subject}</Badge>
-                          <Badge variant="outline" className="text-xs">{exam.grade_level}</Badge>
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm sm:text-lg">{exam.title}</CardTitle>
+                        <div className="flex gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs">{exam.subject}</Badge>
+                          <Badge variant="outline" className="text-[10px] sm:text-xs">{exam.grade_level}</Badge>
                         </div>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground line-clamp-2">{exam.description}</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <Clock className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{exam.duration_minutes} min</span>
+                  <CardContent className="space-y-3 sm:space-y-4 px-3 sm:px-6 pb-3 sm:pb-6">
+                    <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{exam.description}</p>
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-muted/50 text-center">
+                        <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 mx-auto mb-0.5 sm:mb-1 text-muted-foreground" /><span className="font-medium text-[10px] sm:text-xs">{exam.duration_minutes} min</span>
                       </div>
-                      <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <Target className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{exam.total_marks} marks</span>
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-muted/50 text-center">
+                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 mx-auto mb-0.5 sm:mb-1 text-muted-foreground" /><span className="font-medium text-[10px] sm:text-xs">{exam.total_marks} marks</span>
                       </div>
-                      <div className="p-2 rounded-lg bg-muted/50 text-center">
-                        <TrendingUp className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">Pass: {exam.passing_marks}</span>
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-muted/50 text-center">
+                        <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 mx-auto mb-0.5 sm:mb-1 text-muted-foreground" /><span className="font-medium text-[10px] sm:text-xs">Pass: {exam.passing_marks}</span>
                       </div>
                       {exam.exam_date && (
-                        <div className="p-2 rounded-lg bg-muted/50 text-center">
-                          <Calendar className="h-4 w-4 mx-auto mb-1 text-muted-foreground" /><span className="font-medium">{new Date(exam.exam_date).toLocaleDateString()}</span>
+                        <div className="p-1.5 sm:p-2 rounded-lg bg-muted/50 text-center">
+                          <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 mx-auto mb-0.5 sm:mb-1 text-muted-foreground" /><span className="font-medium text-[10px] sm:text-xs">{new Date(exam.exam_date).toLocaleDateString()}</span>
                         </div>
                       )}
                     </div>
                     <Button 
                       onClick={() => handleRegisterExam(exam.id)} 
-                      className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 group-hover:shadow-primary transition-shadow"
+                      className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 group-hover:shadow-primary transition-shadow text-xs sm:text-sm h-8 sm:h-10"
                     >
-                      <Brain className="mr-2 h-4 w-4" />Take This Exam
+                      <Brain className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />Take This Exam
                     </Button>
                   </CardContent>
                 </Card>
@@ -922,17 +919,17 @@ export default function Dashboard() {
 
           return (
             <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
-                  <RotateCcw className="h-6 w-6 text-primary-foreground" />
+              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
+                  <RotateCcw className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Resit Exams</h2>
-                  <p className="text-muted-foreground">Apply for a chance to retake exams</p>
+                  <h2 className="text-lg sm:text-2xl font-bold">Resit Exams</h2>
+                  <p className="text-xs sm:text-base text-muted-foreground">Apply for a chance to retake exams</p>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
                 {relevantOpenings.map((opening: any) => {
                   const exam = examAttempts.find(a => a.exam_id === opening.exam_id)?.exams;
                   const originalAttempt = examAttempts.find(a => a.exam_id === opening.exam_id && (a.status === 'graded' || a.status === 'completed'));
@@ -943,28 +940,28 @@ export default function Dashboard() {
 
                   return (
                     <Card key={opening.id} className="hover-lift overflow-hidden border-[hsl(var(--warning))]/30">
-                      <div className="h-2 bg-gradient-to-r from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))]" />
-                      <CardHeader className="pb-3">
+                      <div className="h-1.5 sm:h-2 bg-gradient-to-r from-[hsl(var(--warning))] to-[hsl(var(--fun-coral))]" />
+                      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
                         <div className="flex items-start justify-between">
                           <div>
-                            <CardTitle className="text-lg">{exam.title}</CardTitle>
-                            <div className="flex gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">{exam.subject}</Badge>
-                              <Badge variant="outline" className="text-xs bg-[hsl(var(--warning))]/10">Resit</Badge>
+                            <CardTitle className="text-sm sm:text-lg">{exam.title}</CardTitle>
+                            <div className="flex gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                              <Badge variant="secondary" className="text-[10px] sm:text-xs">{exam.subject}</Badge>
+                              <Badge variant="outline" className="text-[10px] sm:text-xs bg-[hsl(var(--warning))]/10">Resit</Badge>
                             </div>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="space-y-2 sm:space-y-3 px-3 sm:px-6 pb-3 sm:pb-6">
                         {originalAttempt && originalAttempt.marks_obtained !== null && (
-                          <div className="p-3 rounded-lg bg-muted/50">
+                          <div className="p-2.5 sm:p-3 rounded-lg bg-muted/50">
                             <p className="text-xs text-muted-foreground">Original Score</p>
-                            <p className="font-bold text-lg">{originalAttempt.marks_obtained}/{exam.total_marks}</p>
+                            <p className="font-bold text-base sm:text-lg">{originalAttempt.marks_obtained}/{exam.total_marks}</p>
                           </div>
                         )}
                         
                         {opening.deadline && (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">
                             Deadline: {new Date(opening.deadline).toLocaleString()}
                           </p>
                         )}
@@ -973,43 +970,43 @@ export default function Dashboard() {
                           <Button 
                             onClick={() => handleApplyResit(opening.exam_id, opening.class_id)}
                             disabled={applyingResit === opening.exam_id}
-                            className="w-full"
+                            className="w-full text-xs sm:text-sm h-8 sm:h-10"
                             variant="outline"
                           >
-                            <RotateCcw className="mr-2 h-4 w-4" />
+                            <RotateCcw className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
                             {applyingResit === opening.exam_id ? 'Applying...' : 'Apply for Resit'}
                           </Button>
                         )}
 
                         {existingRequest?.status === 'pending' && (
-                          <Badge variant="secondary" className="w-full justify-center py-2">
-                            <Clock className="mr-2 h-4 w-4" /> Awaiting Approval
+                          <Badge variant="secondary" className="w-full justify-center py-1.5 sm:py-2 text-xs">
+                            <Clock className="mr-1.5 h-3.5 w-3.5" /> Awaiting Approval
                           </Badge>
                         )}
 
                         {existingRequest?.status === 'approved' && !hasApprovedResitAttempt && (
                           <Button 
                             onClick={() => handleRegisterExam(opening.exam_id)}
-                            className="w-full bg-gradient-to-r from-[hsl(var(--success))] to-primary hover:opacity-90"
+                            className="w-full bg-gradient-to-r from-[hsl(var(--success))] to-primary hover:opacity-90 text-xs sm:text-sm h-8 sm:h-10"
                           >
-                            <Play className="mr-2 h-4 w-4" /> Take Resit Exam
+                            <Play className="mr-1.5 h-3.5 w-3.5" /> Take Resit Exam
                           </Button>
                         )}
 
                         {existingRequest?.status === 'rejected' && (
                           <div className="space-y-1">
-                            <Badge variant="destructive" className="w-full justify-center py-2">
-                              <XCircle className="mr-2 h-4 w-4" /> Rejected
+                            <Badge variant="destructive" className="w-full justify-center py-1.5 sm:py-2 text-xs">
+                              <XCircle className="mr-1.5 h-3.5 w-3.5" /> Rejected
                             </Badge>
                             {existingRequest.admin_note && (
-                              <p className="text-xs text-muted-foreground text-center">{existingRequest.admin_note}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground text-center">{existingRequest.admin_note}</p>
                             )}
                           </div>
                         )}
 
                         {hasApprovedResitAttempt && (
-                          <Badge variant="default" className="w-full justify-center py-2 bg-primary">
-                            <CheckCircle className="mr-2 h-4 w-4" /> Resit Registered
+                          <Badge variant="default" className="w-full justify-center py-1.5 sm:py-2 bg-primary text-xs">
+                            <CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Resit Registered
                           </Badge>
                         )}
                       </CardContent>

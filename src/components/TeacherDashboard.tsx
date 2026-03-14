@@ -348,45 +348,45 @@ export default function TeacherDashboard() {
       {/* ─── HEADER ─── */}
       <header className="relative overflow-hidden border-b bg-background/80 backdrop-blur-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-accent/5 to-secondary/8 pointer-events-none" />
-        <div className="container mx-auto px-4 py-5 flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="relative cursor-pointer" onClick={() => setShowProfile(true)}>
-              <Avatar className="h-12 w-12 border-2 border-primary/40 shadow-lg">
-                <AvatarFallback className="bg-primary/20 text-primary font-bold text-lg">{initials}</AvatarFallback>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-0 relative z-10">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative cursor-pointer shrink-0" onClick={() => setShowProfile(true)}>
+              <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/40 shadow-lg">
+                <AvatarFallback className="bg-primary/20 text-primary font-bold text-base sm:text-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-emerald-500 border-2 border-background" />
+              <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-emerald-500 border-2 border-background" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-foreground tracking-tight truncate">
                 Welcome back, {teacher?.full_name?.split(' ')[0] || 'Educator'}
               </h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
                 Verified Educator
-                {schoolName && <span className="text-muted-foreground/60">• {schoolName}</span>}
+                {schoolName && <span className="text-muted-foreground/60 hidden sm:inline">• {schoolName}</span>}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
-            <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2">
-              <User className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2 text-xs h-8">
+              <User className="h-3.5 w-3.5" />
               My Profile
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTour(true)} title="Take Tour">
               <HelpCircle className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* ─── STAT CARDS ─── */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-5 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -400,13 +400,13 @@ export default function TeacherDashboard() {
           ].map((stat) => (
             <motion.div key={stat.label} variants={itemVariants}>
               <Card className="border-border/50 bg-background/60 backdrop-blur-sm hover:shadow-md transition-all duration-300">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shrink-0`}>
-                    <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+                <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                  <div className={`h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-gradient-to-br ${stat.gradient} flex items-center justify-center shrink-0`}>
+                    <stat.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.iconColor}`} />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.extra || stat.label}</p>
+                  <div className="min-w-0">
+                    <p className="text-lg sm:text-2xl font-bold text-foreground">{stat.value}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{stat.extra || stat.label}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -419,7 +419,7 @@ export default function TeacherDashboard() {
           <Tabs defaultValue="exams" className="w-full">
             <Card className="border-border/50 bg-background/60 backdrop-blur-sm mb-4">
               <CardContent className="p-1.5">
-                <TabsList className="w-full bg-transparent gap-1 flex overflow-x-auto">
+                <TabsList className="w-full bg-transparent gap-0.5 sm:gap-1 flex overflow-x-auto scrollbar-none h-auto p-1">
                   {[
                     { value: 'exams', label: 'Exams', icon: FileText, count: exams.length },
                     { value: 'performance', label: 'Performance', icon: Trophy },
@@ -434,7 +434,7 @@ export default function TeacherDashboard() {
                       key={tab.value}
                       value={tab.value}
                       id={`teacher-tour-${tab.value}`}
-                      className="flex items-center gap-1.5 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg px-3 py-2 transition-all"
+                      className="flex items-center gap-1 text-[10px] sm:text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 transition-all"
                     >
                       <tab.icon className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">{tab.label}</span>
@@ -450,9 +450,9 @@ export default function TeacherDashboard() {
             </Card>
 
             {/* ── Exams Tab ── */}
-            <TabsContent value="exams" className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-foreground">Manage Exams</h2>
+            <TabsContent value="exams" className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground">Manage Exams</h2>
                 <Dialog open={isDialogOpen} onOpenChange={(open) => {
                   setIsDialogOpen(open);
                   if (!open) { setEditingExam(null); resetForm(); }
@@ -479,7 +479,7 @@ export default function TeacherDashboard() {
                         <Label htmlFor="description">Description</Label>
                         <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <Label>Subject</Label>
                           <Select value={formData.subject} onValueChange={(v) => setFormData({ ...formData, subject: v })}>
@@ -503,7 +503,7 @@ export default function TeacherDashboard() {
                           </Select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div><Label>Duration (min)</Label><Input type="number" value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })} /></div>
                         <div><Label>Total Marks</Label><Input type="number" value={formData.total_marks} onChange={(e) => setFormData({ ...formData, total_marks: parseInt(e.target.value) })} /></div>
                         <div><Label>Passing Marks</Label><Input type="number" value={formData.passing_marks} onChange={(e) => setFormData({ ...formData, passing_marks: parseInt(e.target.value) })} /></div>
@@ -529,7 +529,7 @@ export default function TeacherDashboard() {
                 </Dialog>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {exams.map((exam) => (
                   <Card key={exam.id} className="group border-border/50 bg-background/60 backdrop-blur-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300">
                     <CardHeader className="pb-3">
@@ -576,7 +576,7 @@ export default function TeacherDashboard() {
 
             {/* ── Performance Tab ── */}
             <TabsContent value="performance" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Score Gauge */}
                 <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-1">
                   <CardHeader className="pb-2">
@@ -587,7 +587,7 @@ export default function TeacherDashboard() {
                     <CardDescription>Your educator effectiveness rating</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center">
-                    <div className="relative w-48 h-48">
+                    <div className="relative w-36 h-36 sm:w-48 sm:h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={180} endAngle={0} data={gaugeData} barSize={14}>
                           <RadialBar background dataKey="value" cornerRadius={10} max={100} />
@@ -595,7 +595,7 @@ export default function TeacherDashboard() {
                       </ResponsiveContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <motion.span
-                          className="text-4xl font-bold text-foreground"
+                          className="text-3xl sm:text-4xl font-bold text-foreground"
                           initial={{ opacity: 0, scale: 0.5 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: 0.3, type: 'spring' }}
@@ -635,7 +635,7 @@ export default function TeacherDashboard() {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {/* Top Students Leaderboard */}
                 <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
                   <CardHeader>
@@ -715,12 +715,13 @@ export default function TeacherDashboard() {
             {/* ── Attempts Tab ── */}
             <TabsContent value="attempts">
               <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Student Exam Attempts</CardTitle>
-                  <CardDescription>View and manage all student submissions</CardDescription>
+                <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                  <CardTitle className="text-base sm:text-lg">Student Exam Attempts</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">View and manage all student submissions</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  {/* Desktop table */}
+                  <div className="hidden sm:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -772,6 +773,41 @@ export default function TeacherDashboard() {
                         )}
                       </TableBody>
                     </Table>
+                  </div>
+
+                  {/* Mobile card list */}
+                  <div className="sm:hidden space-y-2">
+                    {attempts.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 text-sm">No exam attempts yet</p>
+                    ) : (
+                      attempts.map((attempt) => (
+                        <div key={attempt.id} className="p-3 rounded-xl border bg-card space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{attempt.student?.full_name || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{attempt.exam?.title || 'Unknown Exam'}</p>
+                            </div>
+                            {attempt.status === 'graded' && <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] shrink-0">Graded</Badge>}
+                            {attempt.status === 'completed' && <Badge className="text-[10px] shrink-0">Completed</Badge>}
+                            {(attempt.status === 'pending' || attempt.status === 'grading') && (
+                              <Badge variant="secondary" className="text-[10px] shrink-0">{attempt.status === 'pending' ? 'In Progress' : 'Awaiting'}</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{new Date(attempt.attempted_at).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-2">
+                              {attempt.marks_obtained !== null && (
+                                <span className="font-semibold">{attempt.marks_obtained}/{attempt.exam?.total_marks || 0}</span>
+                              )}
+                              <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => navigate(`/admin/exam/grade/${attempt.id}`)}>
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                {attempt.status === 'graded' ? 'View' : 'Grade'}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
