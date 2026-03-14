@@ -477,14 +477,14 @@ export default function AdminDashboard() {
 
         <Tabs defaultValue="exams" className="w-full">
           {/* Bug #12 fix: Scrollable tabs on small screens */}
-           <TabsList className="flex w-full overflow-x-auto">
-              <TabsTrigger value="exams" id="teacher-tour-exams">Exams</TabsTrigger>
-              <TabsTrigger value="schools" id="teacher-tour-schools">Schools</TabsTrigger>
-              <TabsTrigger value="assignments" id="teacher-tour-assignments">Assignments</TabsTrigger>
-              <TabsTrigger value="attempts" id="teacher-tour-attempts">Attempts</TabsTrigger>
-              <TabsTrigger value="students" id="teacher-tour-students">Students</TabsTrigger>
-              <TabsTrigger value="keys" id="teacher-tour-keys">Keys</TabsTrigger>
-              <TabsTrigger value="resits">Resits</TabsTrigger>
+           <TabsList className="flex w-full overflow-x-auto scrollbar-none gap-0.5 sm:gap-1 h-auto p-1">
+              <TabsTrigger value="exams" id="teacher-tour-exams" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Exams</TabsTrigger>
+              <TabsTrigger value="schools" id="teacher-tour-schools" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Schools</TabsTrigger>
+              <TabsTrigger value="assignments" id="teacher-tour-assignments" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Assign</span><span className="sm:hidden">Asgn</span></TabsTrigger>
+              <TabsTrigger value="attempts" id="teacher-tour-attempts" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Attempts</span><span className="sm:hidden">Atpt</span></TabsTrigger>
+              <TabsTrigger value="students" id="teacher-tour-students" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Students</span><span className="sm:hidden">Stud</span></TabsTrigger>
+              <TabsTrigger value="keys" id="teacher-tour-keys" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Keys</TabsTrigger>
+              <TabsTrigger value="resits" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Resits</TabsTrigger>
             </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
