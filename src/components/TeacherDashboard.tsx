@@ -715,12 +715,13 @@ export default function TeacherDashboard() {
             {/* ── Attempts Tab ── */}
             <TabsContent value="attempts">
               <Card className="border-border/50 bg-background/60 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Student Exam Attempts</CardTitle>
-                  <CardDescription>View and manage all student submissions</CardDescription>
+                <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
+                  <CardTitle className="text-base sm:text-lg">Student Exam Attempts</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">View and manage all student submissions</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  {/* Desktop table */}
+                  <div className="hidden sm:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -772,6 +773,41 @@ export default function TeacherDashboard() {
                         )}
                       </TableBody>
                     </Table>
+                  </div>
+
+                  {/* Mobile card list */}
+                  <div className="sm:hidden space-y-2">
+                    {attempts.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8 text-sm">No exam attempts yet</p>
+                    ) : (
+                      attempts.map((attempt) => (
+                        <div key={attempt.id} className="p-3 rounded-xl border bg-card space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{attempt.student?.full_name || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{attempt.exam?.title || 'Unknown Exam'}</p>
+                            </div>
+                            {attempt.status === 'graded' && <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] shrink-0">Graded</Badge>}
+                            {attempt.status === 'completed' && <Badge className="text-[10px] shrink-0">Completed</Badge>}
+                            {(attempt.status === 'pending' || attempt.status === 'grading') && (
+                              <Badge variant="secondary" className="text-[10px] shrink-0">{attempt.status === 'pending' ? 'In Progress' : 'Awaiting'}</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{new Date(attempt.attempted_at).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-2">
+                              {attempt.marks_obtained !== null && (
+                                <span className="font-semibold">{attempt.marks_obtained}/{attempt.exam?.total_marks || 0}</span>
+                              )}
+                              <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => navigate(`/admin/exam/grade/${attempt.id}`)}>
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                {attempt.status === 'graded' ? 'View' : 'Grade'}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
