@@ -576,7 +576,7 @@ export default function TeacherDashboard() {
 
             {/* ── Performance Tab ── */}
             <TabsContent value="performance" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 {/* Score Gauge */}
                 <Card className="border-border/50 bg-background/60 backdrop-blur-sm lg:col-span-1">
                   <CardHeader className="pb-2">
