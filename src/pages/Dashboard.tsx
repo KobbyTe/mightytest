@@ -301,7 +301,8 @@ export default function Dashboard() {
       }
 
       toast.success('Successfully registered for exam!');
-      navigate(`/exam/take?attempt=${data.id}`);
+      setPendingExamAttemptId(data.id);
+      setShowVoiceDialog(true);
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error('An unexpected error occurred. Please try again.');
