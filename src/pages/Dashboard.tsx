@@ -255,7 +255,8 @@ export default function Dashboard() {
       const activeAttempt = existingAttempts?.find(a => a.status === 'pending' || a.status === 'in_progress');
       if (activeAttempt) {
         toast.info('Continuing your existing exam attempt');
-        navigate(`/exam/take?attempt=${activeAttempt.id}`);
+        setPendingExamAttemptId(activeAttempt.id);
+        setShowVoiceDialog(true);
         return;
       }
 
