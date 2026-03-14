@@ -348,35 +348,35 @@ export default function TeacherDashboard() {
       {/* ─── HEADER ─── */}
       <header className="relative overflow-hidden border-b bg-background/80 backdrop-blur-xl">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-accent/5 to-secondary/8 pointer-events-none" />
-        <div className="container mx-auto px-4 py-5 flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="relative cursor-pointer" onClick={() => setShowProfile(true)}>
-              <Avatar className="h-12 w-12 border-2 border-primary/40 shadow-lg">
-                <AvatarFallback className="bg-primary/20 text-primary font-bold text-lg">{initials}</AvatarFallback>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-0 relative z-10">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="relative cursor-pointer shrink-0" onClick={() => setShowProfile(true)}>
+              <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/40 shadow-lg">
+                <AvatarFallback className="bg-primary/20 text-primary font-bold text-base sm:text-lg">{initials}</AvatarFallback>
               </Avatar>
-              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-emerald-500 border-2 border-background" />
+              <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-emerald-500 border-2 border-background" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-foreground tracking-tight truncate">
                 Welcome back, {teacher?.full_name?.split(' ')[0] || 'Educator'}
               </h1>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+              <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-500" />
                 Verified Educator
-                {schoolName && <span className="text-muted-foreground/60">• {schoolName}</span>}
+                {schoolName && <span className="text-muted-foreground/60 hidden sm:inline">• {schoolName}</span>}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
-            <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2">
-              <User className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2 text-xs h-8">
+              <User className="h-3.5 w-3.5" />
               My Profile
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTour(true)} title="Take Tour">
               <HelpCircle className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
