@@ -450,8 +450,8 @@ export default function TeacherDashboard() {
             </Card>
 
             {/* ── Exams Tab ── */}
-            <TabsContent value="exams" className="space-y-6">
-              <div className="flex justify-between items-center">
+            <TabsContent value="exams" className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
                 <h2 className="text-lg font-semibold text-foreground">Manage Exams</h2>
                 <Dialog open={isDialogOpen} onOpenChange={(open) => {
                   setIsDialogOpen(open);
