@@ -386,7 +386,7 @@ export default function TeacherDashboard() {
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* ─── STAT CARDS ─── */}
         <motion.div
-          className="grid grid-cols-2 lg:grid-cols-5 gap-4"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
