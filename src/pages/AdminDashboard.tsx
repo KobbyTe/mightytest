@@ -525,8 +525,8 @@ export default function AdminDashboard() {
 
             {/* Exams Management */}
             <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Manage Exams</h2>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-2xl font-bold">Manage Exams</h2>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) {
