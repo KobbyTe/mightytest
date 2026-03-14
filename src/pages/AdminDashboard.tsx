@@ -418,29 +418,29 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
+      {/* Header — mobile-first */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3" id="teacher-tour-welcome">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">{dashboardTitle}</h1>
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2.5 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3" id="teacher-tour-welcome">
+            <GraduationCap className="h-7 w-7 sm:h-8 sm:w-8 text-primary shrink-0" />
+            <h1 className="text-lg sm:text-2xl font-bold truncate">{dashboardTitle}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
             {isTeacher && (
-              <Button variant="ghost" size="sm" onClick={() => setShowTour(true)} title="Take Tour">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTour(true)} title="Take Tour">
                 <HelpCircle className="h-4 w-4" />
               </Button>
             )}
             {isAdmin && (
-              <Button variant="outline" onClick={() => navigate('/admin/analytics')}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Analytics
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/analytics')} className="h-8 sm:h-9 text-xs sm:text-sm">
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Analytics</span>
               </Button>
             )}
-            <Button variant="ghost" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="h-8 sm:h-9 text-xs sm:text-sm">
+              <LogOut className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
