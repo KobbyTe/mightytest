@@ -479,7 +479,7 @@ export default function TeacherDashboard() {
                         <Label htmlFor="description">Description</Label>
                         <Textarea id="description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3} />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                           <Label>Subject</Label>
                           <Select value={formData.subject} onValueChange={(v) => setFormData({ ...formData, subject: v })}>
