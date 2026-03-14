@@ -434,7 +434,7 @@ export default function TeacherDashboard() {
                       key={tab.value}
                       value={tab.value}
                       id={`teacher-tour-${tab.value}`}
-                      className="flex items-center gap-1.5 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg px-3 py-2 transition-all"
+                      className="flex items-center gap-1 text-[10px] sm:text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 transition-all"
                     >
                       <tab.icon className="h-3.5 w-3.5" />
                       <span className="hidden sm:inline">{tab.label}</span>
