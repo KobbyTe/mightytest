@@ -1,46 +1,52 @@
 
 
-## Plan: Add Voice Selection for Reading Assistant (Pre-Exam Setup)
+# Show Individual Test Results with Numbered List + Average
 
-### What We're Building
+## What Changes
 
-A voice selection and preview panel that appears **before the student starts an exam**. When a student clicks "Start Exam" on the Dashboard, instead of immediately navigating to the exam, they'll see a dialog/modal where they can:
+Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
 
-1. **Browse available voices** from the browser's `speechSynthesis.getVoices()` API
-2. **Select a preferred voice** from a dropdown/list
-3. **Test the voice** with a "Play Sample" button that reads a sample sentence aloud
-4. **Adjust speed** (slow/normal/fast) — reusing existing speed controls
-5. **Proceed to the exam** or skip the voice setup entirely
+## Changes by Dashboard
 
-### Implementation Details
+### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
+- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
+- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
+- Display the overall average at the bottom of the list
+- Keep the existing exam cards below for detailed view (status, certificates, etc.)
 
-**1. Update `useReadingAssistant` hook** (`src/hooks/useReadingAssistant.ts`)
-- Add `selectedVoice` state and `setSelectedVoice` setter
-- Add `availableVoices` state populated from `speechSynthesis.getVoices()` (with `onvoiceschanged` listener since voices load async)
-- Apply `selectedVoice` to the `SpeechSynthesisUtterance.voice` property in the `speak` function
-- Add a `previewVoice(voice, speed)` method for testing
+### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
+- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
+- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
+- Show the average score clearly at the bottom of each child's results
+- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
 
-**2. Create `VoiceSelectionDialog` component** (new file: `src/components/VoiceSelectionDialog.tsx`)
-- Modal dialog that shows before exam navigation
-- Lists available voices grouped by language (prioritize English)
-- Each voice shows name + language tag
-- "Play Sample" button next to selected voice reads: "Welcome to your exam. Good luck!"
-- Speed selector (reuse slow/normal/fast toggle)
-- "Continue to Exam" and "Skip" buttons
-- Remembers voice choice in localStorage for future exams
+### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
+- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
+- Add a summary row at the bottom showing the computed average across all tests
+- Sort exams chronologically (oldest first) so numbering is consistent
 
-**3. Update Dashboard** (`src/pages/Dashboard.tsx`)
-- When student clicks "Start Exam", show the `VoiceSelectionDialog` instead of immediately navigating
-- On "Continue" or "Skip", navigate to `/exam/take?attempt=...`
-- Pass selected voice preference via URL param or localStorage
+### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
+- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
+- The existing "View" button already leads to the report card, so this is optional
 
-**4. Update ExamTaking page** (`src/pages/ExamTaking.tsx`)
-- On mount, read saved voice preference from localStorage
-- Apply it to the `readingAssistant` hook's selected voice
+## Technical Details
 
-### Files to Create/Modify
-- `src/hooks/useReadingAssistant.ts` — add voice selection state + available voices
-- `src/components/VoiceSelectionDialog.tsx` — new component
-- `src/pages/Dashboard.tsx` — intercept "Start Exam" to show dialog
-- `src/pages/ExamTaking.tsx` — load saved voice preference on mount
+### Sorting Logic
+All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+
+### Average Calculation
+Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
+| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
+| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
+| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+
+### UI Design
+- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
+- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
+- Chronological ordering ensures consistent numbering across all views
 

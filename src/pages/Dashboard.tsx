@@ -21,6 +21,8 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AIStudyAssistant } from '@/components/AIStudyAssistant';
 import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
+import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
+import { useReadingAssistant } from '@/hooks/useReadingAssistant';
 
 interface Exam {
   id: string;
@@ -77,6 +79,9 @@ export default function Dashboard() {
   const [resitOpenings, setResitOpenings] = useState<any[]>([]);
   const [resitRequests, setResitRequests] = useState<any[]>([]);
   const [applyingResit, setApplyingResit] = useState<string | null>(null);
+  const [pendingExamAttemptId, setPendingExamAttemptId] = useState<string | null>(null);
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+  const readingAssistant = useReadingAssistant();
 
   // Redirect logic — wait for auth to fully resolve before redirecting
   useEffect(() => {
@@ -250,7 +255,8 @@ export default function Dashboard() {
       const activeAttempt = existingAttempts?.find(a => a.status === 'pending' || a.status === 'in_progress');
       if (activeAttempt) {
         toast.info('Continuing your existing exam attempt');
-        navigate(`/exam/take?attempt=${activeAttempt.id}`);
+        setPendingExamAttemptId(activeAttempt.id);
+        setShowVoiceDialog(true);
         return;
       }
 
@@ -296,7 +302,8 @@ export default function Dashboard() {
       }
 
       toast.success('Successfully registered for exam!');
-      navigate(`/exam/take?attempt=${data.id}`);
+      setPendingExamAttemptId(data.id);
+      setShowVoiceDialog(true);
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -346,7 +353,25 @@ export default function Dashboard() {
   };
 
   const handleTakeExam = (attemptId: string) => {
-    navigate(`/exam/take?attempt=${attemptId}`);
+    setPendingExamAttemptId(attemptId);
+    setShowVoiceDialog(true);
+  };
+
+  const handleVoiceContinue = () => {
+    setShowVoiceDialog(false);
+    if (pendingExamAttemptId) {
+      readingAssistant.toggle(); // Enable reading assistant
+      navigate(`/exam/take?attempt=${pendingExamAttemptId}`);
+      setPendingExamAttemptId(null);
+    }
+  };
+
+  const handleVoiceSkip = () => {
+    setShowVoiceDialog(false);
+    if (pendingExamAttemptId) {
+      navigate(`/exam/take?attempt=${pendingExamAttemptId}`);
+      setPendingExamAttemptId(null);
+    }
   };
 
   const handleSignOut = async () => {
@@ -379,6 +404,21 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Onboarding Tour */}
       <OnboardingTour isActive={showTour} onComplete={completeTour} />
+
+      {/* Voice Selection Dialog */}
+      <VoiceSelectionDialog
+        open={showVoiceDialog}
+        onContinue={handleVoiceContinue}
+        onSkip={handleVoiceSkip}
+        availableVoices={readingAssistant.availableVoices}
+        selectedVoice={readingAssistant.selectedVoice}
+        onSelectVoice={readingAssistant.setSelectedVoice}
+        speed={readingAssistant.speed}
+        onSpeedChange={readingAssistant.setSpeed}
+        isSpeaking={readingAssistant.isSpeaking}
+        onPreview={readingAssistant.previewVoice}
+        onStopPreview={readingAssistant.stop}
+      />
 
       {/* Animated Header */}
       <header id="tour-welcome" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
