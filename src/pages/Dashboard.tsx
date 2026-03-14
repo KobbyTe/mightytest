@@ -353,7 +353,25 @@ export default function Dashboard() {
   };
 
   const handleTakeExam = (attemptId: string) => {
-    navigate(`/exam/take?attempt=${attemptId}`);
+    setPendingExamAttemptId(attemptId);
+    setShowVoiceDialog(true);
+  };
+
+  const handleVoiceContinue = () => {
+    setShowVoiceDialog(false);
+    if (pendingExamAttemptId) {
+      readingAssistant.toggle(); // Enable reading assistant
+      navigate(`/exam/take?attempt=${pendingExamAttemptId}`);
+      setPendingExamAttemptId(null);
+    }
+  };
+
+  const handleVoiceSkip = () => {
+    setShowVoiceDialog(false);
+    if (pendingExamAttemptId) {
+      navigate(`/exam/take?attempt=${pendingExamAttemptId}`);
+      setPendingExamAttemptId(null);
+    }
   };
 
   const handleSignOut = async () => {
