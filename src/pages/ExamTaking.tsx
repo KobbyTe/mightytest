@@ -54,6 +54,8 @@ export default function ExamTaking() {
   const [showResults, setShowResults] = useState(false);
   const [networkOnline, setNetworkOnline] = useState(navigator.onLine);
   const readingAssistant = useReadingAssistant();
+
+  // Load saved voice preference on mount (voice is auto-restored by the hook via localStorage)
   const [resultData, setResultData] = useState<{
     marks: number;
     totalMarks: number;
