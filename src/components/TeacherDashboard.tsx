@@ -503,7 +503,7 @@ export default function TeacherDashboard() {
                           </Select>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <div><Label>Duration (min)</Label><Input type="number" value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })} /></div>
                         <div><Label>Total Marks</Label><Input type="number" value={formData.total_marks} onChange={(e) => setFormData({ ...formData, total_marks: parseInt(e.target.value) })} /></div>
                         <div><Label>Passing Marks</Label><Input type="number" value={formData.passing_marks} onChange={(e) => setFormData({ ...formData, passing_marks: parseInt(e.target.value) })} /></div>
