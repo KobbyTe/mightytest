@@ -646,7 +646,7 @@ export default function AdminDashboard() {
                       onChange={(e) => setFormData({ ...formData, exam_date: e.target.value })}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="status">Status</Label>
                       <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
