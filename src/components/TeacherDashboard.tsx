@@ -587,7 +587,7 @@ export default function TeacherDashboard() {
                     <CardDescription>Your educator effectiveness rating</CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center">
-                    <div className="relative w-48 h-48">
+                    <div className="relative w-36 h-36 sm:w-48 sm:h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" startAngle={180} endAngle={0} data={gaugeData} barSize={14}>
                           <RadialBar background dataKey="value" cornerRadius={10} max={100} />
