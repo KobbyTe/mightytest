@@ -21,6 +21,8 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AIStudyAssistant } from '@/components/AIStudyAssistant';
 import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
+import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
+import { useReadingAssistant } from '@/hooks/useReadingAssistant';
 
 interface Exam {
   id: string;
