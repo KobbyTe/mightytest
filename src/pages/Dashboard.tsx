@@ -405,6 +405,21 @@ export default function Dashboard() {
       {/* Onboarding Tour */}
       <OnboardingTour isActive={showTour} onComplete={completeTour} />
 
+      {/* Voice Selection Dialog */}
+      <VoiceSelectionDialog
+        open={showVoiceDialog}
+        onContinue={handleVoiceContinue}
+        onSkip={handleVoiceSkip}
+        availableVoices={readingAssistant.availableVoices}
+        selectedVoice={readingAssistant.selectedVoice}
+        onSelectVoice={readingAssistant.setSelectedVoice}
+        speed={readingAssistant.speed}
+        onSpeedChange={readingAssistant.setSpeed}
+        isSpeaking={readingAssistant.isSpeaking}
+        onPreview={readingAssistant.previewVoice}
+        onStopPreview={readingAssistant.stop}
+      />
+
       {/* Animated Header */}
       <header id="tour-welcome" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
