@@ -79,6 +79,9 @@ export default function Dashboard() {
   const [resitOpenings, setResitOpenings] = useState<any[]>([]);
   const [resitRequests, setResitRequests] = useState<any[]>([]);
   const [applyingResit, setApplyingResit] = useState<string | null>(null);
+  const [pendingExamAttemptId, setPendingExamAttemptId] = useState<string | null>(null);
+  const [showVoiceDialog, setShowVoiceDialog] = useState(false);
+  const readingAssistant = useReadingAssistant();
 
   // Redirect logic — wait for auth to fully resolve before redirecting
   useEffect(() => {
