@@ -1,52 +1,75 @@
 
 
-# Show Individual Test Results with Numbered List + Average
+## Plan: Mobile-First UI Overhaul for All Dashboards
 
-## What Changes
+### Problems Identified
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+**Student Dashboard** (`src/pages/Dashboard.tsx` ~1028 lines):
+- Header: title `text-2xl` too large on mobile, buttons don't wrap — overflows
+- Stats grid: `grid-cols-2` works but `p-6` padding too generous, `text-3xl` numbers too large for small screens
+- Exam cards grid: `md:grid-cols-2 lg:grid-cols-3` has no mobile spacing optimization
+- Profile/Parent grid: `grid-cols-2 gap-3` inside cards creates cramped layouts on narrow screens
+- Result rows use `flex items-center gap-4` with no wrapping — text truncates badly
 
-## Changes by Dashboard
+**Admin Dashboard** (`src/pages/AdminDashboard.tsx` ~885 lines):
+- Header: `text-2xl` title + multiple buttons overflow on mobile
+- TabsList: `flex w-full overflow-x-auto` but tabs have no scroll indicators, labels are full text
+- Stats grid: `grid-cols-1 md:grid-cols-3` — fine but cards have minimal mobile styling
+- Exam form dialog: `grid-cols-2` and `grid-cols-3` layouts break on small screens
+- Attempts table: `overflow-x-auto` but cells have `min-w-[150px]` etc — forces horizontal scroll
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+**Teacher Dashboard** (`src/components/TeacherDashboard.tsx` ~940 lines):
+- Header: avatar + text + buttons — wraps awkwardly on mobile
+- Stats: `grid-cols-2 lg:grid-cols-5` — acceptable but padding/font sizes need tuning
+- Tabs: icons-only on mobile (`hidden sm:inline` for labels) — good but tab bar itself overflows
+- Performance gauges: `w-48 h-48` RadialBarChart doesn't scale down
+- Top students list has adequate mobile layout
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+**Parent Dashboard** (`src/pages/ParentDashboard.tsx` ~372 lines):
+- Header: same `text-2xl` + button overflow issue
+- Stats: `grid-cols-2 md:grid-cols-4` with `p-6` padding — too much for mobile
+- Child result rows: `flex items-center gap-4 p-3` with score/status on same line — overflows on narrow screens
+- Badge groups in child cards wrap but layout feels cramped
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+### Implementation Plan
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+**1. Student Dashboard** (`src/pages/Dashboard.tsx`)
+- Header: stack title/subtitle and action buttons vertically on mobile (`flex-col sm:flex-row`), reduce title to `text-lg sm:text-2xl`
+- Stats grid: reduce to `p-3 sm:p-6`, font `text-xl sm:text-3xl`, icon containers `w-9 h-9 sm:w-12 sm:h-12`
+- Exam cards: add `gap-3 sm:gap-5`, tighter card padding on mobile
+- Profile card: `grid-cols-1 sm:grid-cols-2` for info fields
+- Parent info card: `grid-cols-1 sm:grid-cols-2` for credential boxes
+- Results summary rows: stack score/status below title on mobile (`flex-col sm:flex-row`)
 
-## Technical Details
+**2. Admin Dashboard** (`src/pages/AdminDashboard.tsx`)
+- Header: stack layout on mobile, hide "Analytics" text (icon-only), smaller title
+- TabsList: already scrollable but add `no-scrollbar` class, shrink trigger padding
+- Exam form dialog: `grid-cols-1 sm:grid-cols-2` and `grid-cols-1 sm:grid-cols-3`
+- Attempts tab: convert table to mobile card layout on small screens (hide table, show stacked cards)
+- Exam cards: tighter padding, readable text sizes
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+**3. Teacher Dashboard** (`src/components/TeacherDashboard.tsx`)
+- Header: stack on mobile, compact avatar section
+- Stats: `p-3 sm:p-4`, smaller text on mobile
+- Performance gauge: `w-36 h-36 sm:w-48 sm:h-48`
+- Performance grid: `grid-cols-1` on mobile for gauge + breakdown
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+**4. Parent Dashboard** (`src/pages/ParentDashboard.tsx`)
+- Header: same mobile-first stacking
+- Stats: `p-3 sm:p-6`, reduced font sizes
+- Child result rows: stack into cards on mobile — title on top, score/status below
+- Child header: stack avatar + badges vertically on very small screens
 
 ### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+- `src/pages/Dashboard.tsx`
+- `src/pages/AdminDashboard.tsx`
+- `src/components/TeacherDashboard.tsx`
+- `src/pages/ParentDashboard.tsx`
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+### Design Principles
+- Mobile-first responsive classes (base = mobile, `sm:` = tablet, `md:`/`lg:` = desktop)
+- Compact padding and font sizes on mobile, expanding at breakpoints
+- Stack layouts vertically on mobile, switch to horizontal on larger screens
+- Replace tables with card lists on mobile where appropriate
+- Consistent glassmorphism and spacing across all four dashboards
 
