@@ -419,7 +419,7 @@ export default function TeacherDashboard() {
           <Tabs defaultValue="exams" className="w-full">
             <Card className="border-border/50 bg-background/60 backdrop-blur-sm mb-4">
               <CardContent className="p-1.5">
-                <TabsList className="w-full bg-transparent gap-1 flex overflow-x-auto">
+                <TabsList className="w-full bg-transparent gap-0.5 sm:gap-1 flex overflow-x-auto scrollbar-none h-auto p-1">
                   {[
                     { value: 'exams', label: 'Exams', icon: FileText, count: exams.length },
                     { value: 'performance', label: 'Performance', icon: Trophy },
