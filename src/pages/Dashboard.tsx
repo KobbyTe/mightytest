@@ -1032,7 +1032,7 @@ export default function Dashboard() {
       </main>
       <ChatBubble />
       <AIStudyAssistant />
-      <MobileBottomNav />
+      <MobileBottomNav items={studentNavItems} />
     </div>
   );
 }
