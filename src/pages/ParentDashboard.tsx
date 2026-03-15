@@ -147,7 +147,7 @@ export default function ParentDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+      <main id="parent-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
         {/* Profile Card */}
         <Card className="hover-lift overflow-hidden">
           <div className="h-1.5 sm:h-2 bg-gradient-to-r from-accent via-primary to-secondary" />
