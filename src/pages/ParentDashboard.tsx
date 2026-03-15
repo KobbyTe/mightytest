@@ -15,6 +15,13 @@ import { toast } from 'sonner';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
+import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
+
+const parentNavItems: BottomNavItem[] = [
+  { id: 'parent-top', label: 'Overview', icon: Star },
+  { id: 'parent-stats', label: 'Stats', icon: TrendingUp },
+  { id: 'parent-children', label: 'Children', icon: GraduationCap },
+];
 
 interface Student {
   id: string;
@@ -140,7 +147,7 @@ export default function ParentDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+      <main id="parent-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
         {/* Profile Card */}
         <Card className="hover-lift overflow-hidden">
           <div className="h-1.5 sm:h-2 bg-gradient-to-r from-accent via-primary to-secondary" />
@@ -156,6 +163,7 @@ export default function ParentDashboard() {
         </Card>
 
         {/* Overall Stats */}
+        <div id="parent-stats" />
         {children.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             <Card className="hover-lift bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
@@ -201,6 +209,7 @@ export default function ParentDashboard() {
         )}
 
         {/* Children Overview */}
+        <div id="parent-children" />
         <div>
           <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center shadow-lg">
@@ -353,6 +362,7 @@ export default function ParentDashboard() {
         </div>
       </main>
       <ChatBubble />
+      <MobileBottomNav items={parentNavItems} />
     </div>
   );
 }

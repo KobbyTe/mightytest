@@ -10,7 +10,7 @@ import {
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
   Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle, RotateCcw,
-  XCircle, CheckCircle
+  XCircle, CheckCircle, LayoutDashboard
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -23,7 +23,7 @@ import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
 import { useReadingAssistant } from '@/hooks/useReadingAssistant';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
 
 interface Exam {
   id: string;
@@ -65,6 +65,13 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
+const studentNavItems: BottomNavItem[] = [
+  { id: 'dashboard-top', label: 'Home', icon: LayoutDashboard },
+  { id: 'section-exams', label: 'Exams', icon: BookOpen },
+  { id: 'section-available', label: 'Browse', icon: Zap },
+  { id: 'section-results', label: 'Results', icon: Trophy },
+  { id: 'section-profile', label: 'Profile', icon: User },
+];
 
 export default function Dashboard() {
   const { user, profile, role, signOut, loading } = useAuth();
@@ -1025,7 +1032,7 @@ export default function Dashboard() {
       </main>
       <ChatBubble />
       <AIStudyAssistant />
-      <MobileBottomNav />
+      <MobileBottomNav items={studentNavItems} />
     </div>
   );
 }
