@@ -209,6 +209,7 @@ export default function ParentDashboard() {
         )}
 
         {/* Children Overview */}
+        <div id="parent-children" />
         <div>
           <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-accent to-[hsl(var(--fun-teal))] flex items-center justify-center shadow-lg">
