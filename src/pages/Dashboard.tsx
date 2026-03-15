@@ -23,7 +23,7 @@ import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
 import { useReadingAssistant } from '@/hooks/useReadingAssistant';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
+import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
 
 interface Exam {
   id: string;

@@ -362,6 +362,7 @@ export default function ParentDashboard() {
         </div>
       </main>
       <ChatBubble />
+      <MobileBottomNav items={parentNavItems} />
     </div>
   );
 }
