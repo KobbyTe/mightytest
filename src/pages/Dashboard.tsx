@@ -23,6 +23,7 @@ import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
 import { useReadingAssistant } from '@/hooks/useReadingAssistant';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 
 interface Exam {
   id: string;
@@ -445,7 +446,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+      <main id="dashboard-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
         {/* Stats Cards */}
         <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
@@ -493,6 +494,7 @@ export default function Dashboard() {
         <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
 
         {/* My Results Summary */}
+        <div id="section-results" />
         {(() => {
           const gradedExams = examAttempts
             .filter(a => a.status === 'graded' && a.marks_obtained !== null)
@@ -552,6 +554,7 @@ export default function Dashboard() {
         {/* Profile & Parent Info Grid */}
         <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Profile Card */}
+          <div id="section-profile" />
           <Card id="tour-profile" className="hover-lift overflow-hidden">
             <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
             <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
@@ -716,6 +719,7 @@ export default function Dashboard() {
         </div>
 
         {/* My Exams Section */}
+        <div id="section-exams" />
         <div id="tour-exams">
           <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
@@ -829,6 +833,7 @@ export default function Dashboard() {
         </div>
 
         {/* Available Exams Section */}
+        <div id="section-available" />
         <div id="tour-available">
           <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
@@ -1020,6 +1025,7 @@ export default function Dashboard() {
       </main>
       <ChatBubble />
       <AIStudyAssistant />
+      <MobileBottomNav />
     </div>
   );
 }
