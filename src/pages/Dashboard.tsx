@@ -494,6 +494,7 @@ export default function Dashboard() {
         <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
 
         {/* My Results Summary */}
+        <div id="section-results" />
         {(() => {
           const gradedExams = examAttempts
             .filter(a => a.status === 'graded' && a.marks_obtained !== null)
