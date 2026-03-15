@@ -446,7 +446,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+      <main id="dashboard-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
         {/* Stats Cards */}
         <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
