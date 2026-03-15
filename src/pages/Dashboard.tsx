@@ -65,6 +65,13 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
+const studentNavItems: BottomNavItem[] = [
+  { id: 'dashboard-top', label: 'Home', icon: LayoutDashboard },
+  { id: 'section-exams', label: 'Exams', icon: BookOpen },
+  { id: 'section-available', label: 'Browse', icon: Zap },
+  { id: 'section-results', label: 'Results', icon: Trophy },
+  { id: 'section-profile', label: 'Profile', icon: User },
+];
 
 export default function Dashboard() {
   const { user, profile, role, signOut, loading } = useAuth();
