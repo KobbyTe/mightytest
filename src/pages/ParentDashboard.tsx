@@ -15,6 +15,13 @@ import { toast } from 'sonner';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
+import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
+
+const parentNavItems: BottomNavItem[] = [
+  { id: 'parent-top', label: 'Overview', icon: Star },
+  { id: 'parent-stats', label: 'Stats', icon: TrendingUp },
+  { id: 'parent-children', label: 'Children', icon: GraduationCap },
+];
 
 interface Student {
   id: string;
