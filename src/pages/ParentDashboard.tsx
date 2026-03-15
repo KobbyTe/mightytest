@@ -163,6 +163,7 @@ export default function ParentDashboard() {
         </Card>
 
         {/* Overall Stats */}
+        <div id="parent-stats" />
         {children.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             <Card className="hover-lift bg-gradient-to-br from-accent/10 to-accent/5 border-accent/20">
