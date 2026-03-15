@@ -1025,6 +1025,7 @@ export default function Dashboard() {
       </main>
       <ChatBubble />
       <AIStudyAssistant />
+      <MobileBottomNav />
     </div>
   );
 }
