@@ -16,9 +16,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Cache for user data to avoid refetching on navigation
 const userDataCache = new Map<string, { role: string; profile: any; preferences: any; timestamp: number }>();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -27,25 +26,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<any>(null);
   const [preferences, setPreferences] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Track whether initial session has been resolved
-  const initializedRef = useRef(false);
-  // Track the current user ID being loaded to avoid stale updates
+
   const loadingUserIdRef = useRef<string | null>(null);
 
   const loadUserData = useCallback(async (userId: string, isInitialLoad: boolean) => {
-    // Only set loading=true on initial load, NOT on token refreshes
-    // This prevents ProtectedRoute from flashing the spinner mid-session
     if (isInitialLoad) {
       setLoading(true);
     }
-    
+
     loadingUserIdRef.current = userId;
 
-    // Check cache first
     const cached = userDataCache.get(userId);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      setRole(cached.role as any);
+      setRole(cached.role as UserRole);
       setProfile(cached.profile);
       setPreferences(cached.preferences);
       if (isInitialLoad) setLoading(false);
@@ -58,10 +51,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from('students').select('id,user_id,full_name,email,grade,school_name,parent_id,class_id,student_id_code').eq('user_id', userId).maybeSingle(),
         supabase.from('parents').select('id,user_id,full_name,email,access_code').eq('user_id', userId).maybeSingle(),
         supabase.from('teachers').select('id,user_id,full_name,email,status,subject_specialty,school_id').eq('user_id', userId).maybeSingle(),
-        supabase.from('user_preferences').select('theme,language,notifications_enabled').eq('user_id', userId).maybeSingle()
+        supabase.from('user_preferences').select('theme,language,notifications_enabled').eq('user_id', userId).maybeSingle(),
       ]);
 
-      // Bail if user changed while we were loading
       if (loadingUserIdRef.current !== userId) return;
 
       const userRole = roleRes.data?.role as UserRole;
@@ -79,10 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: userRole || '',
         profile: userProfile,
         preferences: prefsRes.data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
-      // Final check that user hasn't changed
       if (loadingUserIdRef.current === userId) {
         setRole(userRole);
         setProfile(userProfile);
@@ -91,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
-      if (loadingUserIdRef.current === userId || isInitialLoad) {
+      if (loadingUserIdRef.current === userId) {
         setLoading(false);
       }
     }
@@ -104,81 +95,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setPreferences(null);
   }, []);
 
+  const applyAuthenticatedSession = useCallback((nextSession: Session, isInitialLoad: boolean) => {
+    setSession(nextSession);
+    setUser(nextSession.user);
+    loadUserData(nextSession.user.id, isInitialLoad);
+  }, [loadUserData]);
+
+  const applySignedOutState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    clearUserState();
+    setLoading(false);
+  }, [clearUserState]);
+
   useEffect(() => {
     let mounted = true;
+    let initialSessionPending = true;
 
-    // Set up auth listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (!mounted) return;
 
-      // Handle sign out
       if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setSession(null);
-        clearUserState();
-        setLoading(false);
-        initializedRef.current = true;
+        initialSessionPending = false;
+        applySignedOutState();
         return;
       }
 
-      // For TOKEN_REFRESHED, only act if we actually have a valid session
-      // Don't treat a missing session during refresh as a sign-out
-      if (event === 'TOKEN_REFRESHED') {
-        if (newSession?.user) {
-          setSession(newSession);
-          setUser(newSession.user);
-          // Silently refresh user data without setting loading=true
-          loadUserData(newSession.user.id, false);
+      if (event === 'INITIAL_SESSION') {
+        if (nextSession?.user && initialSessionPending) {
+          initialSessionPending = false;
+          applyAuthenticatedSession(nextSession, true);
         }
-        // If no session on TOKEN_REFRESHED, just ignore — Supabase will
-        // fire SIGNED_OUT separately if the refresh truly failed
         return;
       }
 
-      // For SIGNED_IN and INITIAL_SESSION events
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-
-      if (newSession?.user) {
-        const isInitial = !initializedRef.current;
-        initializedRef.current = true;
-        loadUserData(newSession.user.id, isInitial);
-      } else {
-        clearUserState();
-        setLoading(false);
-        initializedRef.current = true;
+      if (!nextSession?.user) {
+        return;
       }
+
+      const isFirstResolvedSession = initialSessionPending;
+      initialSessionPending = false;
+      applyAuthenticatedSession(nextSession, isFirstResolvedSession);
     });
 
-    // Get initial session as a fallback
     supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-      if (!mounted) return;
+      if (!mounted || !initialSessionPending) return;
+
+      initialSessionPending = false;
 
       if (error) {
         console.warn('Session retrieval error:', error.message);
-        if (error.message?.includes('refresh_token') ||
-            error.message?.includes('Refresh Token Not Found') ||
-            error.message?.includes('Invalid Refresh Token')) {
-          supabase.auth.signOut().catch(() => {});
-        }
-        if (!initializedRef.current) {
-          initializedRef.current = true;
-          setLoading(false);
-        }
+        applySignedOutState();
         return;
       }
 
-      // Only use getSession result if onAuthStateChange hasn't fired yet
-      if (!initializedRef.current) {
-        initializedRef.current = true;
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-
-        if (initialSession?.user) {
-          loadUserData(initialSession.user.id, true);
-        } else {
-          setLoading(false);
-        }
+      if (initialSession?.user) {
+        applyAuthenticatedSession(initialSession, true);
+      } else {
+        applySignedOutState();
       }
     });
 
@@ -186,15 +160,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loadUserData, clearUserState]);
+  }, [applyAuthenticatedSession, applySignedOutState]);
 
   const signOut = useCallback(async () => {
     if (user?.id) {
       userDataCache.delete(user.id);
     }
     await supabase.auth.signOut();
-    clearUserState();
-  }, [user?.id, clearUserState]);
+    applySignedOutState();
+  }, [user?.id, applySignedOutState]);
 
   const value = useMemo(() => ({
     user,
@@ -203,14 +177,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     preferences,
     loading,
-    signOut
+    signOut,
   }), [user, session, role, profile, preferences, loading, signOut]);
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
