@@ -340,6 +340,7 @@ export default function StudentManagement() {
     } finally {
       setResettingPassword(false);
     }
+  };
 
   if (loading) {
     return (
