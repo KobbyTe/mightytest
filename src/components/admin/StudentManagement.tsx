@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare, Mail, Phone, Calendar, GraduationCap, School, BookOpen, User, Heart, MoreHorizontal, X } from 'lucide-react';
+import { Search, ArrowRightLeft, Trash2, Users, Eye, AlertTriangle, UserPlus, Download, CheckSquare, Mail, Phone, Calendar, GraduationCap, School, BookOpen, User, Heart, MoreHorizontal, X, KeyRound, Eye as EyeIcon, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -86,6 +86,11 @@ export default function StudentManagement() {
   const [parentForm, setParentForm] = useState({ name: '', email: '', phone: '', relationship: '' });
   const [linkingParent, setLinkingParent] = useState(false);
   const [showMissingParents, setShowMissingParents] = useState(false);
+
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
@@ -309,6 +314,31 @@ export default function StudentManagement() {
       toast.error(error.message || 'Failed to create parent account');
     } finally {
       setLinkingParent(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!viewStudent || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-student-password', {
+        body: { user_id: viewStudent.user_id, new_password: newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Password reset successfully for ${viewStudent.full_name}`);
+      setResetPasswordOpen(false);
+      setNewPassword('');
+      setShowPassword(false);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -911,6 +941,76 @@ export default function StudentManagement() {
                         <Button size="sm" variant="outline" onClick={() => { setViewOpen(false); openLinkParent(viewStudent); }} className="gap-1.5 rounded-lg">
                           <UserPlus className="h-4 w-4" /> Create Parent Account
                         </Button>
+                      </div>
+                    )}
+                  </motion.div>
+
+                  {/* Reset Password */}
+                  <motion.div
+                    initial={{ y: 12, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5, duration: 0.35 }}
+                    className="rounded-xl border bg-muted/30 p-4 space-y-3"
+                  >
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Account Security</h4>
+                    {!resetPasswordOpen ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setResetPasswordOpen(true); setNewPassword(''); setShowPassword(false); }}
+                        className="gap-1.5 rounded-lg"
+                      >
+                        <KeyRound className="h-4 w-4" /> Reset Password
+                      </Button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">New Password</Label>
+                          <div className="relative">
+                            <Input
+                              type={showPassword ? 'text' : 'password'}
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                              placeholder="Min 6 characters"
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          {viewStudent.student_id_code && (
+                            <p className="text-[11px] text-muted-foreground">
+                              Student ID: <span className="font-mono font-medium">{viewStudent.student_id_code}</span>
+                            </p>
+                          )}
+                          {viewStudent.email && !viewStudent.email.endsWith('@studentid.internal') && (
+                            <p className="text-[11px] text-muted-foreground">
+                              Email: <span className="font-medium">{viewStudent.email}</span>
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleResetPassword}
+                            disabled={resettingPassword || newPassword.length < 6}
+                            className="gap-1.5 rounded-lg"
+                          >
+                            {resettingPassword ? 'Resetting...' : 'Confirm Reset'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setResetPasswordOpen(false); setNewPassword(''); setShowPassword(false); }}
+                            className="rounded-lg"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </motion.div>
