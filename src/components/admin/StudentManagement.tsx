@@ -87,6 +87,11 @@ export default function StudentManagement() {
   const [linkingParent, setLinkingParent] = useState(false);
   const [showMissingParents, setShowMissingParents] = useState(false);
 
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
+
   useEffect(() => { if (!scopeLoading) loadData(); }, [scopeLoading]);
 
   const loadData = async () => {
