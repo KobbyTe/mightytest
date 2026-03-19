@@ -317,6 +317,30 @@ export default function StudentManagement() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!viewStudent || !newPassword) return;
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-student-password', {
+        body: { user_id: viewStudent.user_id, new_password: newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Password reset successfully for ${viewStudent.full_name}`);
+      setResetPasswordOpen(false);
+      setNewPassword('');
+      setShowPassword(false);
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+      toast.error(error.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
+    }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
