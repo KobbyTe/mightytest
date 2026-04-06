@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell, Check, CheckCheck, X } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { formatDistanceToNow } from 'date-fns';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Notification {
   id: string;
@@ -22,6 +23,7 @@ export function NotificationBell() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const { sendLocalNotification } = usePushNotifications();
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
@@ -32,7 +34,13 @@ export function NotificationBell() {
     const channel = supabase
       .channel('notifications-bell')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev]);
+        const newNotif = payload.new as Notification;
+        setNotifications(prev => [newNotif, ...prev]);
+        // Trigger push notification for new items
+        sendLocalNotification(newNotif.title, {
+          body: newNotif.message,
+          tag: newNotif.id,
+        });
       })
       .subscribe();
 

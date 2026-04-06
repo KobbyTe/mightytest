@@ -18,6 +18,7 @@ import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { AIStudyAssistant } from '@/components/AIStudyAssistant';
 import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
@@ -454,6 +455,7 @@ export default function Dashboard() {
       </header>
 
       <main id="dashboard-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
+        <NotificationPermissionBanner />
         {/* Stats Cards */}
         <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
           <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
