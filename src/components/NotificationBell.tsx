@@ -34,7 +34,13 @@ export function NotificationBell() {
     const channel = supabase
       .channel('notifications-bell')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, (payload) => {
-        setNotifications(prev => [payload.new as Notification, ...prev]);
+        const newNotif = payload.new as Notification;
+        setNotifications(prev => [newNotif, ...prev]);
+        // Trigger push notification for new items
+        sendLocalNotification(newNotif.title, {
+          body: newNotif.message,
+          tag: newNotif.id,
+        });
       })
       .subscribe();
 
