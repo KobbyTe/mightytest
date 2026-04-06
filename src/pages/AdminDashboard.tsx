@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key, UserCheck, HelpCircle, Sparkles, Loader2 } from 'lucide-react';
+import { LogOut, GraduationCap, Plus, Calendar, Users, FileText, BarChart3, Building2, ClipboardList, Key, UserCheck, HelpCircle, Sparkles, Loader2, Bell, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -72,6 +72,7 @@ export default function AdminDashboard() {
   const [showTour, setShowTour] = useState(false);
   const [bulkGrading, setBulkGrading] = useState(false);
   const [bulkGradingProgress, setBulkGradingProgress] = useState('');
+  const [sendingTestNotif, setSendingTestNotif] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -399,6 +400,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setSendingTestNotif(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-test-notification', {
+        body: {
+          target_roles: ['student', 'teacher'],
+          title: '🔔 Test Notification',
+          message: 'This is a test notification from the admin. If you see this, push notifications are working correctly! 🎉',
+        },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Test notification sent to ${data.sent} user(s) (${data.roles.join(', ')})`);
+      } else {
+        toast.error(data?.error || 'Failed to send test notification');
+      }
+    } catch (err: any) {
+      console.error('Test notification error:', err);
+      toast.error('Failed to send test notification');
+    } finally {
+      setSendingTestNotif(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
@@ -431,6 +456,12 @@ export default function AdminDashboard() {
             {isTeacher && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowTour(true)} title="Take Tour">
                 <HelpCircle className="h-4 w-4" />
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={handleSendTestNotification} disabled={sendingTestNotif} className="h-8 sm:h-9 text-xs sm:text-sm" title="Send test notification to all students & teachers">
+                {sendingTestNotif ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />}
+                <span className="hidden sm:inline">Test Push</span>
               </Button>
             )}
             {isAdmin && (
