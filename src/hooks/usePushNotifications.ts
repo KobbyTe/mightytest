@@ -30,13 +30,14 @@ export function usePushNotifications() {
 
       if (result === 'granted') {
         // Show a test notification to confirm it works
-        registration.showNotification('Mighty Test 🎉', {
+        const notifOptions: NotificationOptions & { vibrate?: number[] } = {
           body: 'Notifications enabled! You\'ll receive alerts for exams, grades, and messages.',
           icon: '/favicon.png',
           badge: '/favicon.png',
-          vibrate: [100, 50, 100],
           tag: 'welcome',
-        });
+        };
+        (notifOptions as any).vibrate = [100, 50, 100];
+        registration.showNotification('Mighty Test 🎉', notifOptions);
       }
 
       return result;
