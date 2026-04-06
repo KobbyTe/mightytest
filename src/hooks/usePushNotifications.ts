@@ -52,12 +52,13 @@ export function usePushNotifications() {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      registration.showNotification(title, {
+      const notifOptions: any = {
         icon: '/favicon.png',
         badge: '/favicon.png',
         vibrate: [100, 50, 100],
         ...options,
-      });
+      };
+      registration.showNotification(title, notifOptions);
     } catch (error) {
       console.error('Error sending notification:', error);
     }
