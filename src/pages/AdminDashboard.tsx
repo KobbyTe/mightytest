@@ -400,6 +400,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setSendingTestNotif(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-test-notification', {
+        body: {
+          target_roles: ['student', 'teacher'],
+          title: '🔔 Test Notification',
+          message: 'This is a test notification from the admin. If you see this, push notifications are working correctly! 🎉',
+        },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success(`Test notification sent to ${data.sent} user(s) (${data.roles.join(', ')})`);
+      } else {
+        toast.error(data?.error || 'Failed to send test notification');
+      }
+    } catch (err: any) {
+      console.error('Test notification error:', err);
+      toast.error('Failed to send test notification');
+    } finally {
+      setSendingTestNotif(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
