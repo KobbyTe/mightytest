@@ -24,6 +24,7 @@ import ResitManagement from '@/components/admin/ResitManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
 import TeacherDashboard from '@/components/TeacherDashboard';

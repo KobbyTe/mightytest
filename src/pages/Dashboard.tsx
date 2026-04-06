@@ -18,6 +18,7 @@ import { ExamCertificate } from '@/components/ExamCertificate';
 import { OnboardingTour } from '@/components/OnboardingTour';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { AIStudyAssistant } from '@/components/AIStudyAssistant';
 import { StudentGamification } from '@/components/StudentGamification';
 import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';

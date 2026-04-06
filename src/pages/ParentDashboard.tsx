@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { getSubjectIcon, calcAvgScore } from '@/lib/examUtils';
 import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
 

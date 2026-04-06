@@ -24,6 +24,7 @@ import TeacherManagement from '@/components/admin/TeacherManagement';
 import StudentManagement from '@/components/admin/StudentManagement';
 import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 
 const CHART_COLORS = [
   'hsl(166, 73%, 42%)',   // success green
