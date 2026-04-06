@@ -148,6 +148,7 @@ export default function ParentDashboard() {
       </header>
 
       <main id="parent-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
+        <NotificationPermissionBanner />
         {/* Profile Card */}
         <Card className="hover-lift overflow-hidden">
           <div className="h-1.5 sm:h-2 bg-gradient-to-r from-accent via-primary to-secondary" />

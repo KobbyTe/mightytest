@@ -447,6 +447,7 @@ export default function AdminDashboard() {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
+        <NotificationPermissionBanner />
         {/* Teacher Scope Indicator */}
         {isTeacher && (
           <Card className="border-primary/30 bg-primary/5">

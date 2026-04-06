@@ -307,6 +307,7 @@ export default function NewAdminDashboard() {
       </motion.header>
 
       <main className="container mx-auto px-4 lg:px-8 py-6 space-y-6 relative">
+        <NotificationPermissionBanner />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Modern tab navigation */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
