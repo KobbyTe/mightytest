@@ -72,6 +72,7 @@ export default function AdminDashboard() {
   const [showTour, setShowTour] = useState(false);
   const [bulkGrading, setBulkGrading] = useState(false);
   const [bulkGradingProgress, setBulkGradingProgress] = useState('');
+  const [sendingTestNotif, setSendingTestNotif] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
