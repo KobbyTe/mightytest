@@ -23,6 +23,7 @@ export function NotificationBell() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
+  const { sendLocalNotification } = usePushNotifications();
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
