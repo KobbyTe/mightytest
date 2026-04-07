@@ -20,6 +20,7 @@ import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagem
 import ResitManagement from '@/components/admin/ResitManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { motion } from 'framer-motion';
@@ -384,6 +385,7 @@ export default function TeacherDashboard() {
       </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+        <NotificationPermissionBanner />
         {/* ─── STAT CARDS ─── */}
         <motion.div
           className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4"
