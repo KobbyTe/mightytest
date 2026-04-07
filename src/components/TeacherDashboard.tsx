@@ -20,6 +20,7 @@ import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagem
 import ResitManagement from '@/components/admin/ResitManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import { TeacherOnboardingTour } from '@/components/TeacherOnboardingTour';
 import { useTeacherScope } from '@/hooks/useTeacherScope';
 import { motion } from 'framer-motion';
