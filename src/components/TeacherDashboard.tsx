@@ -292,14 +292,14 @@ export default function TeacherDashboard() {
     }
     setSendingNotif(true);
     try {
-      // Get all students in assigned classes
+      const targetIds = notifTargetClass === 'all' ? scopedClassIds : [notifTargetClass];
       const { data: students, error: studentsError } = await supabase
         .from('students')
         .select('user_id')
-        .in('class_id', scopedClassIds);
+        .in('class_id', targetIds);
       if (studentsError) throw studentsError;
       if (!students || students.length === 0) {
-        toast.error('No students found in your assigned classes');
+        toast.error('No students found in the selected class(es)');
         setSendingNotif(false);
         return;
       }
@@ -313,9 +313,11 @@ export default function TeacherDashboard() {
       }));
       const { error: insertError } = await supabase.from('notifications').insert(notifications);
       if (insertError) throw insertError;
-      toast.success(`Notification sent to ${uniqueUserIds.length} students`);
+      const classLabel = notifTargetClass === 'all' ? 'all classes' : (classNames[notifTargetClass] || 'selected class');
+      toast.success(`Notification sent to ${uniqueUserIds.length} students in ${classLabel}`);
       setNotifTitle('');
       setNotifMessage('');
+      setNotifTargetClass('all');
       setShowNotifDialog(false);
     } catch (error) {
       console.error('Error sending notification:', error);
