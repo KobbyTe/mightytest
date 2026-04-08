@@ -106,7 +106,9 @@ export default function TeacherDashboard() {
   const [showNotifDialog, setShowNotifDialog] = useState(false);
   const [notifTitle, setNotifTitle] = useState('');
   const [notifMessage, setNotifMessage] = useState('');
+  const [notifTargetClass, setNotifTargetClass] = useState('all');
   const [sendingNotif, setSendingNotif] = useState(false);
+  const [classNames, setClassNames] = useState<Record<string, string>>({});
 
   // Exam dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
