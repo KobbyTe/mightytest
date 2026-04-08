@@ -30,7 +30,7 @@ import {
   LogOut, GraduationCap, Plus, Calendar, Users, FileText, Building2,
   HelpCircle, FileQuestion, Edit, Trash2, Eye, CheckCircle, Clock,
   ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase,
-  Trophy, Diamond, Star, TrendingUp, Target, Zap
+  Trophy, Diamond, Star, TrendingUp, Target, Zap, Bell, Send
 } from 'lucide-react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
@@ -103,6 +103,10 @@ export default function TeacherDashboard() {
   const [studentCount, setStudentCount] = useState(0);
   const [showProfile, setShowProfile] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  const [showNotifDialog, setShowNotifDialog] = useState(false);
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [sendingNotif, setSendingNotif] = useState(false);
 
   // Exam dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -275,6 +279,50 @@ export default function TeacherDashboard() {
     toast.success('Copied to clipboard');
   };
 
+  const handleSendClassNotification = async () => {
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      toast.error('Please enter both a title and message');
+      return;
+    }
+    if (!scopedClassIds || scopedClassIds.length === 0) {
+      toast.error('No assigned classes found');
+      return;
+    }
+    setSendingNotif(true);
+    try {
+      // Get all students in assigned classes
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('user_id')
+        .in('class_id', scopedClassIds);
+      if (studentsError) throw studentsError;
+      if (!students || students.length === 0) {
+        toast.error('No students found in your assigned classes');
+        setSendingNotif(false);
+        return;
+      }
+      const uniqueUserIds = [...new Set(students.map(s => s.user_id))];
+      const notifications = uniqueUserIds.map(uid => ({
+        user_id: uid,
+        title: notifTitle.trim(),
+        message: notifMessage.trim(),
+        type: 'info',
+        is_read: false,
+      }));
+      const { error: insertError } = await supabase.from('notifications').insert(notifications);
+      if (insertError) throw insertError;
+      toast.success(`Notification sent to ${uniqueUserIds.length} students`);
+      setNotifTitle('');
+      setNotifMessage('');
+      setShowNotifDialog(false);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      toast.error('Failed to send notification');
+    } finally {
+      setSendingNotif(false);
+    }
+  };
+
   const activeExams = exams.filter(e => e.status === 'active').length;
   const initials = teacher?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'T';
   const accountAge = teacher?.created_at
@@ -370,6 +418,13 @@ export default function TeacherDashboard() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
+            <Button variant="outline" size="sm" onClick={() => setShowNotifDialog(true)} className="hidden sm:flex gap-2 text-xs h-8">
+              <Send className="h-3.5 w-3.5" />
+              Send Notification
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden" onClick={() => setShowNotifDialog(true)} title="Send Notification">
+              <Send className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2 text-xs h-8">
               <User className="h-3.5 w-3.5" />
               My Profile
@@ -967,6 +1022,62 @@ export default function TeacherDashboard() {
                 <p className="text-xs text-muted-foreground">Active for {accountAge} days • Secure educator account</p>
               </div>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── SEND NOTIFICATION DIALOG ─── */}
+      <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Send Notification to Students
+            </DialogTitle>
+            <DialogDescription>
+              Send an announcement to all students in your assigned classes ({scopedClassIds?.length || 0} classes).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="notif-title">Title</Label>
+              <Input
+                id="notif-title"
+                placeholder="e.g. Upcoming Exam Reminder"
+                value={notifTitle}
+                onChange={e => setNotifTitle(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notif-message">Message</Label>
+              <Textarea
+                id="notif-message"
+                placeholder="Write your announcement here..."
+                value={notifMessage}
+                onChange={e => setNotifMessage(e.target.value)}
+                maxLength={500}
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground text-right">{notifMessage.length}/500</p>
+            </div>
+            <Button
+              onClick={handleSendClassNotification}
+              disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
+              className="w-full gap-2"
+            >
+              {sendingNotif ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Send to All Students
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
