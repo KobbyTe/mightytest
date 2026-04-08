@@ -1026,6 +1026,62 @@ export default function TeacherDashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* ─── SEND NOTIFICATION DIALOG ─── */}
+      <Dialog open={showNotifDialog} onOpenChange={setShowNotifDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Send Notification to Students
+            </DialogTitle>
+            <DialogDescription>
+              Send an announcement to all students in your assigned classes ({scopedClassIds?.length || 0} classes).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="notif-title">Title</Label>
+              <Input
+                id="notif-title"
+                placeholder="e.g. Upcoming Exam Reminder"
+                value={notifTitle}
+                onChange={e => setNotifTitle(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notif-message">Message</Label>
+              <Textarea
+                id="notif-message"
+                placeholder="Write your announcement here..."
+                value={notifMessage}
+                onChange={e => setNotifMessage(e.target.value)}
+                maxLength={500}
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground text-right">{notifMessage.length}/500</p>
+            </div>
+            <Button
+              onClick={handleSendClassNotification}
+              disabled={sendingNotif || !notifTitle.trim() || !notifMessage.trim()}
+              className="w-full gap-2"
+            >
+              {sendingNotif ? (
+                <>
+                  <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Send to All Students
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ChatBubble />
       <TeacherOnboardingTour isActive={showTour} onComplete={handleTourComplete} />
     </div>
