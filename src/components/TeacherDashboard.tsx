@@ -1042,10 +1042,24 @@ export default function TeacherDashboard() {
               Send Notification to Students
             </DialogTitle>
             <DialogDescription>
-              Send an announcement to all students in your assigned classes ({scopedClassIds?.length || 0} classes).
+              Send an announcement to students in your assigned classes.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Target Class</Label>
+              <Select value={notifTargetClass} onValueChange={setNotifTargetClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select target" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All My Classes ({scopedClassIds?.length || 0})</SelectItem>
+                  {(scopedClassIds || []).map(cid => (
+                    <SelectItem key={cid} value={cid}>{classNames[cid] || cid}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="notif-title">Title</Label>
               <Input
@@ -1081,7 +1095,7 @@ export default function TeacherDashboard() {
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Send to All Students
+                  {notifTargetClass === 'all' ? 'Send to All Classes' : `Send to ${classNames[notifTargetClass] || 'Class'}`}
                 </>
               )}
             </Button>
