@@ -279,6 +279,50 @@ export default function TeacherDashboard() {
     toast.success('Copied to clipboard');
   };
 
+  const handleSendClassNotification = async () => {
+    if (!notifTitle.trim() || !notifMessage.trim()) {
+      toast.error('Please enter both a title and message');
+      return;
+    }
+    if (!scopedClassIds || scopedClassIds.length === 0) {
+      toast.error('No assigned classes found');
+      return;
+    }
+    setSendingNotif(true);
+    try {
+      // Get all students in assigned classes
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('user_id')
+        .in('class_id', scopedClassIds);
+      if (studentsError) throw studentsError;
+      if (!students || students.length === 0) {
+        toast.error('No students found in your assigned classes');
+        setSendingNotif(false);
+        return;
+      }
+      const uniqueUserIds = [...new Set(students.map(s => s.user_id))];
+      const notifications = uniqueUserIds.map(uid => ({
+        user_id: uid,
+        title: notifTitle.trim(),
+        message: notifMessage.trim(),
+        type: 'info',
+        is_read: false,
+      }));
+      const { error: insertError } = await supabase.from('notifications').insert(notifications);
+      if (insertError) throw insertError;
+      toast.success(`Notification sent to ${uniqueUserIds.length} students`);
+      setNotifTitle('');
+      setNotifMessage('');
+      setShowNotifDialog(false);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      toast.error('Failed to send notification');
+    } finally {
+      setSendingNotif(false);
+    }
+  };
+
   const activeExams = exams.filter(e => e.status === 'active').length;
   const initials = teacher?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'T';
   const accountAge = teacher?.created_at
