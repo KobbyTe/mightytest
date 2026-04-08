@@ -418,6 +418,13 @@ export default function TeacherDashboard() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
             <NotificationBell />
+            <Button variant="outline" size="sm" onClick={() => setShowNotifDialog(true)} className="hidden sm:flex gap-2 text-xs h-8">
+              <Send className="h-3.5 w-3.5" />
+              Send Notification
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:hidden" onClick={() => setShowNotifDialog(true)} title="Send Notification">
+              <Send className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="hidden sm:flex gap-2 text-xs h-8">
               <User className="h-3.5 w-3.5" />
               My Profile
