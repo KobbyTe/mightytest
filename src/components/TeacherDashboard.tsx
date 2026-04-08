@@ -106,7 +106,9 @@ export default function TeacherDashboard() {
   const [showNotifDialog, setShowNotifDialog] = useState(false);
   const [notifTitle, setNotifTitle] = useState('');
   const [notifMessage, setNotifMessage] = useState('');
+  const [notifTargetClass, setNotifTargetClass] = useState('all');
   const [sendingNotif, setSendingNotif] = useState(false);
+  const [classNames, setClassNames] = useState<Record<string, string>>({});
 
   // Exam dialog state
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -137,13 +139,16 @@ export default function TeacherDashboard() {
         if (school) setSchoolName(school.name);
       }
     }
-    // Count students in scoped classes
+    // Count students and load class names for scoped classes
     if (scopedClassIds && scopedClassIds.length > 0) {
-      const { count } = await supabase
-        .from('students')
-        .select('id', { count: 'exact', head: true })
-        .in('class_id', scopedClassIds);
+      const [{ count }, { data: classData }] = await Promise.all([
+        supabase.from('students').select('id', { count: 'exact', head: true }).in('class_id', scopedClassIds),
+        supabase.from('classes').select('id, name').in('id', scopedClassIds),
+      ]);
       setStudentCount(count || 0);
+      const nameMap: Record<string, string> = {};
+      (classData || []).forEach(c => { nameMap[c.id] = c.name; });
+      setClassNames(nameMap);
     }
   };
 
@@ -290,14 +295,14 @@ export default function TeacherDashboard() {
     }
     setSendingNotif(true);
     try {
-      // Get all students in assigned classes
+      const targetIds = notifTargetClass === 'all' ? scopedClassIds : [notifTargetClass];
       const { data: students, error: studentsError } = await supabase
         .from('students')
         .select('user_id')
-        .in('class_id', scopedClassIds);
+        .in('class_id', targetIds);
       if (studentsError) throw studentsError;
       if (!students || students.length === 0) {
-        toast.error('No students found in your assigned classes');
+        toast.error('No students found in the selected class(es)');
         setSendingNotif(false);
         return;
       }
@@ -311,9 +316,11 @@ export default function TeacherDashboard() {
       }));
       const { error: insertError } = await supabase.from('notifications').insert(notifications);
       if (insertError) throw insertError;
-      toast.success(`Notification sent to ${uniqueUserIds.length} students`);
+      const classLabel = notifTargetClass === 'all' ? 'all classes' : (classNames[notifTargetClass] || 'selected class');
+      toast.success(`Notification sent to ${uniqueUserIds.length} students in ${classLabel}`);
       setNotifTitle('');
       setNotifMessage('');
+      setNotifTargetClass('all');
       setShowNotifDialog(false);
     } catch (error) {
       console.error('Error sending notification:', error);
@@ -1035,10 +1042,24 @@ export default function TeacherDashboard() {
               Send Notification to Students
             </DialogTitle>
             <DialogDescription>
-              Send an announcement to all students in your assigned classes ({scopedClassIds?.length || 0} classes).
+              Send an announcement to students in your assigned classes.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Target Class</Label>
+              <Select value={notifTargetClass} onValueChange={setNotifTargetClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select target" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All My Classes ({scopedClassIds?.length || 0})</SelectItem>
+                  {(scopedClassIds || []).map(cid => (
+                    <SelectItem key={cid} value={cid}>{classNames[cid] || cid}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="notif-title">Title</Label>
               <Input
@@ -1074,7 +1095,7 @@ export default function TeacherDashboard() {
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Send to All Students
+                  {notifTargetClass === 'all' ? 'Send to All Classes' : `Send to ${classNames[notifTargetClass] || 'Class'}`}
                 </>
               )}
             </Button>
