@@ -139,13 +139,16 @@ export default function TeacherDashboard() {
         if (school) setSchoolName(school.name);
       }
     }
-    // Count students in scoped classes
+    // Count students and load class names for scoped classes
     if (scopedClassIds && scopedClassIds.length > 0) {
-      const { count } = await supabase
-        .from('students')
-        .select('id', { count: 'exact', head: true })
-        .in('class_id', scopedClassIds);
+      const [{ count }, { data: classData }] = await Promise.all([
+        supabase.from('students').select('id', { count: 'exact', head: true }).in('class_id', scopedClassIds),
+        supabase.from('classes').select('id, name').in('id', scopedClassIds),
+      ]);
       setStudentCount(count || 0);
+      const nameMap: Record<string, string> = {};
+      (classData || []).forEach(c => { nameMap[c.id] = c.name; });
+      setClassNames(nameMap);
     }
   };
 
