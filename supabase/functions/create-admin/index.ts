@@ -78,8 +78,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Admin account created successfully',
-        adminId: authData.user.id
+        message: 'Admin account ready',
+        adminId: userId
       }),
       {
         status: 200,
