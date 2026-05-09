@@ -21,17 +21,37 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Create admin auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Try to create admin auth user
+    let { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        role: 'admin'
-      }
+      user_metadata: { role: 'admin' }
     });
 
-    if (authError || !authData.user) {
+    let userId: string | null = authData?.user?.id ?? null;
+
+    // If user already exists, look them up and reset their password
+    if (authError && /already/i.test(authError.message)) {
+      console.log('User already exists, looking up and resetting password');
+      const { data: list, error: listError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listError) {
+        return new Response(JSON.stringify({ error: listError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const existing = list.users.find((u: any) => u.email?.toLowerCase() === String(email).toLowerCase());
+      if (!existing) {
+        return new Response(JSON.stringify({ error: 'User exists but could not be located' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      userId = existing.id;
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
+        user_metadata: { ...(existing.user_metadata || {}), role: 'admin' }
+      });
+      if (updateError) {
+        return new Response(JSON.stringify({ error: updateError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    } else if (authError || !userId) {
       console.error('Admin auth creation error:', authError);
       return new Response(
         JSON.stringify({ error: authError?.message || 'Failed to create admin account' }),
@@ -39,10 +59,11 @@ serve(async (req) => {
       );
     }
 
-    // Assign admin role
+    // Remove any non-admin roles, then assign admin role
+    await supabaseAdmin.from('user_roles').delete().eq('user_id', userId);
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
-      .insert({ user_id: authData.user.id, role: 'admin' });
+      .insert({ user_id: userId, role: 'admin' });
 
     if (roleError) {
       console.error('Admin role assignment error:', roleError);
@@ -57,8 +78,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Admin account created successfully',
-        adminId: authData.user.id
+        message: 'Admin account ready',
+        adminId: userId
       }),
       {
         status: 200,
