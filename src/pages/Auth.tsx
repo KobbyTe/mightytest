@@ -388,21 +388,18 @@ const Auth = () => {
                              onClick={async () => {
                                setStudentIdVerifying(true);
                                try {
-                                 const { data, error } = await supabase
-                                   .from('registration_keys')
-                                   .select('key_code, status, school:schools(name), class:classes(name)')
-                                   .eq('key_code', studentIdCode.trim().toUpperCase())
-                                   .eq('status', 'available')
-                                   .maybeSingle();
-                                 if (error || !data) {
-                                   toast({ title: "Invalid Student ID", description: "Invalid or already-claimed ID. Please contact your teacher.", variant: "destructive" });
-                                   return;
-                                 }
-                                 setVerifiedKeyInfo({
-                                   schoolName: (data.school as any)?.name || 'Unknown',
-                                   className: (data.class as any)?.name || 'Unknown',
-                                   keyCode: data.key_code,
-                                 });
+                                  const { data, error } = await supabase
+                                    .rpc('validate_registration_key', { _key_code: studentIdCode.trim().toUpperCase() })
+                                    .maybeSingle();
+                                  if (error || !data) {
+                                    toast({ title: "Invalid Student ID", description: "Invalid or already-claimed ID. Please contact your teacher.", variant: "destructive" });
+                                    return;
+                                  }
+                                  setVerifiedKeyInfo({
+                                    schoolName: (data as any).school_name || 'Unknown',
+                                    className: (data as any).class_name || 'Unknown',
+                                    keyCode: (data as any).key_code,
+                                  });
                                  setStudentIdStep('profile');
                                } catch (err: any) {
                                  toast({ title: "Error", description: err.message || "Verification failed", variant: "destructive" });

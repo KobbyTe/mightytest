@@ -1055,6 +1055,14 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_teacher: { Args: { _user_id: string }; Returns: boolean }
+      validate_registration_key: {
+        Args: { _key_code: string }
+        Returns: {
+          class_name: string
+          key_code: string
+          school_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "student" | "parent" | "admin" | "teacher"
