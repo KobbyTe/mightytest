@@ -17,7 +17,7 @@ import Auth from "./pages/Auth";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const NewAdminDashboard = lazy(() => import("./pages/NewAdminDashboard"));
-const AdminSetup = lazy(() => import("./pages/AdminSetup"));
+
 const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const ExamTaking = lazy(() => import("./pages/ExamTaking"));
 const ExamQuestions = lazy(() => import("./pages/ExamQuestions"));
