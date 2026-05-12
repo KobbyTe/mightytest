@@ -1,0 +1,2 @@
+ALTER TABLE public.exam_questions DROP CONSTRAINT IF EXISTS exam_questions_question_type_check;
+ALTER TABLE public.exam_questions ADD CONSTRAINT exam_questions_question_type_check CHECK (question_type = ANY (ARRAY['multiple_choice'::text, 'true_false'::text, 'short_answer'::text, 'essay'::text]));
