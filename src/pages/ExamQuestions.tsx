@@ -100,7 +100,7 @@ export default function ExamQuestions() {
       const questionData = {
         exam_id: examId,
         question_text: formData.question_text,
-        question_type: formData.question_type,
+        question_type: formData.question_type as 'multiple_choice' | 'true_false' | 'short_answer' | 'essay',
         options: formData.question_type === 'multiple_choice' ? formData.options : null,
         correct_answer: formData.question_type !== 'essay' ? formData.correct_answer : null,
         marks: formData.marks,
@@ -261,7 +261,7 @@ export default function ExamQuestions() {
       const inserts = selected.map((q, i) => ({
         exam_id: examId,
         question_text: q.question_text,
-        question_type: q.question_type,
+        question_type: q.question_type as 'multiple_choice' | 'true_false' | 'short_answer' | 'essay',
         options: q.question_type === 'multiple_choice' ? q.options : null,
         correct_answer: q.correct_answer || null,
         marks: q.marks || 1,

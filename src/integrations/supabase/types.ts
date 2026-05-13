@@ -281,7 +281,7 @@ export type Database = {
           options: Json | null
           order_number: number
           question_text: string
-          question_type: string
+          question_type: Database["public"]["Enums"]["question_type_enum"]
           updated_at: string | null
         }
         Insert: {
@@ -293,7 +293,7 @@ export type Database = {
           options?: Json | null
           order_number?: number
           question_text: string
-          question_type: string
+          question_type: Database["public"]["Enums"]["question_type_enum"]
           updated_at?: string | null
         }
         Update: {
@@ -305,7 +305,7 @@ export type Database = {
           options?: Json | null
           order_number?: number
           question_text?: string
-          question_type?: string
+          question_type?: Database["public"]["Enums"]["question_type_enum"]
           updated_at?: string | null
         }
         Relationships: [
@@ -1066,6 +1066,11 @@ export type Database = {
     }
     Enums: {
       app_role: "student" | "parent" | "admin" | "teacher"
+      question_type_enum:
+        | "multiple_choice"
+        | "true_false"
+        | "short_answer"
+        | "essay"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1194,6 +1199,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["student", "parent", "admin", "teacher"],
+      question_type_enum: [
+        "multiple_choice",
+        "true_false",
+        "short_answer",
+        "essay",
+      ],
     },
   },
 } as const
