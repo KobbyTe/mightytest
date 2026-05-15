@@ -194,7 +194,7 @@ export default function ExamTaking() {
     }
 
     return { totalMarks, hasEssay };
-  }, [attemptId, currentQuestionIndex]);
+  }, [attemptId, currentQuestionIndex, exam]);
 
   // Auto-submit function
   const autoSubmitExam = useCallback(async (reason: 'tab_switch' | 'page_exit' | 'route_change' | 'time_expired') => {
