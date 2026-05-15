@@ -224,36 +224,62 @@ export default function ExamTaking() {
   // This app uses <BrowserRouter>, so attempting to call `useBlocker` throws at runtime.
   // We keep the existing tab-switch + beforeunload protections which are router-agnostic.
 
-  // Tab visibility detection
+  // Tab visibility detection — 3-strike system with grace period to avoid
+  // false positives from notification shade pulls, screen lock, etc.
+  const tabSwitchStrikesRef = useRef(0);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!examStarted) return;
 
+    const MAX_STRIKES = 3;
+    const GRACE_MS = 1500;
+
     const handleVisibilityChange = () => {
-      if (document.hidden && !isSubmittingRef.current) {
-        autoSubmitExam('tab_switch');
+      if (isSubmittingRef.current) return;
+      if (document.hidden) {
+        // Only count as a strike if the tab stays hidden past the grace period.
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => {
+          tabSwitchStrikesRef.current += 1;
+          const strikes = tabSwitchStrikesRef.current;
+          if (strikes >= MAX_STRIKES) {
+            toast.error('Exam auto-submitted: too many tab switches.');
+            autoSubmitExam('tab_switch');
+          } else {
+            toast.warning(
+              `Don't leave the exam tab. Strike ${strikes} of ${MAX_STRIKES}.`
+            );
+          }
+        }, GRACE_MS);
+      } else if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
   }, [examStarted, autoSubmitExam]);
 
-  // Beforeunload handler
+  // Beforeunload — only show the native confirmation prompt; do NOT submit here.
+  // Answers are already cached locally + persisted via the debounced saver,
+  // so the student can safely refresh or accidentally hit back.
   useEffect(() => {
     if (!examStarted) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isSubmittingRef.current) {
-        autoSubmitExam('page_exit');
-        e.preventDefault();
-        e.returnValue = 'Your exam will be auto-submitted if you leave.';
-        return e.returnValue;
-      }
+      if (isSubmittingRef.current) return;
+      e.preventDefault();
+      e.returnValue = 'Your exam progress is saved. Leave anyway?';
+      return e.returnValue;
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [examStarted, autoSubmitExam]);
+  }, [examStarted]);
 
   // Load exam data
   useEffect(() => {
