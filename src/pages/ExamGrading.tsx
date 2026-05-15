@@ -227,7 +227,13 @@ export default function ExamGrading() {
         if (error) throw error;
       }
 
-      const totalMarks = Object.values(answerGrades).reduce((sum, grade) => sum + grade.marks, 0);
+      const rawSum = Object.values(answerGrades).reduce((sum, grade) => sum + grade.marks, 0);
+      const questionTotal = answers.reduce((sum, a) => sum + (a.question.marks || 0), 0);
+      const examTotal = attempt?.exam?.total_marks ?? 0;
+      const normalized = (questionTotal > 0 && examTotal > 0)
+        ? Math.round((rawSum / questionTotal) * examTotal)
+        : rawSum;
+      const totalMarks = Math.min(examTotal || normalized, Math.max(0, normalized));
 
       const { error: attemptError } = await supabase
         .from('exam_attempts')
