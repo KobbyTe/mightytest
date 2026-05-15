@@ -1,52 +1,81 @@
+# Fix exam scoring inflation and false auto-submits
 
+Two distinct bugs in the exam engine. Both fixes stay in `src/pages/ExamTaking.tsx`, `src/hooks/useExamAutoSubmit.ts`, and `src/pages/ExamGrading.tsx`. No schema changes.
 
-# Show Individual Test Results with Numbered List + Average
+---
 
-## What Changes
+## Bug 1 — Score exceeds the exam's declared total (e.g. `39/48` when exam is 40)
 
-Currently, all three dashboards (Student, Parent, Admin) only show a single "Average Score" number. The user wants to see each test result listed individually (Test 1, Test 2, Test 3...) and then the overall average clearly displayed at the bottom.
+**Root cause.** Each question carries its own `marks` field. When questions are imported (AI-generated, PDF, manual) the sum of `question.marks` can exceed `exams.total_marks`. The submission paths just sum raw `question.marks`:
 
-## Changes by Dashboard
+- `ExamTaking.tsx` → `gradeAndSubmitExam` (lines 144–160) writes `marks_obtained = totalMarks` unclamped.
+- `useExamAutoSubmit.ts` does the same.
+- `ExamGrading.tsx` (line 230) also writes the unclamped sum after manual/AI grading.
 
-### 1. Student Dashboard (`src/pages/Dashboard.tsx`)
-- Replace the single "Avg Score" stat card with a new **"My Results Summary"** card section
-- Show a numbered list of all graded exams: "Test 1: Science - 75/100 (75%)", "Test 2: Robotics - 80/100 (80%)", etc.
-- Display the overall average at the bottom of the list
-- Keep the existing exam cards below for detailed view (status, certificates, etc.)
+So `marks_obtained` can be 48 while the UI denominator (`exam.total_marks`) is 40, producing "39/48" or "47/40"-style nonsense.
 
-### 2. Parent Dashboard (`src/pages/ParentDashboard.tsx`)
-- For each child, replace the "Recent Exam Results" section (currently limited to 5) with a full **numbered results list** showing every graded exam
-- Format: "Test 1: [Exam Title] - [Score]/[Total] (Passed/Failed)"
-- Show the average score clearly at the bottom of each child's results
-- Keep the stats grid (Total Attempts, Passed, Avg Score, Pass Rate) but ensure the Avg Score card reflects the same average
+**Fix.** When persisting `marks_obtained`, normalise to the exam's declared `total_marks`:
 
-### 3. Admin Dashboard - Student Report Card (`src/components/admin/StudentReportCard.tsx`)
-- In the "Exam History" section, add numbered labels: "Test 1", "Test 2", etc.
-- Add a summary row at the bottom showing the computed average across all tests
-- Sort exams chronologically (oldest first) so numbering is consistent
+```ts
+const rawSum = sum(question.marks awarded);
+const questionTotal = sum(all question.marks);
+const finalMarks = questionTotal > 0
+  ? Math.round((rawSum / questionTotal) * exam.total_marks)
+  : 0;
+// clamp as a safety net
+const marks_obtained = Math.min(exam.total_marks, Math.max(0, finalMarks));
+```
 
-### 4. Admin Dashboard - Student Performance Table (`src/components/admin/StudentPerformanceTable.tsx`)
-- Add a expandable/tooltip showing individual test scores when clicking the "Average Score" cell, or add a small "view details" indicator
-- The existing "View" button already leads to the report card, so this is optional
+Apply in all three places:
+1. `ExamTaking.tsx::gradeAndSubmitExam` — load `exam.total_marks` into the helper (already in scope via `exam` state) and write the normalised value.
+2. `useExamAutoSubmit.ts` — accept `examTotalMarks` + the full question list (already passed) and do the same normalisation.
+3. `ExamGrading.tsx::handleSaveGrading` — replace the raw sum with the normalised value using `attempt.exam.total_marks` and `totalPossible`.
 
-## Technical Details
+Also update the Grading header badge (line 307–309) to show `{normalised} / {exam.total_marks}` so the teacher sees the same denominator the student will see.
 
-### Sorting Logic
-All test lists will be sorted by `attempted_at` or `completed_at` ascending (chronological order) so Test 1 is always the first exam taken.
+`exam_answers.marks_awarded` stays as the raw per-question marks (used by review/AI explanations). Only the aggregated `exam_attempts.marks_obtained` is normalised.
 
-### Average Calculation
-Average = sum of all (marks_obtained / total_marks * 100) for each graded exam / number of graded exams. This gives a percentage-based average that accounts for exams with different total marks.
+---
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/pages/Dashboard.tsx` | Add numbered results list section above/replacing the exam cards for graded exams, with average summary |
-| `src/pages/ParentDashboard.tsx` | Replace "Recent Exam Results" (sliced to 5) with full numbered list per child + average |
-| `src/components/admin/StudentReportCard.tsx` | Add "Test N" numbering to Exam History items + average summary row |
-| `src/components/admin/StudentPerformanceTable.tsx` | Minor: no structural change needed (View button already links to detailed report) |
+## Bug 2 — Exam auto-submits without the student doing anything wrong
 
-### UI Design
-- Each test result row: `Test [N] | [Exam Title] | [Subject] | [Score]/[Total] | [Pass/Fail badge]`
-- Average summary row at bottom with distinct styling (bold, slightly larger, separator above)
-- Chronological ordering ensures consistent numbering across all views
+Three offenders, all in `ExamTaking.tsx` (and a copy in `useExamAutoSubmit.ts` that should be deleted since it's unused / duplicates the page logic).
 
+### 2a. `visibilitychange` is too trigger-happy
+Currently (lines 220–231) **any** `document.hidden` event submits instantly. On mobile this fires for: incoming call, notification shade pull-down, screen lock, switching to a calculator, browser minimising for a keyboard. None of these are cheating.
+
+**Fix.** Replace instant submit with a 3-strike warning system:
+- 1st hide → toast warning "Don't leave the exam tab. Strike 1 of 3."
+- 2nd hide → toast warning "Strike 2 of 3. One more and your exam will be submitted."
+- 3rd hide → auto-submit with reason `tab_switch`.
+
+Strikes are kept in a `useRef` so they survive re-renders. Also require the tab to have been hidden for **>1.5 s** before counting (filters out notification shade / accidental swipes) by setting a timeout on `visibilitychange` and clearing it when the tab becomes visible again.
+
+### 2b. `beforeunload` auto-submits on refresh / back button
+Currently (lines 234–248) the handler calls `autoSubmitExam('page_exit')` synchronously then sets `returnValue`. Two problems:
+- The submit fires the moment the browser asks the confirmation prompt — before the student even sees it. If they click "Stay", the exam is already submitted in the background.
+- A plain Cmd-R / browser back triggers submission.
+
+**Fix.** Inside `beforeunload`, only set `e.returnValue` to show the native confirmation prompt. **Do not** call `autoSubmitExam` from here. Cache answers locally (already done elsewhere) so reload restores progress. Add a separate `pagehide` listener that fires submission only when the page is actually being unloaded (event.persisted === false) — and only if the exam isn't already saved within the last 5 s.
+
+### 2c. Per-question timer can auto-submit the whole exam
+Lines 278–298: when the per-question timer hits 0 on the last question, the entire exam is submitted, even if other questions are unanswered or the student is mid-typing.
+
+**Fix.** Remove the auto-submit branch from the per-question timer. On timeout, just advance to the next question (looping back to question 0 if on the last one), or simply stop the per-question countdown and rely solely on the global `totalTimeRemaining` for hard auto-submit. The global timer (lines 261–275) already enforces the real deadline.
+
+### 2d. Stop double registration
+`useExamAutoSubmit.ts` registers a second `visibilitychange` and `beforeunload` listener that duplicates what `ExamTaking.tsx` does. Verify nothing imports the hook; if unused, delete the file. If it is used somewhere, remove the duplicate listeners and keep only the answer-syncing logic.
+
+---
+
+## Validation
+
+- Manually take an exam where question marks sum to more than `exam.total_marks`: confirm the saved score is ≤ `exam.total_marks` and the dashboard shows e.g. `32/40` not `39/48`.
+- Pull down the notification shade on mobile during an exam → no submission, strike toast appears.
+- Hit Cmd-R during an exam → confirmation prompt appears, clicking Stay keeps the exam running.
+- Let the per-question timer expire on the last question → it advances or loops; the exam stays open until the global timer ends.
+
+## Files touched
+- `src/pages/ExamTaking.tsx` (grading helper + 3 auto-submit branches)
+- `src/pages/ExamGrading.tsx` (`handleSaveGrading` + header badge)
+- `src/hooks/useExamAutoSubmit.ts` (delete or trim to answer-sync only)
