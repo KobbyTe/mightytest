@@ -308,28 +308,26 @@ export default function ExamTaking() {
     return () => clearInterval(timer);
   }, [examStarted, totalTimeRemaining, autoSubmitExam]);
 
-  // Per-question timer
+  // Per-question timer — only advances; the global timer enforces the deadline.
   useEffect(() => {
     if (!examStarted || questions.length === 0) return;
 
     const timer = setInterval(() => {
       setQuestionTimeRemaining(prev => {
         if (prev <= 1) {
-          // Auto-advance to next question or submit if last
           if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(curr => curr + 1);
             return timePerQuestion;
-          } else {
-            autoSubmitExam('time_expired');
-            return 0;
           }
+          // Last question: stop ticking, let global timer / manual submit handle it.
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [examStarted, currentQuestionIndex, questions.length, timePerQuestion, autoSubmitExam]);
+  }, [examStarted, currentQuestionIndex, questions.length, timePerQuestion]);
 
   // Reset question timer when question changes
   useEffect(() => {
