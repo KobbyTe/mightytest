@@ -141,7 +141,7 @@ export default function ExamTaking() {
       answer_text
     }));
 
-    let totalMarks = 0;
+    let rawSum = 0;
     let hasEssay = false;
     const gradedAnswers = answersToSave.map(answer => {
       const question = currentQuestions.find(q => q.id === answer.question_id);
@@ -150,7 +150,7 @@ export default function ExamTaking() {
       if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
         const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
         const marks = isCorrect ? question.marks : 0;
-        totalMarks += marks;
+        rawSum += marks;
         return { ...answer, is_correct: isCorrect, marks_awarded: marks };
       } else if (question.question_type === 'essay') {
         hasEssay = true;
@@ -162,6 +162,14 @@ export default function ExamTaking() {
     if (gradedAnswers.length > 0) {
       await supabase.from('exam_answers').upsert(gradedAnswers, { onConflict: 'attempt_id,question_id' });
     }
+
+    // Normalize to the exam's declared total_marks so score never exceeds the announced max.
+    const examTotal = exam?.total_marks ?? 0;
+    const questionTotal = currentQuestions.reduce((sum, q) => sum + (q.marks || 0), 0);
+    const normalized = (questionTotal > 0 && examTotal > 0)
+      ? Math.round((rawSum / questionTotal) * examTotal)
+      : rawSum;
+    const totalMarks = Math.min(examTotal || normalized, Math.max(0, normalized));
 
     const updateData: any = {
       status: hasEssay ? 'completed' : 'graded',
@@ -186,7 +194,7 @@ export default function ExamTaking() {
     }
 
     return { totalMarks, hasEssay };
-  }, [attemptId, currentQuestionIndex]);
+  }, [attemptId, currentQuestionIndex, exam]);
 
   // Auto-submit function
   const autoSubmitExam = useCallback(async (reason: 'tab_switch' | 'page_exit' | 'route_change' | 'time_expired') => {
@@ -216,36 +224,62 @@ export default function ExamTaking() {
   // This app uses <BrowserRouter>, so attempting to call `useBlocker` throws at runtime.
   // We keep the existing tab-switch + beforeunload protections which are router-agnostic.
 
-  // Tab visibility detection
+  // Tab visibility detection — 3-strike system with grace period to avoid
+  // false positives from notification shade pulls, screen lock, etc.
+  const tabSwitchStrikesRef = useRef(0);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!examStarted) return;
 
+    const MAX_STRIKES = 3;
+    const GRACE_MS = 1500;
+
     const handleVisibilityChange = () => {
-      if (document.hidden && !isSubmittingRef.current) {
-        autoSubmitExam('tab_switch');
+      if (isSubmittingRef.current) return;
+      if (document.hidden) {
+        // Only count as a strike if the tab stays hidden past the grace period.
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = setTimeout(() => {
+          tabSwitchStrikesRef.current += 1;
+          const strikes = tabSwitchStrikesRef.current;
+          if (strikes >= MAX_STRIKES) {
+            toast.error('Exam auto-submitted: too many tab switches.');
+            autoSubmitExam('tab_switch');
+          } else {
+            toast.warning(
+              `Don't leave the exam tab. Strike ${strikes} of ${MAX_STRIKES}.`
+            );
+          }
+        }, GRACE_MS);
+      } else if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
   }, [examStarted, autoSubmitExam]);
 
-  // Beforeunload handler
+  // Beforeunload — only show the native confirmation prompt; do NOT submit here.
+  // Answers are already cached locally + persisted via the debounced saver,
+  // so the student can safely refresh or accidentally hit back.
   useEffect(() => {
     if (!examStarted) return;
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isSubmittingRef.current) {
-        autoSubmitExam('page_exit');
-        e.preventDefault();
-        e.returnValue = 'Your exam will be auto-submitted if you leave.';
-        return e.returnValue;
-      }
+      if (isSubmittingRef.current) return;
+      e.preventDefault();
+      e.returnValue = 'Your exam progress is saved. Leave anyway?';
+      return e.returnValue;
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [examStarted, autoSubmitExam]);
+  }, [examStarted]);
 
   // Load exam data
   useEffect(() => {
@@ -274,28 +308,26 @@ export default function ExamTaking() {
     return () => clearInterval(timer);
   }, [examStarted, totalTimeRemaining, autoSubmitExam]);
 
-  // Per-question timer
+  // Per-question timer — only advances; the global timer enforces the deadline.
   useEffect(() => {
     if (!examStarted || questions.length === 0) return;
 
     const timer = setInterval(() => {
       setQuestionTimeRemaining(prev => {
         if (prev <= 1) {
-          // Auto-advance to next question or submit if last
           if (currentQuestionIndex < questions.length - 1) {
             setCurrentQuestionIndex(curr => curr + 1);
             return timePerQuestion;
-          } else {
-            autoSubmitExam('time_expired');
-            return 0;
           }
+          // Last question: stop ticking, let global timer / manual submit handle it.
+          return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [examStarted, currentQuestionIndex, questions.length, timePerQuestion, autoSubmitExam]);
+  }, [examStarted, currentQuestionIndex, questions.length, timePerQuestion]);
 
   // Reset question timer when question changes
   useEffect(() => {
