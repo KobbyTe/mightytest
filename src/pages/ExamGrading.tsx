@@ -295,6 +295,10 @@ export default function ExamGrading() {
 
   const totalAwarded = Object.values(answerGrades).reduce((sum, grade) => sum + grade.marks, 0);
   const totalPossible = answers.reduce((sum, answer) => sum + answer.question.marks, 0);
+  const examTotal = attempt.exam.total_marks ?? 0;
+  const normalizedAwarded = (totalPossible > 0 && examTotal > 0)
+    ? Math.min(examTotal, Math.round((totalAwarded / totalPossible) * examTotal))
+    : totalAwarded;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -310,8 +314,8 @@ export default function ExamGrading() {
                 {attempt.student.full_name} - {attempt.exam.title}
               </p>
             </div>
-            <Badge variant={totalAwarded >= (attempt.exam.total_marks * 0.5) ? "default" : "destructive"}>
-              {totalAwarded} / {totalPossible} marks
+            <Badge variant={normalizedAwarded >= (examTotal * 0.5) ? "default" : "destructive"}>
+              {normalizedAwarded} / {examTotal} marks
             </Badge>
           </div>
         </div>
