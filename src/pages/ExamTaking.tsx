@@ -141,7 +141,7 @@ export default function ExamTaking() {
       answer_text
     }));
 
-    let totalMarks = 0;
+    let rawSum = 0;
     let hasEssay = false;
     const gradedAnswers = answersToSave.map(answer => {
       const question = currentQuestions.find(q => q.id === answer.question_id);
@@ -150,7 +150,7 @@ export default function ExamTaking() {
       if (question.question_type === 'multiple_choice' || question.question_type === 'true_false') {
         const isCorrect = answer.answer_text?.toLowerCase().trim() === question.correct_answer?.toLowerCase().trim();
         const marks = isCorrect ? question.marks : 0;
-        totalMarks += marks;
+        rawSum += marks;
         return { ...answer, is_correct: isCorrect, marks_awarded: marks };
       } else if (question.question_type === 'essay') {
         hasEssay = true;
@@ -162,6 +162,14 @@ export default function ExamTaking() {
     if (gradedAnswers.length > 0) {
       await supabase.from('exam_answers').upsert(gradedAnswers, { onConflict: 'attempt_id,question_id' });
     }
+
+    // Normalize to the exam's declared total_marks so score never exceeds the announced max.
+    const examTotal = exam?.total_marks ?? 0;
+    const questionTotal = currentQuestions.reduce((sum, q) => sum + (q.marks || 0), 0);
+    const normalized = (questionTotal > 0 && examTotal > 0)
+      ? Math.round((rawSum / questionTotal) * examTotal)
+      : rawSum;
+    const totalMarks = Math.min(examTotal || normalized, Math.max(0, normalized));
 
     const updateData: any = {
       status: hasEssay ? 'completed' : 'graded',
