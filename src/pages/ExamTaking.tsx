@@ -630,7 +630,7 @@ export default function ExamTaking() {
             <Card className="border-secondary/30">
               <CardContent className="py-8">
                 <p className="text-lg text-muted-foreground">
-                  Your exam contains essay questions that require manual grading.
+                  Your exam contains essay or short-answer questions that require manual grading.
                 </p>
                 <p className="text-muted-foreground mt-2">
                   Your score will be available once your instructor reviews your answers.
