@@ -986,6 +986,21 @@ export default function ExamTaking() {
                   </div>
                 )}
 
+                {currentQuestion.question_type === 'short_answer' && (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={answers[currentQuestion.id] || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                      placeholder="Write your answer here..."
+                      rows={4}
+                      className="text-base resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      💡 Short-answer questions will be manually graded by your instructor
+                    </p>
+                  </div>
+                )}
+
                 {/* Navigation Buttons */}
                 <div className="flex justify-between pt-6 border-t">
                   <Button
