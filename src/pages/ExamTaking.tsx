@@ -890,6 +890,8 @@ export default function ExamTaking() {
                             text += '. Choose True or False.';
                           } else if (currentQuestion.question_type === 'essay') {
                             text += '. This is an essay question. Write your answer in the text box.';
+                          } else if (currentQuestion.question_type === 'short_answer') {
+                            text += '. This is a short answer question. Write a brief answer in the text box.';
                           }
                           readingAssistant.speak(text);
                         }
