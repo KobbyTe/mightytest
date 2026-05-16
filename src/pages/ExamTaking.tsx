@@ -152,7 +152,7 @@ export default function ExamTaking() {
         const marks = isCorrect ? question.marks : 0;
         rawSum += marks;
         return { ...answer, is_correct: isCorrect, marks_awarded: marks };
-      } else if (question.question_type === 'essay') {
+      } else if (question.question_type === 'essay' || question.question_type === 'short_answer') {
         hasEssay = true;
         return { ...answer, is_correct: null, marks_awarded: null };
       }
@@ -630,7 +630,7 @@ export default function ExamTaking() {
             <Card className="border-secondary/30">
               <CardContent className="py-8">
                 <p className="text-lg text-muted-foreground">
-                  Your exam contains essay questions that require manual grading.
+                  Your exam contains essay or short-answer questions that require manual grading.
                 </p>
                 <p className="text-muted-foreground mt-2">
                   Your score will be available once your instructor reviews your answers.
@@ -858,6 +858,7 @@ export default function ExamTaking() {
                         <Badge variant="outline" className="text-xs">
                           {currentQuestion.question_type === 'multiple_choice' ? 'Multiple Choice' : 
                            currentQuestion.question_type === 'true_false' ? 'True/False' : 
+                           currentQuestion.question_type === 'short_answer' ? 'Short Answer' :
                            'Essay'}
                         </Badge>
                       </div>
@@ -889,6 +890,8 @@ export default function ExamTaking() {
                             text += '. Choose True or False.';
                           } else if (currentQuestion.question_type === 'essay') {
                             text += '. This is an essay question. Write your answer in the text box.';
+                          } else if (currentQuestion.question_type === 'short_answer') {
+                            text += '. This is a short answer question. Write a brief answer in the text box.';
                           }
                           readingAssistant.speak(text);
                         }
@@ -979,6 +982,21 @@ export default function ExamTaking() {
                     />
                     <p className="text-xs text-muted-foreground">
                       💡 Essay questions will be manually graded by your instructor
+                    </p>
+                  </div>
+                )}
+
+                {currentQuestion.question_type === 'short_answer' && (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={answers[currentQuestion.id] || ''}
+                      onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                      placeholder="Write your answer here..."
+                      rows={4}
+                      className="text-base resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      💡 Short-answer questions will be manually graded by your instructor
                     </p>
                   </div>
                 )}
