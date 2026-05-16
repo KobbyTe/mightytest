@@ -858,6 +858,7 @@ export default function ExamTaking() {
                         <Badge variant="outline" className="text-xs">
                           {currentQuestion.question_type === 'multiple_choice' ? 'Multiple Choice' : 
                            currentQuestion.question_type === 'true_false' ? 'True/False' : 
+                           currentQuestion.question_type === 'short_answer' ? 'Short Answer' :
                            'Essay'}
                         </Badge>
                       </div>
