@@ -152,7 +152,7 @@ export default function ExamTaking() {
         const marks = isCorrect ? question.marks : 0;
         rawSum += marks;
         return { ...answer, is_correct: isCorrect, marks_awarded: marks };
-      } else if (question.question_type === 'essay') {
+      } else if (question.question_type === 'essay' || question.question_type === 'short_answer') {
         hasEssay = true;
         return { ...answer, is_correct: null, marks_awarded: null };
       }
