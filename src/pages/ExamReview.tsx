@@ -56,6 +56,8 @@ export default function ExamReview() {
   const [exam, setExam] = useState<ExamData | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
+  const [accessState, setAccessState] = useState<'checking' | 'needs_confirm' | 'locked' | 'granted'>('checking');
+  const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -87,7 +89,6 @@ export default function ExamReview() {
       let loadedAnswers = answersRes.data || [];
       setQuestions(loadedQuestions);
 
-      // Part 1: Create stub answer rows for unanswered questions
       const answeredQuestionIds = new Set(loadedAnswers.map(a => a.question_id));
       const missingQuestions = loadedQuestions.filter(q => !answeredQuestionIds.has(q.id));
 
@@ -135,7 +136,6 @@ export default function ExamReview() {
         return;
       }
 
-      // Re-fetch answers with generated review_text
       const { data: updatedAnswers, error: refetchErr } = await supabase
         .from('exam_answers')
         .select('id, question_id, answer_text, is_correct, marks_awarded, review_text')
@@ -153,22 +153,113 @@ export default function ExamReview() {
     }
   }, [attemptId]);
 
-  // Bug #10 fix: Only generate reviews if answers have null review_text
+  // Step 1: check access (can_review_attempt + review_opened_at)
   useEffect(() => {
-    if (attemptId && user) {
-      loadReviewData().then((loadedAnswers) => {
-        if (loadedAnswers.length === 0) return;
-        
-        // Only regenerate if there are answers with null review_text
-        const hasNullReviews = loadedAnswers.some((a: Answer) => a.review_text === null);
-        if (hasNullReviews) {
-          generateReviews();
+    if (!attemptId || !user) return;
+    (async () => {
+      try {
+        const [accessRes, attemptRes] = await Promise.all([
+          supabase.rpc('can_review_attempt', { _attempt_id: attemptId }),
+          supabase.from('exam_attempts').select('review_opened_at').eq('id', attemptId).single(),
+        ]);
+        if (accessRes.error) throw accessRes.error;
+        if (!accessRes.data) {
+          setAccessState('locked');
+          setLoading(false);
+          return;
         }
-      });
-    }
-  }, [attemptId, user, loadReviewData, generateReviews]);
+        if (attemptRes.data?.review_opened_at) {
+          setAccessState('granted');
+        } else {
+          setAccessState('needs_confirm');
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('Access check failed:', e);
+        setAccessState('locked');
+        setLoading(false);
+      }
+    })();
+  }, [attemptId, user]);
 
-  if (authLoading || loading) {
+  // Step 2: load data once access is granted
+  useEffect(() => {
+    if (accessState !== 'granted' || !attemptId || !user) return;
+    loadReviewData().then((loadedAnswers) => {
+      if (loadedAnswers.length === 0) return;
+      const hasNullReviews = loadedAnswers.some((a: Answer) => a.review_text === null);
+      if (hasNullReviews) generateReviews();
+    });
+  }, [accessState, attemptId, user, loadReviewData, generateReviews]);
+
+  const handleConfirmUnlock = async () => {
+    if (!attemptId) return;
+    setUnlocking(true);
+    try {
+      const { error } = await supabase.rpc('mark_review_opened', { _attempt_id: attemptId });
+      if (error) throw error;
+      setAccessState('granted');
+      setLoading(true);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || 'Could not open review');
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  if (authLoading || (accessState === 'checking')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (accessState === 'locked') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full border-0 shadow-lg">
+          <CardContent className="p-6 space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl mx-auto bg-destructive/15 flex items-center justify-center">
+              <XCircle className="h-7 w-7 text-destructive" />
+            </div>
+            <h2 className="text-lg font-semibold">Review locked</h2>
+            <p className="text-sm text-muted-foreground">
+              You have a resit pending or in progress for this exam. The previous attempt's answers will become available again after you submit your resit.
+            </p>
+            <Button onClick={() => navigate('/dashboard')} className="w-full">Back to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (accessState === 'needs_confirm') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full border-0 shadow-lg">
+          <CardContent className="p-6 space-y-4 text-center">
+            <div className="w-14 h-14 rounded-2xl mx-auto bg-amber-500/15 flex items-center justify-center">
+              <Lightbulb className="h-7 w-7 text-amber-500" />
+            </div>
+            <h2 className="text-lg font-semibold">Open exam review?</h2>
+            <p className="text-sm text-muted-foreground">
+              Opening this review will let you see the correct answers and AI explanations — but it will <strong>permanently disable any resit</strong> for this exam.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => navigate('/dashboard')} disabled={unlocking}>Cancel</Button>
+              <Button className="flex-1" onClick={handleConfirmUnlock} disabled={unlocking}>
+                {unlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Open review'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

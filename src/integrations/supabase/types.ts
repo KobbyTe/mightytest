@@ -172,6 +172,7 @@ export type Database = {
           id: string
           last_activity_at: string | null
           marks_obtained: number | null
+          review_opened_at: string | null
           started_at: string | null
           status: string | null
           student_id: string
@@ -188,6 +189,7 @@ export type Database = {
           id?: string
           last_activity_at?: string | null
           marks_obtained?: number | null
+          review_opened_at?: string | null
           started_at?: string | null
           status?: string | null
           student_id: string
@@ -204,6 +206,7 @@ export type Database = {
           id?: string
           last_activity_at?: string | null
           marks_obtained?: number | null
+          review_opened_at?: string | null
           started_at?: string | null
           status?: string | null
           student_id?: string
@@ -1045,6 +1048,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_request_resit: {
+        Args: { _exam_id: string; _student_id: string }
+        Returns: boolean
+      }
+      can_review_attempt: { Args: { _attempt_id: string }; Returns: boolean }
       get_student_parent_id: { Args: { _user_id: string }; Returns: string }
       get_teacher_class_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
@@ -1055,6 +1063,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_teacher: { Args: { _user_id: string }; Returns: boolean }
+      mark_review_opened: { Args: { _attempt_id: string }; Returns: undefined }
       validate_registration_key: {
         Args: { _key_code: string }
         Returns: {

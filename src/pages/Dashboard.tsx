@@ -178,7 +178,7 @@ export default function Dashboard() {
       
       const attemptsRes = await supabase
         .from('exam_attempts')
-        .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
+        .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,review_opened_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
         .eq('student_id', profile.id)
         .order('attempted_at', { ascending: false })
         .limit(50);
@@ -331,6 +331,10 @@ export default function Dashboard() {
 
   const handleApplyResit = async (examId: string, classId: string) => {
     if (!profile?.id) return;
+    const confirmed = window.confirm(
+      'Requesting a resit will LOCK the review of your previous attempt for this exam until your resit is submitted. You will not be able to see the correct answers in the meantime. Continue?'
+    );
+    if (!confirmed) return;
     setApplyingResit(examId);
     try {
       const { error } = await supabase.from('resit_requests').insert({
@@ -342,6 +346,8 @@ export default function Dashboard() {
       if (error) {
         if (error.code === '23505') {
           toast.info('You have already applied for this resit');
+        } else if (error.code === '42501' || /row-level security/i.test(error.message)) {
+          toast.error('Resit unavailable — you have already reviewed this exam.');
         } else {
           throw error;
         }
@@ -356,6 +362,9 @@ export default function Dashboard() {
       setApplyingResit(null);
     }
   };
+
+  const hasReviewedExam = (examId: string) =>
+    examAttempts.some((a: any) => a.exam_id === examId && a.review_opened_at);
 
   const handleTakeExam = (attemptId: string) => {
     setPendingExamAttemptId(attemptId);
@@ -980,7 +989,7 @@ export default function Dashboard() {
                           </p>
                         )}
 
-                        {!existingRequest && !hasApprovedResitAttempt && (
+                        {!existingRequest && !hasApprovedResitAttempt && !hasReviewedExam(opening.exam_id) && (
                           <Button 
                             onClick={() => handleApplyResit(opening.exam_id, opening.class_id)}
                             disabled={applyingResit === opening.exam_id}
@@ -990,6 +999,12 @@ export default function Dashboard() {
                             <RotateCcw className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
                             {applyingResit === opening.exam_id ? 'Applying...' : 'Apply for Resit'}
                           </Button>
+                        )}
+
+                        {!existingRequest && !hasApprovedResitAttempt && hasReviewedExam(opening.exam_id) && (
+                          <Badge variant="outline" className="w-full justify-center py-1.5 sm:py-2 text-xs text-muted-foreground">
+                            Resit locked — you already reviewed this exam
+                          </Badge>
                         )}
 
                         {existingRequest?.status === 'pending' && (
