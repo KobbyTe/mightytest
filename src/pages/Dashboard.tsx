@@ -331,6 +331,10 @@ export default function Dashboard() {
 
   const handleApplyResit = async (examId: string, classId: string) => {
     if (!profile?.id) return;
+    const confirmed = window.confirm(
+      'Requesting a resit will LOCK the review of your previous attempt for this exam until your resit is submitted. You will not be able to see the correct answers in the meantime. Continue?'
+    );
+    if (!confirmed) return;
     setApplyingResit(examId);
     try {
       const { error } = await supabase.from('resit_requests').insert({
@@ -342,6 +346,8 @@ export default function Dashboard() {
       if (error) {
         if (error.code === '23505') {
           toast.info('You have already applied for this resit');
+        } else if (error.code === '42501' || /row-level security/i.test(error.message)) {
+          toast.error('Resit unavailable — you have already reviewed this exam.');
         } else {
           throw error;
         }
@@ -356,6 +362,9 @@ export default function Dashboard() {
       setApplyingResit(null);
     }
   };
+
+  const hasReviewedExam = (examId: string) =>
+    examAttempts.some((a: any) => a.exam_id === examId && a.review_opened_at);
 
   const handleTakeExam = (attemptId: string) => {
     setPendingExamAttemptId(attemptId);
