@@ -989,7 +989,7 @@ export default function Dashboard() {
                           </p>
                         )}
 
-                        {!existingRequest && !hasApprovedResitAttempt && (
+                        {!existingRequest && !hasApprovedResitAttempt && !hasReviewedExam(opening.exam_id) && (
                           <Button 
                             onClick={() => handleApplyResit(opening.exam_id, opening.class_id)}
                             disabled={applyingResit === opening.exam_id}
@@ -999,6 +999,12 @@ export default function Dashboard() {
                             <RotateCcw className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
                             {applyingResit === opening.exam_id ? 'Applying...' : 'Apply for Resit'}
                           </Button>
+                        )}
+
+                        {!existingRequest && !hasApprovedResitAttempt && hasReviewedExam(opening.exam_id) && (
+                          <Badge variant="outline" className="w-full justify-center py-1.5 sm:py-2 text-xs text-muted-foreground">
+                            Resit locked — you already reviewed this exam
+                          </Badge>
                         )}
 
                         {existingRequest?.status === 'pending' && (
