@@ -178,7 +178,7 @@ export default function Dashboard() {
       
       const attemptsRes = await supabase
         .from('exam_attempts')
-        .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
+        .select('id,status,marks_obtained,attempted_at,completed_at,graded_at,review_opened_at,exam_id,exams(id,title,subject,grade_level,description,duration_minutes,total_marks,passing_marks,exam_date)')
         .eq('student_id', profile.id)
         .order('attempted_at', { ascending: false })
         .limit(50);
