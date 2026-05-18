@@ -1,9 +1,15 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const Terms = () => {
   return (
     <div className="min-h-screen">
+      <SEO
+        title="Terms of Service — Mighty Test"
+        description="The terms governing your use of the Mighty Test STEM assessment platform."
+        path="/terms"
+      />
       <Navbar />
       <main className="py-20 bg-background">
         <div className="container mx-auto px-4 max-w-3xl prose prose-neutral">

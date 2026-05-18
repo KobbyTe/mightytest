@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import { Target, Eye, Heart, Users, Award, Globe } from "lucide-react";
 
 const values = [
@@ -12,6 +13,18 @@ const values = [
 const About = () => {
   return (
     <div className="min-h-screen">
+      <SEO
+        title="About Mighty Test — Our Mission & Values"
+        description="Learn about Mighty Test's mission to empower African STEM education through smart, accessible online assessment."
+        path="/about"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: "About Mighty Test",
+          url: "https://neuron-flow-labs.lovable.app/about",
+          about: { "@type": "Organization", name: "Mighty Test" },
+        }}
+      />
       <Navbar />
       <main>
         {/* Hero */}
