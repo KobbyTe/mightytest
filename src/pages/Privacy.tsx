@@ -1,9 +1,15 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 
 const Privacy = () => {
   return (
     <div className="min-h-screen">
+      <SEO
+        title="Privacy Policy — Mighty Test"
+        description="How Mighty Test collects, uses, and protects student, parent, and teacher data."
+        path="/privacy"
+      />
       <Navbar />
       <main className="py-20 bg-background">
         <div className="container mx-auto px-4 max-w-3xl prose prose-neutral">
