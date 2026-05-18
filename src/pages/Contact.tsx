@@ -45,6 +45,11 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen">
+      <SEO
+        title="Contact Mighty Test — Get in Touch"
+        description="Reach the Mighty Test team for school partnerships, support, or questions about our STEM assessment platform."
+        path="/contact"
+      />
       <Navbar />
       <main>
         <section className="py-20 bg-gradient-to-br from-primary/10 to-accent/10">
