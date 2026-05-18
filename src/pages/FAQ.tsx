@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import SEO from "@/components/SEO";
 import {
   Accordion,
   AccordionContent,
@@ -25,6 +26,20 @@ const faqs = [
 const FAQ = () => {
   return (
     <div className="min-h-screen">
+      <SEO
+        title="FAQ — Mighty Test Questions Answered"
+        description="Answers to common questions about Mighty Test registration, grading, resits, parent access, and data security."
+        path="/faq"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faqs.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }}
+      />
       <Navbar />
       <main>
         <section className="py-20 bg-gradient-to-br from-primary/10 to-accent/10">

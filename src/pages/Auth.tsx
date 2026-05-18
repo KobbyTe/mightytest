@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StudentRegistration } from "@/components/auth/StudentRegistration";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/mighty-test-logo.png";
+import SEO from "@/components/SEO";
 
 const Auth = () => {
   const [activeTab, setActiveTab] = useState("student");
@@ -304,6 +305,11 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex">
+      <SEO
+        title="Sign In or Register — Mighty Test"
+        description="Sign in or register as a student, parent, teacher, or admin on Mighty Test."
+        path="/auth"
+      />
       {/* Left side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary-light to-accent relative overflow-hidden">
         <div className="absolute inset-0 circuit-pattern opacity-20" />

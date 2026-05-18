@@ -1,0 +1,16 @@
+# Mighty Test
+
+> STEM, Robotics & AI examination platform for schools. Teachers create and grade exams; students take assessments online with instant feedback, analytics, and parent visibility.
+
+## Pages
+
+- [Home](/): Overview of the Mighty Test platform, features, and subjects.
+- [About](/about): Mission, vision, and values behind Mighty Test.
+- [FAQ](/faq): Common questions about registration, grading, resits, and security.
+- [Contact](/contact): How to reach the Mighty Test team.
+- [Sign in / Register](/auth): Student, parent, teacher, and admin authentication.
+
+## Optional
+
+- [Terms](/terms): Terms of service.
+- [Privacy](/privacy): Privacy policy.
