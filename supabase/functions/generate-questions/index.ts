@@ -22,11 +22,11 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, subject, gradeLevel, questionTypes, numQuestions, difficulty } = await req.json();
+    const { topic, subject, gradeLevel, questionTypes, numQuestions, difficulty, pdfContent } = await req.json();
 
-    if (!topic) {
+    if (!topic && !pdfContent) {
       return new Response(
-        JSON.stringify({ error: "Topic description is required" }),
+        JSON.stringify({ error: "Topic description or reference PDF is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
