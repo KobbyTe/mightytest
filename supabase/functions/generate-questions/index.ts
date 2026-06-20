@@ -41,17 +41,25 @@ serve(async (req) => {
       );
     }
     const totalCount = selectedTypes.reduce((sum: number, t: string) => sum + (counts[t] || 0), 0);
-    }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const typesStr = (questionTypes || ["multiple_choice", "short_answer", "essay"]).join(", ");
-    const count = numQuestions || 10;
+    const countsLines = selectedTypes
+      .map((t: string) => `  - ${t.replace(/_/g, " ")}: ${counts[t]} question(s)`)
+      .join("\n");
 
-    const promptText = `Generate exactly ${count} exam questions${pdfContent ? ' grounded in the attached reference PDF' : ''}${topic ? ` about the following topic:\n\n**Topic:** ${topic}` : '.'}
+    const promptText = `Generate exactly ${totalCount} exam questions${pdfContent ? ' grounded in the attached reference PDF' : ''}${topic ? ` about the following topic:\n\n**Topic:** ${topic}` : '.'}
+
+**Subject:** ${subject || "General STEM"}
+**Grade Level:** ${gradeLevel || "General"}
+**Difficulty:** ${difficulty || "Medium"}
+**Question type counts (strictly follow these):**
+${countsLines}
+
+${pdfContent ? 'Base every question on the content of the attached PDF. Do not invent facts outside the document. ' : ''}Generate exactly the specified number of questions for each type. For multiple_choice, provide exactly 4 options. For true_false, the correct answer must be either "True" or "False". For short_answer, provide a concise expected answer. For essays, provide a model answer outline. Assign appropriate marks (multiple_choice: 1-2, true_false: 1, short_answer: 2-5, essay: 5-15).`;
 
 **Subject:** ${subject || "General STEM"}
 **Grade Level:** ${gradeLevel || "General"}
