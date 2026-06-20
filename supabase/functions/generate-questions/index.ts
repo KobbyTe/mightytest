@@ -22,13 +22,25 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, subject, gradeLevel, questionTypes, numQuestions, difficulty, pdfContent } = await req.json();
+    const { topic, subject, gradeLevel, questionTypes, numQuestions, typeCounts, difficulty, pdfContent } = await req.json();
 
     if (!topic && !pdfContent) {
       return new Response(
         JSON.stringify({ error: "Topic description or reference PDF is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+
+    const counts = typeCounts || {};
+    const selectedTypes = (questionTypes || ["multiple_choice", "short_answer", "essay"]).filter(
+      (t: string) => (counts[t] || 0) > 0
+    );
+    if (selectedTypes.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "At least one question type must have a count greater than 0" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const totalCount = selectedTypes.reduce((sum: number, t: string) => sum + (counts[t] || 0), 0);
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
