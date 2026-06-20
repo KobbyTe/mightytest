@@ -41,9 +41,14 @@ export default function ExamQuestions() {
   const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
-  const [aiNumQuestions, setAiNumQuestions] = useState(10);
   const [aiDifficulty, setAiDifficulty] = useState('Medium');
   const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
+  const [aiTypeCounts, setAiTypeCounts] = useState<Record<string, number>>({
+    multiple_choice: 5,
+    true_false: 0,
+    short_answer: 3,
+    essay: 2,
+  });
   const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
   const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
   const [aiReferencePdf, setAiReferencePdf] = useState<File | null>(null);
