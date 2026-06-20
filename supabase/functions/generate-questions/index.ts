@@ -29,6 +29,7 @@ serve(async (req) => {
         JSON.stringify({ error: "Topic description or reference PDF is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
 
     const counts = typeCounts || {};
     const selectedTypes = (questionTypes || ["multiple_choice", "short_answer", "essay"]).filter(
