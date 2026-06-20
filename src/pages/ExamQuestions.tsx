@@ -190,8 +190,8 @@ export default function ExamQuestions() {
   };
 
   const handleAiGenerate = async () => {
-    if (!aiTopic.trim()) {
-      toast.error('Please describe the topic');
+    if (!aiTopic.trim() && !aiReferencePdf) {
+      toast.error('Describe a topic or attach a reference PDF');
       return;
     }
     if (aiQuestionTypes.length === 0) {
@@ -204,6 +204,24 @@ export default function ExamQuestions() {
     setAiSelectedQuestions(new Set());
 
     try {
+      let pdfContent: string | undefined;
+      if (aiReferencePdf) {
+        if (aiReferencePdf.size > 10 * 1024 * 1024) {
+          toast.error('Reference PDF must be under 10 MB');
+          setAiGenerating(false);
+          return;
+        }
+        pdfContent = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1] || '');
+          };
+          reader.onerror = () => reject(new Error('Failed to read PDF'));
+          reader.readAsDataURL(aiReferencePdf);
+        });
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
         {
@@ -219,6 +237,7 @@ export default function ExamQuestions() {
             questionTypes: aiQuestionTypes,
             numQuestions: aiNumQuestions,
             difficulty: aiDifficulty,
+            pdfContent,
           }),
         }
       );
