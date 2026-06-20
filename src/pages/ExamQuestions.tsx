@@ -551,17 +551,7 @@ export default function ExamQuestions() {
                       </p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Number of Questions</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={aiNumQuestions}
-                        onChange={(e) => setAiNumQuestions(parseInt(e.target.value) || 10)}
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>Difficulty</Label>
                       <Select value={aiDifficulty} onValueChange={setAiDifficulty}>
@@ -575,21 +565,35 @@ export default function ExamQuestions() {
                     </div>
                   </div>
                   <div>
-                    <Label className="mb-2 block">Question Types</Label>
-                    <div className="flex flex-wrap gap-3">
+                    <Label className="mb-2 block">Question Types &amp; Counts</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
                         { value: 'multiple_choice', label: 'Multiple Choice' },
                         { value: 'true_false', label: 'True/False' },
                         { value: 'short_answer', label: 'Short Answer' },
                         { value: 'essay', label: 'Essay' },
                       ].map((t) => (
-                        <label key={t.value} className="flex items-center gap-2 cursor-pointer">
+                        <div key={t.value} className="flex items-center gap-3 p-2 rounded-lg border bg-card/50">
                           <Checkbox
                             checked={aiQuestionTypes.includes(t.value)}
                             onCheckedChange={() => toggleAiQuestionType(t.value)}
                           />
-                          <span className="text-sm">{t.label}</span>
-                        </label>
+                          <span className="text-sm flex-1">{t.label}</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={20}
+                            className="w-20 h-8"
+                            value={aiTypeCounts[t.value] || 0}
+                            onChange={(e) =>
+                              setAiTypeCounts((prev) => ({
+                                ...prev,
+                                [t.value]: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            disabled={!aiQuestionTypes.includes(t.value)}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>
