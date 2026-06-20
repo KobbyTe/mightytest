@@ -46,6 +46,7 @@ export default function ExamQuestions() {
   const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
   const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
   const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
+  const [aiReferencePdf, setAiReferencePdf] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     question_text: '',
@@ -189,8 +190,8 @@ export default function ExamQuestions() {
   };
 
   const handleAiGenerate = async () => {
-    if (!aiTopic.trim()) {
-      toast.error('Please describe the topic');
+    if (!aiTopic.trim() && !aiReferencePdf) {
+      toast.error('Describe a topic or attach a reference PDF');
       return;
     }
     if (aiQuestionTypes.length === 0) {
@@ -203,6 +204,24 @@ export default function ExamQuestions() {
     setAiSelectedQuestions(new Set());
 
     try {
+      let pdfContent: string | undefined;
+      if (aiReferencePdf) {
+        if (aiReferencePdf.size > 10 * 1024 * 1024) {
+          toast.error('Reference PDF must be under 10 MB');
+          setAiGenerating(false);
+          return;
+        }
+        pdfContent = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            resolve(result.split(',')[1] || '');
+          };
+          reader.onerror = () => reject(new Error('Failed to read PDF'));
+          reader.readAsDataURL(aiReferencePdf);
+        });
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
         {
@@ -218,6 +237,7 @@ export default function ExamQuestions() {
             questionTypes: aiQuestionTypes,
             numQuestions: aiNumQuestions,
             difficulty: aiDifficulty,
+            pdfContent,
           }),
         }
       );
@@ -488,13 +508,34 @@ export default function ExamQuestions() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Topic Description</Label>
+                    <Label>Topic Description {aiReferencePdf && <span className="text-xs text-muted-foreground">(optional with PDF)</span>}</Label>
                     <Textarea
                       value={aiTopic}
                       onChange={(e) => setAiTopic(e.target.value)}
                       placeholder="e.g. Photosynthesis process, light and dark reactions, factors affecting rate of photosynthesis..."
                       rows={3}
                     />
+                  </div>
+                  <div>
+                    <Label>Reference PDF (optional)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => setAiReferencePdf(e.target.files?.[0] || null)}
+                      />
+                      {aiReferencePdf && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setAiReferencePdf(null)}>
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {aiReferencePdf && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <FileText className="inline h-3 w-3 mr-1" />
+                        {aiReferencePdf.name} ({(aiReferencePdf.size / 1024).toFixed(0)} KB) — AI will ground questions in this document
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
