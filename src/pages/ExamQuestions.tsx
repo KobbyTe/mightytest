@@ -41,9 +41,14 @@ export default function ExamQuestions() {
   const [isAiDialogOpen, setIsAiDialogOpen] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
-  const [aiNumQuestions, setAiNumQuestions] = useState(10);
   const [aiDifficulty, setAiDifficulty] = useState('Medium');
   const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
+  const [aiTypeCounts, setAiTypeCounts] = useState<Record<string, number>>({
+    multiple_choice: 5,
+    true_false: 0,
+    short_answer: 3,
+    essay: 2,
+  });
   const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
   const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
   const [aiReferencePdf, setAiReferencePdf] = useState<File | null>(null);
@@ -198,6 +203,11 @@ export default function ExamQuestions() {
       toast.error('Select at least one question type');
       return;
     }
+    const totalCount = aiQuestionTypes.reduce((sum, t) => sum + (aiTypeCounts[t] || 0), 0);
+    if (totalCount === 0) {
+      toast.error('Set at least one question count greater than 0');
+      return;
+    }
 
     setAiGenerating(true);
     setAiGeneratedQuestions([]);
@@ -222,6 +232,10 @@ export default function ExamQuestions() {
         });
       }
 
+      const typeCounts = Object.fromEntries(
+        aiQuestionTypes.map(t => [t, aiTypeCounts[t] || 0])
+      );
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
         {
@@ -235,7 +249,7 @@ export default function ExamQuestions() {
             subject: exam?.subject,
             gradeLevel: exam?.grade_level,
             questionTypes: aiQuestionTypes,
-            numQuestions: aiNumQuestions,
+            typeCounts,
             difficulty: aiDifficulty,
             pdfContent,
           }),
@@ -537,17 +551,7 @@ export default function ExamQuestions() {
                       </p>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Number of Questions</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={20}
-                        value={aiNumQuestions}
-                        onChange={(e) => setAiNumQuestions(parseInt(e.target.value) || 10)}
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>Difficulty</Label>
                       <Select value={aiDifficulty} onValueChange={setAiDifficulty}>
@@ -561,21 +565,35 @@ export default function ExamQuestions() {
                     </div>
                   </div>
                   <div>
-                    <Label className="mb-2 block">Question Types</Label>
-                    <div className="flex flex-wrap gap-3">
+                    <Label className="mb-2 block">Question Types &amp; Counts</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
                         { value: 'multiple_choice', label: 'Multiple Choice' },
                         { value: 'true_false', label: 'True/False' },
                         { value: 'short_answer', label: 'Short Answer' },
                         { value: 'essay', label: 'Essay' },
                       ].map((t) => (
-                        <label key={t.value} className="flex items-center gap-2 cursor-pointer">
+                        <div key={t.value} className="flex items-center gap-3 p-2 rounded-lg border bg-card/50">
                           <Checkbox
                             checked={aiQuestionTypes.includes(t.value)}
                             onCheckedChange={() => toggleAiQuestionType(t.value)}
                           />
-                          <span className="text-sm">{t.label}</span>
-                        </label>
+                          <span className="text-sm flex-1">{t.label}</span>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={20}
+                            className="w-20 h-8"
+                            value={aiTypeCounts[t.value] || 0}
+                            onChange={(e) =>
+                              setAiTypeCounts((prev) => ({
+                                ...prev,
+                                [t.value]: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            disabled={!aiQuestionTypes.includes(t.value)}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>
