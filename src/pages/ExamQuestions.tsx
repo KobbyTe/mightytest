@@ -203,6 +203,11 @@ export default function ExamQuestions() {
       toast.error('Select at least one question type');
       return;
     }
+    const totalCount = aiQuestionTypes.reduce((sum, t) => sum + (aiTypeCounts[t] || 0), 0);
+    if (totalCount === 0) {
+      toast.error('Set at least one question count greater than 0');
+      return;
+    }
 
     setAiGenerating(true);
     setAiGeneratedQuestions([]);
@@ -227,6 +232,10 @@ export default function ExamQuestions() {
         });
       }
 
+      const typeCounts = Object.fromEntries(
+        aiQuestionTypes.map(t => [t, aiTypeCounts[t] || 0])
+      );
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-questions`,
         {
@@ -240,7 +249,7 @@ export default function ExamQuestions() {
             subject: exam?.subject,
             gradeLevel: exam?.grade_level,
             questionTypes: aiQuestionTypes,
-            numQuestions: aiNumQuestions,
+            typeCounts,
             difficulty: aiDifficulty,
             pdfContent,
           }),
