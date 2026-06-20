@@ -508,13 +508,34 @@ export default function ExamQuestions() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Topic Description</Label>
+                    <Label>Topic Description {aiReferencePdf && <span className="text-xs text-muted-foreground">(optional with PDF)</span>}</Label>
                     <Textarea
                       value={aiTopic}
                       onChange={(e) => setAiTopic(e.target.value)}
                       placeholder="e.g. Photosynthesis process, light and dark reactions, factors affecting rate of photosynthesis..."
                       rows={3}
                     />
+                  </div>
+                  <div>
+                    <Label>Reference PDF (optional)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => setAiReferencePdf(e.target.files?.[0] || null)}
+                      />
+                      {aiReferencePdf && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setAiReferencePdf(null)}>
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    {aiReferencePdf && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        <FileText className="inline h-3 w-3 mr-1" />
+                        {aiReferencePdf.name} ({(aiReferencePdf.size / 1024).toFixed(0)} KB) — AI will ground questions in this document
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
