@@ -46,6 +46,7 @@ export default function ExamQuestions() {
   const [aiQuestionTypes, setAiQuestionTypes] = useState<string[]>(['multiple_choice', 'short_answer', 'essay']);
   const [aiGeneratedQuestions, setAiGeneratedQuestions] = useState<any[]>([]);
   const [aiSelectedQuestions, setAiSelectedQuestions] = useState<Set<number>>(new Set());
+  const [aiReferencePdf, setAiReferencePdf] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     question_text: '',
