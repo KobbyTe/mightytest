@@ -62,13 +62,6 @@ ${countsLines}
 
 ${pdfContent ? 'Base every question on the content of the attached PDF. Do not invent facts outside the document. ' : ''}Generate exactly the specified number of questions for each type. For multiple_choice, provide exactly 4 options. For true_false, the correct answer must be either "True" or "False". For short_answer, provide a concise expected answer. For essays, provide a model answer outline. Assign appropriate marks (multiple_choice: 1-2, true_false: 1, short_answer: 2-5, essay: 5-15).`;
 
-**Subject:** ${subject || "General STEM"}
-**Grade Level:** ${gradeLevel || "General"}
-**Difficulty:** ${difficulty || "Medium"}
-**Question Types to include:** ${typesStr}
-
-${pdfContent ? 'Base every question on the content of the attached PDF. Do not invent facts outside the document. ' : ''}Distribute question types roughly evenly across the requested types. For MCQs, provide exactly 4 options. For short answer, provide a concise expected answer. For essays, provide a model answer outline. Assign appropriate marks (MCQ: 1-2, short answer: 2-5, essay: 5-15).`;
-
     const userContent: any = pdfContent
       ? [
           { type: "text", text: promptText },
