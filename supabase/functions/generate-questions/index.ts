@@ -39,15 +39,21 @@ serve(async (req) => {
     const typesStr = (questionTypes || ["multiple_choice", "short_answer", "essay"]).join(", ");
     const count = numQuestions || 10;
 
-    const prompt = `Generate exactly ${count} exam questions about the following topic:
+    const promptText = `Generate exactly ${count} exam questions${pdfContent ? ' grounded in the attached reference PDF' : ''}${topic ? ` about the following topic:\n\n**Topic:** ${topic}` : '.'}
 
-**Topic:** ${topic}
 **Subject:** ${subject || "General STEM"}
 **Grade Level:** ${gradeLevel || "General"}
 **Difficulty:** ${difficulty || "Medium"}
 **Question Types to include:** ${typesStr}
 
-Distribute question types roughly evenly across the requested types. For MCQs, provide exactly 4 options. For short answer, provide a concise expected answer. For essays, provide a model answer outline. Assign appropriate marks (MCQ: 1-2, short answer: 2-5, essay: 5-15).`;
+${pdfContent ? 'Base every question on the content of the attached PDF. Do not invent facts outside the document. ' : ''}Distribute question types roughly evenly across the requested types. For MCQs, provide exactly 4 options. For short answer, provide a concise expected answer. For essays, provide a model answer outline. Assign appropriate marks (MCQ: 1-2, short answer: 2-5, essay: 5-15).`;
+
+    const userContent: any = pdfContent
+      ? [
+          { type: "text", text: promptText },
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${pdfContent}` } },
+        ]
+      : promptText;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -58,10 +64,10 @@ Distribute question types roughly evenly across the requested types. For MCQs, p
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: pdfContent ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: prompt },
+            { role: "user", content: userContent },
           ],
           tools: [
             {
