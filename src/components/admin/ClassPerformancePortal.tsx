@@ -888,13 +888,10 @@ export default function ClassPerformancePortal({
               </TabsContent>
 
               <TabsContent value="performance">
-                <ClassAssessmentReport
-                  classInfo={classInfo}
+                <ClassPerformanceAnalytics
                   students={students}
                   examData={examData}
-                  adminRemarks={adminRemarks}
-                  onRemarksChange={setAdminRemarks}
-                  reportId="class-assessment-report-performance"
+                  className={className}
                 />
               </TabsContent>
 
