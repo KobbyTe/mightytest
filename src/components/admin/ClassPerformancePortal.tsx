@@ -27,6 +27,7 @@ import { motion } from 'framer-motion';
 import StudentPerformanceTable from './StudentPerformanceTable';
 import StudentReportCard from './StudentReportCard';
 import ClassAssessmentReport from './ClassAssessmentReport';
+import ClassPerformanceAnalytics from './ClassPerformanceAnalytics';
 import { 
   StudentPerformance, 
   ClassInfo, 
