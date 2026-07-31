@@ -1,6 +1,8 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
+import CoursesSection from "@/components/CoursesSection";
 import StatsBar from "@/components/StatsBar";
+
 import Features from "@/components/Features";
 import HowItWorks from "@/components/HowItWorks";
 import Subjects from "@/components/Subjects";
