@@ -45,7 +45,7 @@ const Hero = () => {
 
   return (
     <section className="relative overflow-hidden bg-brand-light">
-      <DottedPattern className="left-2 top-6 h-24 w-24 md:h-32 md:w-32" />
+      <DottedPattern className="-left-4 top-2 h-20 w-20 opacity-70 md:h-24 md:w-24" />
 
       <div className="container relative mx-auto grid items-center gap-10 px-4 py-14 md:py-20 lg:grid-cols-2">
         {/* Left */}
