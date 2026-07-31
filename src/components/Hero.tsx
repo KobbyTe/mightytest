@@ -1,125 +1,140 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, LayoutDashboard, ChevronDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { BookOpen, Star } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import heroLearner from "@/assets/hero-learner.png";
 
-const HERO_VIDEO_URL =
-  "https://videos.pexels.com/video-files/3129671/3129671-hd_1920_1080_30fps.mp4";
+const DottedPattern = ({ className = "" }: { className?: string }) => (
+  <svg
+    viewBox="0 0 120 120"
+    aria-hidden="true"
+    className={`pointer-events-none absolute text-brand-soft ${className}`}
+  >
+    {Array.from({ length: 5 }).map((_, row) =>
+      Array.from({ length: 5 }).map((_, col) => (
+        <line
+          key={`${row}-${col}`}
+          x1={col * 24 + 4}
+          y1={row * 24 + 4}
+          x2={col * 24 + 14}
+          y2={row * 24 + 14}
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          opacity={0.7 - row * 0.1}
+        />
+      ))
+    )}
+  </svg>
+);
 
 const Hero = () => {
   const { user, role } = useAuth();
   const navigate = useNavigate();
-  const [videoLoaded, setVideoLoaded] = useState(false);
 
   useEffect(() => {
     if (user && role) {
-      if (role === 'admin') {
-        navigate('/admin');
-      } else if (role === 'parent') {
-        navigate('/parent');
-      } else {
-        navigate('/dashboard');
-      }
+      if (role === "admin") navigate("/admin");
+      else if (role === "parent") navigate("/parent");
+      else navigate("/dashboard");
     }
   }, [user, role, navigate]);
 
+  const dashboardPath = role === "admin" ? "/admin" : role === "parent" ? "/parent" : "/dashboard";
+
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Video */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="none"
-        onCanPlay={() => setVideoLoaded(true)}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${videoLoaded ? "opacity-100" : "opacity-0"}`}
-      >
-        <source src={HERO_VIDEO_URL} type="video/mp4" />
-      </video>
+    <section className="relative overflow-hidden bg-brand-light">
+      <DottedPattern className="left-2 top-6 h-24 w-24 md:h-32 md:w-32" />
 
-      {/* Gradient fallback (visible while video loads) */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-secondary to-primary/20" />
+      <div className="container relative mx-auto grid items-center gap-10 px-4 py-14 md:py-20 lg:grid-cols-2">
+        {/* Left */}
+        <div className="relative z-10 space-y-6 animate-fade-in">
+          <p className="text-sm font-semibold text-brand-muted">Start your favourite course</p>
 
-      {/* Dark overlay for text readability */}
-      <div className="absolute inset-0 bg-black/60" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
-
-      {/* Content */}
-      <div className="container relative z-10 px-4 mx-auto flex flex-col items-center text-center">
-        <div className="max-w-3xl space-y-8 animate-fade-in">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-md">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-white/90">Empowering Future Innovators</span>
-          </div>
-
-          {/* Heading */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
-            <span className="text-gradient-primary">Mighty Test</span>
-            <br />
-            <span className="text-white">STEM Excellence</span>
-            <br />
-            <span className="text-white/80">Through Smart Assessment</span>
+          <h1 className="text-4xl font-bold leading-tight text-brand-darkest sm:text-5xl lg:text-[3.4rem]">
+            Now learning from anywhere, and build your{" "}
+            <span className="relative whitespace-nowrap text-brand">
+              bright career.
+              <svg
+                viewBox="0 0 220 12"
+                aria-hidden="true"
+                className="absolute -bottom-2 left-0 w-full text-brand"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d="M2 8C60 2 160 2 218 7"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
           </h1>
 
-          {/* Description */}
-          <p className="text-lg lg:text-xl text-white/70 max-w-2xl mx-auto">
-            Master Science, Technology, Engineering, Mathematics, Robotics, and AI
-            through intelligent examinations designed to accelerate your learning journey.
+          <p className="max-w-md text-base leading-relaxed text-muted-foreground">
+            Learn at your own pace with expert-led courses, smart assessments and
+            progress tracking built for every kind of learner.
           </p>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
-            {user ? (
-              <Link to={role === 'admin' ? '/admin' : role === 'parent' ? '/parent' : '/dashboard'}>
-                <Button size="lg" className="w-full sm:w-auto text-lg px-10 py-7 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
-                  <LayoutDashboard className="mr-2 w-5 h-5" />
-                  Go to Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link to="/auth">
-                  <Button size="lg" className="w-full sm:w-auto text-lg px-10 py-7 shadow-primary hover:shadow-glow transition-all duration-300 hover:scale-105">
-                    Get Started
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto text-lg px-10 py-7 border-2 border-white/30 text-white hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
-                  onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  Explore Features
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Stats with frosted glass */}
-          <div className="grid grid-cols-3 gap-4 sm:gap-6 pt-8 max-w-lg mx-auto px-2 sm:px-0">
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">10K+</div>
-              <div className="text-xs sm:text-sm text-white/60">Students</div>
-            </div>
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">500+</div>
-              <div className="text-xs sm:text-sm text-white/60">STEM Exams</div>
-            </div>
-            <div className="rounded-xl bg-white/10 backdrop-blur-md border border-white/10 py-4 px-2 sm:px-3">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">98%</div>
-              <div className="text-xs sm:text-sm text-white/60">Success Rate</div>
-            </div>
-          </div>
+          <Link to={user ? dashboardPath : "/auth"}>
+            <Button
+              size="lg"
+              className="rounded-full bg-brand px-8 py-6 text-base font-semibold text-primary-foreground shadow-primary transition-transform hover:scale-105"
+            >
+              {user ? "Go to Dashboard" : "Start A Course"}
+            </Button>
+          </Link>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <ChevronDown className="w-8 h-8 text-white/50" />
+        {/* Right */}
+        <div className="relative">
+          {/* Curved decorative arrows */}
+          <svg
+            viewBox="0 0 400 400"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 h-full w-full text-brand-soft"
+          >
+            <path
+              d="M60 90 C110 40, 190 40, 230 80"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <path d="M222 62 L233 82 L211 84 Z" fill="currentColor" />
+            <path
+              d="M370 300 C395 220, 380 130, 330 70"
+              stroke="currentColor"
+              strokeWidth="4"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <path d="M322 92 L331 66 L348 86 Z" fill="currentColor" />
+          </svg>
+
+          <img
+            src={heroLearner}
+            alt="Student smiling while holding a laptop"
+            width={1024}
+            height={1024}
+            className="relative z-10 mx-auto w-full max-w-md object-contain drop-shadow-xl"
+          />
+
+          {/* Courses badge */}
+          <div className="absolute left-2 top-1/3 z-20 flex h-24 w-24 flex-col items-center justify-center rounded-full bg-brand text-primary-foreground shadow-primary sm:left-6 md:h-28 md:w-28">
+            <BookOpen className="mb-1 h-5 w-5" />
+            <span className="text-lg font-bold leading-none">1,235</span>
+            <span className="text-[11px] opacity-90">courses</span>
+          </div>
+
+          {/* Rating badge */}
+          <div className="absolute right-0 top-2 z-20 flex items-center gap-2 rounded-full bg-card px-4 py-2 shadow-card">
+            <span className="text-base font-bold text-brand-darkest">4.8</span>
+            <Star className="h-4 w-4 fill-brand-muted text-brand-muted" />
+            <span className="text-xs text-muted-foreground">rating (80K)</span>
+          </div>
         </div>
       </div>
     </section>
