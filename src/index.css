@@ -8,84 +8,92 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Base colors - Soft cream background */
-    --background: 42 100% 98%;
-    --foreground: 0 0% 5%;
+    /* Brand palette — deep navy blues
+       #021024 darkest | #052659 primary | #5483B3 muted | #7DA0CA soft | #C1E8FF light */
+    --brand-darkest: 215 89% 8%;
+    --brand-primary: 216 89% 18%;
+    --brand-muted: 210 38% 52%;
+    --brand-soft: 213 42% 64%;
+    --brand-light: 202 100% 88%;
+
+    /* Base colors */
+    --background: 0 0% 100%;
+    --foreground: 215 89% 8%;
 
     /* Card colors - Pure white */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
+    --card-foreground: 215 89% 8%;
 
     /* Popover colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover-foreground: 215 89% 8%;
 
-    /* Primary - Sunshine Yellow */
-    --primary: 45 100% 51%;
-    --primary-foreground: 0 0% 5%;
-    --primary-light: 45 100% 60%;
-    --primary-glow: 45 100% 70%;
+    /* Primary - Deep navy */
+    --primary: 216 89% 18%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 210 38% 52%;
+    --primary-glow: 213 42% 64%;
 
-    /* Secondary - Vibrant Orange */
-    --secondary: 18 100% 60%;
-    --secondary-foreground: 0 0% 100%;
-    --secondary-muted: 18 80% 50%;
+    /* Secondary - Soft blue */
+    --secondary: 202 100% 88%;
+    --secondary-foreground: 216 89% 18%;
+    --secondary-muted: 210 38% 52%;
 
-    /* Accent - Electric Blue */
-    --accent: 194 100% 42%;
-    --accent-foreground: 0 0% 100%;
-    --accent-cyan: 189 94% 43%;
+    /* Accent - Muted steel blue */
+    --accent: 213 42% 64%;
+    --accent-foreground: 215 89% 8%;
+    --accent-cyan: 202 100% 88%;
 
-    /* Success - Fresh Green */
-    --success: 166 73% 42%;
+    /* Success */
+    --success: 166 60% 38%;
     --success-foreground: 0 0% 100%;
 
-    /* Purple Magic */
-    --purple: 277 81% 59%;
+    /* Purple slot mapped into the blue family */
+    --purple: 216 89% 18%;
     --purple-foreground: 0 0% 100%;
 
     /* Muted colors */
-    --muted: 42 50% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 202 60% 96%;
+    --muted-foreground: 210 25% 45%;
 
     /* Destructive - Vibrant red */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     /* Border and input */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 45 100% 51%;
+    --border: 210 35% 88%;
+    --input: 210 35% 88%;
+    --ring: 216 89% 18%;
 
-    /* STEM Subject Colors - Vibrant & Playful */
-    --stem-science: 123 46% 51%; /* Lime Green */
-    --stem-technology: 194 100% 42%; /* Electric Blue */
-    --stem-engineering: 17 100% 63%; /* Tangerine Orange */
-    --stem-mathematics: 277 81% 59%; /* Royal Purple */
-    --stem-robotics: 348 100% 56%; /* Neon Red */
-    --stem-ai: 185 100% 50%; /* Cyan */
+    /* STEM Subject Colors - blue family */
+    --stem-science: 202 100% 88%;
+    --stem-technology: 213 42% 64%;
+    --stem-engineering: 210 38% 52%;
+    --stem-mathematics: 216 89% 18%;
+    --stem-robotics: 215 89% 8%;
+    --stem-ai: 205 70% 45%;
 
-    /* Additional fun colors */
-    --fun-pink: 330 100% 71%;
-    --fun-teal: 174 72% 56%;
-    --fun-lavender: 250 100% 80%;
-    --fun-coral: 11 100% 70%;
-    --fun-mint: 152 68% 70%;
+    /* Additional accents */
+    --fun-pink: 210 38% 52%;
+    --fun-teal: 213 42% 64%;
+    --fun-lavender: 202 100% 88%;
+    --fun-coral: 210 38% 52%;
+    --fun-mint: 202 100% 88%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(45 100% 51%), hsl(45 100% 70%));
-    --gradient-hero: linear-gradient(135deg, hsl(45 100% 51%), hsl(45 100% 70%), hsl(194 100% 42%));
-    --gradient-fun: linear-gradient(135deg, hsl(330 100% 71%), hsl(194 100% 42%));
-    --gradient-success: linear-gradient(135deg, hsl(166 73% 42%), hsl(152 68% 70%));
-    --gradient-purple: linear-gradient(135deg, hsl(277 81% 59%), hsl(250 100% 80%));
-    --gradient-orange: linear-gradient(135deg, hsl(18 100% 60%), hsl(17 100% 63%));
+    --gradient-primary: linear-gradient(135deg, hsl(216 89% 18%), hsl(210 38% 52%));
+    --gradient-hero: linear-gradient(135deg, hsl(202 100% 88%), hsl(213 42% 64%));
+    --gradient-fun: linear-gradient(135deg, hsl(215 89% 8%), hsl(216 89% 18%));
+    --gradient-success: linear-gradient(135deg, hsl(216 89% 18%), hsl(202 100% 88%));
+    --gradient-purple: linear-gradient(135deg, hsl(215 89% 8%), hsl(210 38% 52%));
+    --gradient-orange: linear-gradient(135deg, hsl(210 38% 52%), hsl(202 100% 88%));
 
-    /* Shadows - More dramatic */
-    --shadow-primary: 0 10px 40px -10px hsl(45 100% 51% / 0.5);
-    --shadow-glow: 0 0 60px hsl(45 100% 70% / 0.4);
-    --shadow-card: 0 8px 30px hsl(0 0% 0% / 0.12);
-    --shadow-playful: 0 20px 60px -15px hsl(194 100% 42% / 0.4);
-    --shadow-success: 0 10px 40px -10px hsl(166 73% 42% / 0.4);
+    /* Shadows */
+    --shadow-primary: 0 10px 40px -10px hsl(216 89% 18% / 0.35);
+    --shadow-glow: 0 0 60px hsl(213 42% 64% / 0.45);
+    --shadow-card: 0 8px 30px hsl(215 89% 8% / 0.10);
+    --shadow-playful: 0 20px 60px -15px hsl(216 89% 18% / 0.30);
+    --shadow-success: 0 10px 40px -10px hsl(210 38% 52% / 0.35);
 
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -95,50 +103,51 @@ All colors MUST be HSL.
     --radius: 1.25rem;
   }
 
+
   .dark {
-    /* Deep navy and dark purple backgrounds */
-    --background: 220 60% 6%;
-    --foreground: 0 0% 98%;
+    /* Deep navy backgrounds */
+    --background: 215 89% 8%;
+    --foreground: 202 100% 95%;
 
-    --card: 260 30% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 216 60% 12%;
+    --card-foreground: 202 100% 95%;
 
-    --popover: 260 30% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 216 60% 12%;
+    --popover-foreground: 202 100% 95%;
 
-    /* Bright primary for contrast */
-    --primary: 45 100% 60%;
-    --primary-foreground: 0 0% 5%;
-    --primary-light: 45 100% 70%;
+    --primary: 202 100% 88%;
+    --primary-foreground: 215 89% 8%;
+    --primary-light: 213 42% 64%;
 
-    --secondary: 18 90% 55%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 216 89% 18%;
+    --secondary-foreground: 202 100% 88%;
 
-    --muted: 220 20% 18%;
-    --muted-foreground: 220 9% 70%;
+    --muted: 216 40% 18%;
+    --muted-foreground: 213 30% 72%;
 
-    --accent: 194 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 213 42% 64%;
+    --accent-foreground: 215 89% 8%;
 
-    --success: 166 73% 48%;
+    --success: 166 60% 44%;
     --success-foreground: 0 0% 100%;
 
-    --purple: 277 81% 65%;
-    --purple-foreground: 0 0% 100%;
+    --purple: 213 42% 64%;
+    --purple-foreground: 215 89% 8%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 45 100% 60%;
+    --border: 216 35% 22%;
+    --input: 216 35% 22%;
+    --ring: 202 100% 88%;
 
-    /* More dramatic shadows in dark mode */
-    --shadow-card: 0 8px 40px hsl(0 0% 0% / 0.7);
-    --shadow-glow: 0 0 80px hsl(45 100% 70% / 0.3);
-    --shadow-primary: 0 10px 40px -10px hsl(45 100% 60% / 0.6);
-    --shadow-playful: 0 20px 60px -15px hsl(194 100% 50% / 0.5);
+    /* Shadows in dark mode */
+    --shadow-card: 0 8px 40px hsl(215 89% 4% / 0.7);
+    --shadow-glow: 0 0 80px hsl(213 42% 64% / 0.3);
+    --shadow-primary: 0 10px 40px -10px hsl(202 100% 88% / 0.4);
+    --shadow-playful: 0 20px 60px -15px hsl(213 42% 64% / 0.5);
   }
+
 }
 
 @layer base {
