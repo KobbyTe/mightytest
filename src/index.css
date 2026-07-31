@@ -105,49 +105,49 @@ All colors MUST be HSL.
 
 
   .dark {
-    /* Deep navy and dark purple backgrounds */
-    --background: 220 60% 6%;
-    --foreground: 0 0% 98%;
+    /* Deep navy backgrounds */
+    --background: 215 89% 8%;
+    --foreground: 202 100% 95%;
 
-    --card: 260 30% 10%;
-    --card-foreground: 0 0% 98%;
+    --card: 216 60% 12%;
+    --card-foreground: 202 100% 95%;
 
-    --popover: 260 30% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 216 60% 12%;
+    --popover-foreground: 202 100% 95%;
 
-    /* Bright primary for contrast */
-    --primary: 45 100% 60%;
-    --primary-foreground: 0 0% 5%;
-    --primary-light: 45 100% 70%;
+    --primary: 202 100% 88%;
+    --primary-foreground: 215 89% 8%;
+    --primary-light: 213 42% 64%;
 
-    --secondary: 18 90% 55%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 216 89% 18%;
+    --secondary-foreground: 202 100% 88%;
 
-    --muted: 220 20% 18%;
-    --muted-foreground: 220 9% 70%;
+    --muted: 216 40% 18%;
+    --muted-foreground: 213 30% 72%;
 
-    --accent: 194 100% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 213 42% 64%;
+    --accent-foreground: 215 89% 8%;
 
-    --success: 166 73% 48%;
+    --success: 166 60% 44%;
     --success-foreground: 0 0% 100%;
 
-    --purple: 277 81% 65%;
-    --purple-foreground: 0 0% 100%;
+    --purple: 213 42% 64%;
+    --purple-foreground: 215 89% 8%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 45 100% 60%;
+    --border: 216 35% 22%;
+    --input: 216 35% 22%;
+    --ring: 202 100% 88%;
 
-    /* More dramatic shadows in dark mode */
-    --shadow-card: 0 8px 40px hsl(0 0% 0% / 0.7);
-    --shadow-glow: 0 0 80px hsl(45 100% 70% / 0.3);
-    --shadow-primary: 0 10px 40px -10px hsl(45 100% 60% / 0.6);
-    --shadow-playful: 0 20px 60px -15px hsl(194 100% 50% / 0.5);
+    /* Shadows in dark mode */
+    --shadow-card: 0 8px 40px hsl(215 89% 4% / 0.7);
+    --shadow-glow: 0 0 80px hsl(213 42% 64% / 0.3);
+    --shadow-primary: 0 10px 40px -10px hsl(202 100% 88% / 0.4);
+    --shadow-playful: 0 20px 60px -15px hsl(213 42% 64% / 0.5);
   }
+
 }
 
 @layer base {
