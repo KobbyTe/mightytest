@@ -1,34 +1,75 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Rocket, Mail } from "lucide-react";
+
+const Dots = ({ className = "" }: { className?: string }) => (
+  <svg viewBox="0 0 80 80" aria-hidden="true" className={`pointer-events-none absolute text-brand-soft ${className}`}>
+    {Array.from({ length: 3 }).map((_, row) =>
+      Array.from({ length: 3 }).map((_, col) => (
+        <line
+          key={`${row}-${col}`}
+          x1={col * 22 + 4}
+          y1={row * 22 + 4}
+          x2={col * 22 + 13}
+          y2={row * 22 + 13}
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          opacity={0.75 - row * 0.15}
+        />
+      ))
+    )}
+  </svg>
+);
 
 const CTABanner = () => {
   return (
-    <section className="py-20 bg-gradient-to-r from-secondary to-primary relative overflow-hidden">
-      {/* Decorative circles */}
-      <div className="absolute top-0 left-0 w-64 h-64 bg-background/5 rounded-full -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-background/5 rounded-full translate-x-1/3 translate-y-1/3" />
+    <section className="bg-background py-12 md:py-16">
+      <div className="container mx-auto px-4">
+        <div className="relative overflow-hidden rounded-[2rem] bg-brand-light px-6 py-10 md:px-12 md:py-12">
+          <Dots className="left-3 bottom-3 h-16 w-16" />
+          <Dots className="right-5 top-4 h-16 w-16" />
 
-      <div className="container mx-auto px-4 relative z-10 text-center">
-        <h2 className="text-3xl md:text-5xl font-heading font-bold text-primary-foreground mb-4">
-          Ready to Transform STEM Education?
-        </h2>
-        <p className="text-primary-foreground/80 text-lg max-w-xl mx-auto mb-8">
-          Join hundreds of schools already using Mighty Test to assess, track, and improve student performance.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/auth">
-            <Button size="lg" className="bg-background text-foreground hover:bg-background/90 shadow-lg text-base px-8">
-              <Rocket className="mr-2 w-5 h-5" />
-              Get Started Free
-            </Button>
-          </Link>
-          <Link to="/contact">
-            <Button size="lg" variant="outline" className="border-2 border-background/40 text-primary-foreground hover:bg-background/10 text-base px-8">
-              <Mail className="mr-2 w-5 h-5" />
-              Contact Us
-            </Button>
-          </Link>
+          <div className="relative z-10 flex flex-col items-start gap-8 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-brand-muted">Become A Instructor</p>
+              <h2 className="max-w-md text-2xl font-bold leading-snug text-brand-darkest md:text-3xl">
+                You can join with Edule as{" "}
+                <span className="relative whitespace-nowrap text-brand">
+                  a instructor?
+                  <svg
+                    viewBox="0 0 200 10"
+                    aria-hidden="true"
+                    preserveAspectRatio="none"
+                    className="absolute -bottom-1 left-0 w-full text-brand"
+                  >
+                    <path d="M2 7C60 2 140 2 198 6" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
+                  </svg>
+                </span>
+              </h2>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <svg viewBox="0 0 140 60" aria-hidden="true" className="hidden h-14 w-32 text-brand-soft lg:block">
+                <path
+                  d="M4 46C40 8 96 6 132 26"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+                <path d="M118 16 L134 27 L116 34 Z" fill="currentColor" />
+              </svg>
+
+              <Link to="/contact">
+                <Button
+                  size="lg"
+                  className="rounded-full bg-brand px-8 text-primary-foreground shadow-primary transition-transform hover:scale-105"
+                >
+                  Drop Information
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </section>
