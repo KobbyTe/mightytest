@@ -25,6 +25,9 @@ import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
 import { useReadingAssistant } from '@/hooks/useReadingAssistant';
 import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
+import { StudentSidebar } from '@/components/student/StudentSidebar';
+import { StudentHeroBanner } from '@/components/student/StudentHeroBanner';
+
 
 interface Exam {
   id: string;
@@ -415,7 +418,8 @@ export default function Dashboard() {
   const avgScore = calcAvgScore(completedExams);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen aurora-bg">
+
       {/* Onboarding Tour */}
       <OnboardingTour isActive={showTour} onComplete={completeTour} />
 
@@ -434,79 +438,81 @@ export default function Dashboard() {
         onStopPreview={readingAssistant.stop}
       />
 
-      {/* Header — mobile-first */}
-      <header id="tour-welcome" className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="relative shrink-0">
-              <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
-              <Sparkles className="absolute -top-1 -right-1 h-3 w-3 sm:h-4 sm:w-4 text-secondary animate-pulse" />
+      {/* Glass top bar */}
+      <header id="tour-welcome" className="sticky top-0 z-50 border-b border-white/40 bg-white/50 backdrop-blur-xl">
+        <div className="container mx-auto flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="relative shrink-0 lg:hidden">
+              <GraduationCap className="h-8 w-8 text-brand" />
+              <Sparkles className="absolute -right-1 -top-1 h-3 w-3 animate-pulse text-brand-muted" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">
-                Welcome back, {profile?.full_name?.split(' ')[0]}! 🎉
-              </h1>
-              <p className="text-xs sm:text-sm text-muted-foreground">Ready to conquer some exams today?</p>
+              <p className="truncate text-sm font-semibold text-brand-darkest sm:text-base">
+                Welcome back, {profile?.full_name?.split(' ')[0]} 👋
+              </p>
+              <p className="hidden text-xs text-muted-foreground sm:block">Ready to conquer some exams today?</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <NotificationBell />
-            <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour" className="h-8 w-8 sm:h-9 sm:w-9">
+            <Button variant="ghost" size="icon" onClick={() => setShowTour(true)} title="Take a tour" className="h-9 w-9 rounded-full hover:bg-white/70">
               <HelpCircle className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="hover-lift text-xs sm:text-sm h-8 sm:h-9">
-              <LogOut className="mr-1.5 h-3.5 w-3.5 sm:mr-2 sm:h-4 sm:w-4" />
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="h-9 rounded-full border-white/60 bg-white/50 text-xs backdrop-blur transition-all hover:bg-white/90 sm:text-sm lg:hidden">
+              <LogOut className="mr-1.5 h-3.5 w-3.5" />
               <span className="hidden xs:inline">Sign Out</span>
               <span className="xs:hidden">Exit</span>
             </Button>
+            <div className="hidden h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-muted text-sm font-bold text-primary-foreground shadow-primary lg:flex">
+              {profile?.full_name?.[0]?.toUpperCase() || 'S'}
+            </div>
           </div>
         </div>
       </header>
 
-      <main id="dashboard-top" className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 pb-20 sm:pb-8 space-y-4 sm:space-y-8">
+      <div className="container mx-auto flex gap-6 px-3 py-4 sm:px-4 sm:py-6">
+        <StudentSidebar onSignOut={handleSignOut} />
+
+      <main id="dashboard-top" className="min-w-0 flex-1 space-y-4 pb-24 sm:space-y-6 sm:pb-8">
         <NotificationPermissionBanner />
+
+        <StudentHeroBanner
+          name={profile?.full_name?.split(' ')[0] || ''}
+          subtitle={
+            unregisteredExams.length > 0
+              ? `You have ${unregisteredExams.length} new exam${unregisteredExams.length > 1 ? 's' : ''} waiting. Keep your streak going!`
+              : 'Track your exams, review results and level up every day.'
+          }
+          primaryLabel={unregisteredExams.length > 0 ? 'Browse exams' : 'View my results'}
+          onPrimary={() =>
+            document
+              .getElementById(unregisteredExams.length > 0 ? 'section-available' : 'section-results')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        />
+
         {/* Stats Cards */}
-        <div id="tour-stats" className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
-          <Card className="hover-lift bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-3 sm:p-6 text-center">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-primary/20 flex items-center justify-center">
-                <BookOpen className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
+        <div id="tour-stats" className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-4">
+          {[
+            { icon: BookOpen, value: examAttempts.length, label: 'Exams Taken', tone: 'from-brand/25 to-brand/5', text: 'text-brand' },
+            { icon: Trophy, value: passedExams.length, label: 'Exams Passed', tone: 'from-[hsl(var(--success))]/25 to-[hsl(var(--success))]/5', text: 'text-[hsl(var(--success))]' },
+            { icon: Star, value: `${avgScore}%`, label: 'Avg Score', tone: 'from-brand-muted/30 to-brand-muted/5', text: 'text-brand-muted' },
+            { icon: Target, value: unregisteredExams.length, label: 'Available', tone: 'from-brand-soft/35 to-brand-soft/5', text: 'text-brand' },
+          ].map((stat, i) => (
+            <div
+              key={stat.label}
+              style={{ animationDelay: `${i * 80}ms` }}
+              className="glass-card animate-pop-in group p-3 text-center sm:p-6"
+            >
+              <div className={`mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.tone} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 sm:mb-3 sm:h-12 sm:w-12`}>
+                <stat.icon className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.text}`} />
               </div>
-              <p className="text-xl sm:text-3xl font-bold text-primary">{examAttempts.length}</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Exams Taken</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--success))]/10 to-[hsl(var(--success))]/5 border-[hsl(var(--success))]/20">
-            <CardContent className="p-3 sm:p-6 text-center">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-[hsl(var(--success))]/20 flex items-center justify-center">
-                <Trophy className="h-4 w-4 sm:h-6 sm:w-6 text-[hsl(var(--success))]" />
-              </div>
-              <p className="text-xl sm:text-3xl font-bold text-[hsl(var(--success))]">{passedExams.length}</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Exams Passed</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift bg-gradient-to-br from-[hsl(var(--purple))]/10 to-[hsl(var(--purple))]/5 border-[hsl(var(--purple))]/20">
-            <CardContent className="p-3 sm:p-6 text-center">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-[hsl(var(--purple))]/20 flex items-center justify-center">
-                <Star className="h-4 w-4 sm:h-6 sm:w-6 text-[hsl(var(--purple))]" />
-              </div>
-              <p className="text-xl sm:text-3xl font-bold text-[hsl(var(--purple))]">{avgScore}%</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Avg Score</p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift bg-gradient-to-br from-secondary/10 to-secondary/5 border-secondary/20">
-            <CardContent className="p-3 sm:p-6 text-center">
-              <div className="w-9 h-9 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 rounded-full bg-secondary/20 flex items-center justify-center">
-                <Target className="h-4 w-4 sm:h-6 sm:w-6 text-secondary" />
-              </div>
-              <p className="text-xl sm:text-3xl font-bold text-secondary">{unregisteredExams.length}</p>
-              <p className="text-xs sm:text-sm text-muted-foreground">Available</p>
-            </CardContent>
-          </Card>
+              <p className={`text-xl font-bold sm:text-3xl ${stat.text}`}>{stat.value}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+            </div>
+          ))}
         </div>
+
 
         {/* Gamification Section */}
         <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
@@ -523,7 +529,7 @@ export default function Dashboard() {
           const avgPercent = gradedExams.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedExams.length;
 
           return (
-            <Card className="hover-lift overflow-hidden">
+            <Card className="glass-card border-white/40 hover-lift overflow-hidden">
               <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
               <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
@@ -750,7 +756,7 @@ export default function Dashboard() {
           </div>
 
           {examAttempts.length === 0 ? (
-            <Card className="hover-lift">
+            <Card className="glass-card border-white/40 hover-lift">
               <CardContent className="py-8 sm:py-12 text-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
                   <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
@@ -864,7 +870,7 @@ export default function Dashboard() {
           </div>
 
           {unregisteredExams.length === 0 ? (
-            <Card className="hover-lift">
+            <Card className="glass-card border-white/40 hover-lift">
               <CardContent className="py-8 sm:py-12 text-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
                   <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
@@ -1047,6 +1053,8 @@ export default function Dashboard() {
           );
         })()}
       </main>
+      </div>
+
       <ChatBubble />
       <AIStudyAssistant />
       <MobileBottomNav items={studentNavItems} />
