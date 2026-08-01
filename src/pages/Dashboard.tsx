@@ -415,7 +415,8 @@ export default function Dashboard() {
   const avgScore = calcAvgScore(completedExams);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen aurora-bg">
+
       {/* Onboarding Tour */}
       <OnboardingTour isActive={showTour} onComplete={completeTour} />
 
