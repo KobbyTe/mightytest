@@ -25,6 +25,9 @@ import { getSubjectIcon, getSubjectColor, calcAvgScore } from '@/lib/examUtils';
 import { VoiceSelectionDialog } from '@/components/VoiceSelectionDialog';
 import { useReadingAssistant } from '@/hooks/useReadingAssistant';
 import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNav';
+import { StudentSidebar } from '@/components/student/StudentSidebar';
+import { StudentHeroBanner } from '@/components/student/StudentHeroBanner';
+
 
 interface Exam {
   id: string;
@@ -1050,6 +1053,8 @@ export default function Dashboard() {
           );
         })()}
       </main>
+      </div>
+
       <ChatBubble />
       <AIStudyAssistant />
       <MobileBottomNav items={studentNavItems} />
