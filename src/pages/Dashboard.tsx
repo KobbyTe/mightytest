@@ -529,7 +529,7 @@ export default function Dashboard() {
           const avgPercent = gradedExams.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedExams.length;
 
           return (
-            <Card className="hover-lift overflow-hidden">
+            <Card className="glass-card border-white/40 hover-lift overflow-hidden">
               <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
               <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
@@ -756,7 +756,7 @@ export default function Dashboard() {
           </div>
 
           {examAttempts.length === 0 ? (
-            <Card className="hover-lift">
+            <Card className="glass-card border-white/40 hover-lift">
               <CardContent className="py-8 sm:py-12 text-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
                   <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
@@ -870,7 +870,7 @@ export default function Dashboard() {
           </div>
 
           {unregisteredExams.length === 0 ? (
-            <Card className="hover-lift">
+            <Card className="glass-card border-white/40 hover-lift">
               <CardContent className="py-8 sm:py-12 text-center">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-muted flex items-center justify-center">
                   <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
