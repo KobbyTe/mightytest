@@ -269,8 +269,74 @@ All colors MUST be HSL.
   .bg-gradient-orange {
     background: var(--gradient-orange);
   }
+
+  /* ===== Glassmorphism ===== */
+  .glass {
+    @apply border border-white/40 bg-white/50 backdrop-blur-xl;
+    box-shadow: 0 8px 32px -12px hsl(var(--brand-darkest) / 0.25);
+  }
+
+  .glass-strong {
+    @apply border border-white/60 bg-white/70 backdrop-blur-2xl;
+    box-shadow: 0 12px 40px -14px hsl(var(--brand-primary) / 0.35);
+  }
+
+  .glass-dark {
+    @apply border border-white/15 backdrop-blur-2xl;
+    background: linear-gradient(135deg, hsl(var(--brand-primary) / 0.85), hsl(var(--brand-darkest) / 0.9));
+    box-shadow: 0 20px 60px -20px hsl(var(--brand-darkest) / 0.6);
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl transition-all duration-500;
+  }
+
+  .glass-card:hover {
+    @apply -translate-y-1 bg-white/70;
+    box-shadow: 0 20px 45px -18px hsl(var(--brand-primary) / 0.45);
+  }
+
+  /* Aurora backdrop */
+  .aurora-bg {
+    position: relative;
+    background:
+      radial-gradient(60rem 40rem at 10% -10%, hsl(var(--brand-light) / 0.9), transparent 60%),
+      radial-gradient(50rem 35rem at 100% 0%, hsl(var(--brand-soft) / 0.55), transparent 60%),
+      radial-gradient(45rem 35rem at 50% 110%, hsl(var(--brand-muted) / 0.35), transparent 60%),
+      hsl(var(--background));
+  }
+
+  .aurora-blob {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+    animation: float-blob 14s ease-in-out infinite;
+  }
+
+  .animate-float-slow { animation: float-y 6s ease-in-out infinite; }
+  .animate-shine { background-size: 200% auto; animation: shine 4s linear infinite; }
+  .animate-pop-in { animation: pop-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes float-blob {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(20px, -25px, 0) scale(1.08); }
+  66% { transform: translate3d(-18px, 15px, 0) scale(0.95); }
+}
+
+@keyframes shine {
+  to { background-position: 200% center; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
