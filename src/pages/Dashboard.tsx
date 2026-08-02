@@ -473,25 +473,34 @@ export default function Dashboard() {
       <div className="container mx-auto flex gap-6 px-3 py-4 sm:px-4 sm:py-6">
         <StudentSidebar onSignOut={handleSignOut} />
 
-      <main id="dashboard-top" className="min-w-0 flex-1 space-y-4 pb-24 sm:space-y-6 sm:pb-8">
+      <main id="dashboard-top" className="min-w-0 flex-1 space-y-4 pb-28 sm:space-y-6 sm:pb-10">
         <NotificationPermissionBanner />
 
-        <StudentHeroBanner
-          name={profile?.full_name?.split(' ')[0] || ''}
-          subtitle={
-            unregisteredExams.length > 0
-              ? `You have ${unregisteredExams.length} new exam${unregisteredExams.length > 1 ? 's' : ''} waiting. Keep your streak going!`
-              : 'Track your exams, review results and level up every day.'
-          }
-          primaryLabel={unregisteredExams.length > 0 ? 'Browse exams' : 'View my results'}
-          onPrimary={() =>
-            document
-              .getElementById(unregisteredExams.length > 0 ? 'section-available' : 'section-results')
-              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }
-        />
+        {tab === 'home' ? (
+          <StudentHeroBanner
+            name={profile?.full_name?.split(' ')[0] || ''}
+            subtitle={
+              unregisteredExams.length > 0
+                ? `You have ${unregisteredExams.length} new exam${unregisteredExams.length > 1 ? 's' : ''} waiting. Keep your streak going!`
+                : 'Track your exams, review results and level up every day.'
+            }
+            primaryLabel={unregisteredExams.length > 0 ? 'Browse exams' : 'View my results'}
+            onPrimary={() => navigate(unregisteredExams.length > 0 ? '/dashboard/browse' : '/dashboard/results')}
+          />
+        ) : (
+          <div className="glass-card animate-pop-in flex items-center gap-3 p-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-muted shadow-primary sm:h-12 sm:w-12">
+              <PageMetaIcon className="h-5 w-5 text-primary-foreground sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-brand-darkest sm:text-2xl">{pageMeta.title}</h1>
+              <p className="truncate text-xs text-muted-foreground sm:text-sm">{pageMeta.subtitle}</p>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
+        {tab === 'home' && (
         <div id="tour-stats" className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-4">
           {[
             { icon: BookOpen, value: examAttempts.length, label: 'Exams Taken', tone: 'from-brand/25 to-brand/5', text: 'text-brand' },
