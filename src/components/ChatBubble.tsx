@@ -821,7 +821,7 @@ export function ChatBubble({ embedded = false }: { embedded?: boolean } = {}) {
               </>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center mb-4 animate-float">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center mb-4 animate-float-slow">
                   <MessageCircle className="h-9 w-9 text-primary" />
                 </div>
                 <h4 className="text-lg font-bold">Your conversations</h4>
