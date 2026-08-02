@@ -10,7 +10,7 @@ import {
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
   Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle, RotateCcw,
-  XCircle, CheckCircle, LayoutDashboard
+  XCircle, CheckCircle, LayoutDashboard, MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -69,7 +69,7 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
-export const STUDENT_TABS = ['home', 'exams', 'browse', 'results', 'profile'] as const;
+export const STUDENT_TABS = ['home', 'exams', 'browse', 'results', 'tutor', 'messages', 'profile'] as const;
 export type StudentTab = (typeof STUDENT_TABS)[number];
 
 const PAGE_META: Record<StudentTab, { title: string; subtitle: string; icon: typeof BookOpen }> = {
@@ -77,6 +77,8 @@ const PAGE_META: Record<StudentTab, { title: string; subtitle: string; icon: typ
   exams: { title: 'My Exams', subtitle: 'Track your exam progress, resits and certificates', icon: BookOpen },
   browse: { title: 'Browse Exams', subtitle: 'New challenges await — pick an exam to start', icon: Zap },
   results: { title: 'My Results', subtitle: 'All your graded results at a glance', icon: Trophy },
+  tutor: { title: 'Study Buddy', subtitle: 'Your personal AI tutor — ask anything, anytime', icon: Brain },
+  messages: { title: 'Messages', subtitle: 'Chat with your teachers and admins', icon: MessageCircle },
   profile: { title: 'My Profile', subtitle: 'Your details and parent/guardian access', icon: User },
 };
 
@@ -85,6 +87,8 @@ const studentNavItems: BottomNavItem[] = [
   { id: 'exams', label: 'Exams', icon: BookOpen },
   { id: 'browse', label: 'Browse', icon: Zap },
   { id: 'results', label: 'Results', icon: Trophy },
+  { id: 'tutor', label: 'Buddy', icon: Brain },
+  { id: 'messages', label: 'Chat', icon: MessageCircle },
   { id: 'profile', label: 'Profile', icon: User },
 ];
 
@@ -1081,11 +1085,22 @@ export default function Dashboard() {
         })()}
         </div>
         )}
+        {tab === 'tutor' && (
+          <div className="animate-fade-in">
+            <AIStudyAssistant embedded />
+          </div>
+        )}
+
+        {tab === 'messages' && (
+          <div className="animate-fade-in">
+            <ChatBubble embedded />
+          </div>
+        )}
       </main>
       </div>
 
-      <ChatBubble />
-      <AIStudyAssistant />
+      {tab !== 'messages' && <ChatBubble />}
+      {tab !== 'tutor' && <AIStudyAssistant />}
       <MobileBottomNav
         items={studentNavItems}
         activeId={tab}
