@@ -1102,7 +1102,14 @@ export default function Dashboard() {
 
       <ChatBubble />
       <AIStudyAssistant />
-      <MobileBottomNav items={studentNavItems} />
+      <MobileBottomNav
+        items={studentNavItems}
+        activeId={tab}
+        onSelect={(id) => {
+          navigate(id === 'home' ? '/dashboard' : `/dashboard/${id}`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
     </div>
   );
 }
