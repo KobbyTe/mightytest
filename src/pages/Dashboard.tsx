@@ -515,16 +515,27 @@ export default function Dashboard() {
 
 
         {/* Gamification Section */}
-        <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
+        {tab === 'home' && (
+          <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
+        )}
 
         {/* My Results Summary */}
-        <div id="section-results" />
-        {(() => {
+        {tab === 'results' && (() => {
           const gradedExams = examAttempts
             .filter(a => a.status === 'graded' && a.marks_obtained !== null)
             .sort((a, b) => new Date(a.attempted_at).getTime() - new Date(b.attempted_at).getTime());
-          
-          if (gradedExams.length === 0) return null;
+
+          if (gradedExams.length === 0) return (
+            <Card className="glass-card border-white/40">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <Trophy className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">No results yet</h3>
+                <p className="text-sm text-muted-foreground">Your graded exam results will appear here.</p>
+              </CardContent>
+            </Card>
+          );
 
           const avgPercent = gradedExams.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedExams.length;
 
