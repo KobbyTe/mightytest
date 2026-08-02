@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { LayoutDashboard, BookOpen, Zap, Trophy, User, Brain, LogOut } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import logo from "@/assets/mighty-test-logo.png";
 import trophy3d from "@/assets/dashboard-trophy-3d.png";
 
 const navItems = [
-  { id: "dashboard-top", label: "Home", icon: LayoutDashboard },
-  { id: "section-exams", label: "My Exams", icon: BookOpen },
-  { id: "section-available", label: "Browse", icon: Zap },
-  { id: "section-results", label: "Results", icon: Trophy },
-  { id: "section-profile", label: "Profile", icon: User },
+  { to: "/dashboard", label: "Home", icon: LayoutDashboard, end: true },
+  { to: "/dashboard/exams", label: "My Exams", icon: BookOpen },
+  { to: "/dashboard/browse", label: "Browse", icon: Zap },
+  { to: "/dashboard/results", label: "Results", icon: Trophy },
+  { to: "/dashboard/profile", label: "Profile", icon: User },
 ];
 
 interface Props {
@@ -17,26 +17,6 @@ interface Props {
 }
 
 export function StudentSidebar({ onSignOut }: Props) {
-  const [active, setActive] = useState("dashboard-top");
-
-  useEffect(() => {
-    const onScroll = () => {
-      let current = "dashboard-top";
-      for (const item of navItems) {
-        const el = document.getElementById(item.id);
-        if (el && el.getBoundingClientRect().top <= 160) current = item.id;
-      }
-      setActive(current);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const go = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
     <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-64 shrink-0 flex-col rounded-3xl glass-strong p-5 lg:flex">
       <div className="mb-8 flex items-center gap-2.5">
@@ -45,32 +25,43 @@ export function StudentSidebar({ onSignOut }: Props) {
       </div>
 
       <nav className="flex-1 space-y-1.5">
-        {navItems.map((item, i) => {
-          const isActive = active === item.id;
-          return (
-            <motion.button
-              key={item.id}
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.05 * i, duration: 0.4 }}
-              onClick={() => go(item.id)}
-              className={`group relative flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-300 ${
-                isActive
-                  ? "bg-brand text-primary-foreground shadow-primary"
-                  : "text-brand-darkest/70 hover:bg-white/70 hover:text-brand"
-              }`}
+        {navItems.map((item, i) => (
+          <motion.div
+            key={item.to}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.05 * i, duration: 0.4 }}
+          >
+            <NavLink
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `group relative flex w-full items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-all duration-300 ${
+                  isActive
+                    ? "bg-brand text-primary-foreground shadow-primary"
+                    : "text-brand-darkest/70 hover:bg-white/70 hover:text-brand"
+                }`
+              }
             >
-              {isActive && (
-                <motion.span
-                  layoutId="sidebar-indicator"
-                  className="absolute -left-5 h-7 w-1.5 rounded-r-full bg-brand"
-                />
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="sidebar-indicator"
+                      className="absolute -left-5 h-7 w-1.5 rounded-r-full bg-brand"
+                    />
+                  )}
+                  <item.icon
+                    className={`h-[18px] w-[18px] transition-transform duration-300 group-hover:scale-110 ${
+                      isActive ? "" : "text-brand-muted"
+                    }`}
+                  />
+                  {item.label}
+                </>
               )}
-              <item.icon className={`h-4.5 w-4.5 transition-transform duration-300 group-hover:scale-110 ${isActive ? "" : "text-brand-muted"}`} />
-              {item.label}
-            </motion.button>
-          );
-        })}
+            </NavLink>
+          </motion.div>
+        ))}
       </nav>
 
       <div className="relative mt-4 overflow-hidden rounded-2xl glass-dark p-4 text-center">
