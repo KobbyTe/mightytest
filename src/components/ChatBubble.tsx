@@ -539,12 +539,311 @@ export function ChatBubble({ embedded = false }: { embedded?: boolean } = {}) {
 
   const getDateKey = (dateStr: string) => new Date(dateStr).toDateString();
 
+
   if (!user) return null;
+
+  const initials = (name: string) =>
+    name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]?.toUpperCase()).join('') || '?';
+
+  const activeConv = conversations.find((c) => c.conversation_id === activeConversationId);
+
+  /* ---------------- Panes ---------------- */
+
+  const conversationList = (
+    <ScrollArea className="flex-1">
+      {conversations.length === 0 ? (
+        <div className="p-8 text-center text-muted-foreground">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <MessageCircle className="h-7 w-7 text-primary/60" />
+          </div>
+          <p className="text-sm font-medium text-foreground">No conversations yet</p>
+          <p className="text-xs mt-1">Start chatting with your teachers or admins.</p>
+          <Button size="sm" variant="outline" onClick={startNewConversation} className="mt-4 rounded-full">
+            <Plus className="h-3.5 w-3.5 mr-1" /> New conversation
+          </Button>
+        </div>
+      ) : (
+        <div className="p-2 space-y-1">
+          {conversations.map((conv) => {
+            const active = conv.conversation_id === activeConversationId;
+            return (
+              <button
+                key={conv.conversation_id}
+                onClick={() => openConversation(conv.conversation_id)}
+                className={cn(
+                  'w-full px-3 py-3 text-left rounded-2xl transition-all flex items-start gap-3 border',
+                  active
+                    ? 'bg-primary/10 border-primary/30 shadow-sm'
+                    : 'border-transparent hover:bg-muted/60'
+                )}
+              >
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-secondary text-primary-foreground flex items-center justify-center text-xs font-bold shadow-sm">
+                    {initials(conv.other_name)}
+                  </div>
+                  {conv.unread_count > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {conv.unread_count > 9 ? '9+' : conv.unread_count}
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-sm truncate">{conv.other_name}</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">{formatTime(conv.last_message_at)}</span>
+                  </div>
+                  <p className={cn('text-xs truncate mt-0.5', conv.unread_count > 0 ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+                    {conv.last_message}
+                  </p>
+                  <Badge variant="outline" className="mt-1.5 text-[9px] capitalize py-0 h-4 border-border/60">
+                    {conv.other_role}
+                  </Badge>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </ScrollArea>
+  );
+
+  const recipientPicker = (
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="px-3 py-2.5 border-b border-border/60">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={recipientSearch}
+            onChange={(e) => setRecipientSearch(e.target.value)}
+            placeholder="Search people..."
+            className="text-sm h-9 pl-9 rounded-full bg-muted/50 border-transparent focus-visible:bg-background"
+            autoFocus
+          />
+        </div>
+      </div>
+      <ScrollArea className="flex-1">
+        {loadingRecipients ? (
+          <p className="text-xs text-muted-foreground text-center py-8">Loading...</p>
+        ) : recipientOptions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8">No recipients found</p>
+        ) : (
+          <div className="p-2 space-y-1">
+            {recipientOptions.map((r) => (
+              <button
+                key={r.user_id}
+                onClick={() => selectRecipient(r)}
+                className="w-full px-3 py-2.5 text-left rounded-2xl hover:bg-muted/60 transition-colors flex items-center gap-3"
+              >
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-secondary to-accent text-primary-foreground flex items-center justify-center text-[11px] font-bold shrink-0">
+                  {initials(r.full_name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{r.full_name}</p>
+                  {r.identifier && <p className="text-xs text-muted-foreground truncate">{r.identifier}</p>}
+                </div>
+                <Badge variant="outline" className="text-[10px] shrink-0 capitalize">{r.type}</Badge>
+              </button>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      <div className="px-3 py-2 border-t border-border/60">
+        <Button size="sm" variant="ghost" className="w-full text-xs rounded-full" onClick={() => setShowRecipientPicker(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+
+  const messageThread = (
+    <>
+      <div ref={scrollRef} className={cn('flex-1 overflow-y-auto p-4 space-y-2', !embedded && 'max-h-[350px]')}>
+        {hasMoreMessages && (
+          <div className="text-center pb-2">
+            <Button size="sm" variant="ghost" className="text-xs h-7 gap-1.5 text-muted-foreground rounded-full" onClick={loadOlderMessages} disabled={loadingMore}>
+              {loadingMore ? (<><Loader2 className="h-3 w-3 animate-spin" /> Loading...</>) : 'Load older messages'}
+            </Button>
+          </div>
+        )}
+
+        {messages.length === 0 && (
+          <p className="text-center text-xs text-muted-foreground py-10">Send a message to start the conversation</p>
+        )}
+
+        {messages.map((msg, idx) => {
+          const isMe = msg.sender_id === user.id;
+          const prevMsg = idx > 0 ? messages[idx - 1] : null;
+          const showDateSep = !prevMsg || getDateKey(msg.created_at) !== getDateKey(prevMsg.created_at);
+
+          return (
+            <div key={msg.id}>
+              {showDateSep && (
+                <div className="flex items-center gap-2 py-3">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[10px] text-muted-foreground font-medium px-2.5 py-0.5 rounded-full bg-muted/70">
+                    {formatDateSeparator(msg.created_at)}
+                  </span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+              )}
+              <div className={cn('flex items-end gap-2 group', isMe ? 'justify-end' : 'justify-start')}>
+                {isMe && (
+                  <button
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
+                    title="Delete message"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {!isMe && (
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-secondary to-accent text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {initials(activeConv?.other_name || 'U')}
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    'max-w-[78%] px-3.5 py-2.5 text-sm shadow-sm',
+                    isMe
+                      ? 'bg-gradient-to-br from-primary to-secondary text-primary-foreground rounded-2xl rounded-br-md'
+                      : 'bg-muted/80 text-foreground rounded-2xl rounded-bl-md border border-border/50'
+                  )}
+                >
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                  <div className={cn('flex items-center gap-1 mt-1 justify-end', isMe ? 'text-primary-foreground/70' : 'text-muted-foreground')}>
+                    <span className="text-[10px]">{formatTime(msg.created_at)}</span>
+                    {isMe && (msg.is_read ? <CheckCheck className="h-3.5 w-3.5 text-sky-300" /> : <Check className="h-3 w-3" />)}
+                  </div>
+                </div>
+                {!isMe && isAdmin && (
+                  <button
+                    onClick={() => handleDeleteMessage(msg.id)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
+                    title="Delete message"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {otherTyping && (
+          <div className="flex justify-start">
+            <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-4 py-2.5 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:150ms]" />
+              <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:300ms]" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 border-t border-border/60 flex gap-2 items-center bg-background/60">
+        <Input
+          value={newMessage}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a message..."
+          className="text-sm h-10 rounded-full bg-muted/50 border-transparent focus-visible:bg-background px-4"
+          disabled={sending}
+        />
+        <Button size="icon" className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-primary to-secondary" onClick={handleSend} disabled={sending || !newMessage.trim()}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </>
+  );
+
+  const notifPrompt = showNotifPrompt && (
+    <div className="px-4 py-3 border-b border-border/60 bg-accent/10 flex items-start gap-3">
+      <Bell className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-xs text-foreground font-medium">Enable notifications</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Get alerted when new messages arrive.</p>
+        <div className="flex gap-2 mt-2">
+          <Button size="sm" variant="default" className="h-7 text-xs px-3 rounded-full" onClick={handleEnableNotifications}>Enable</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs px-3 rounded-full" onClick={handleDismissNotifPrompt}>Not now</Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* ---------------- Embedded full-page layout ---------------- */
+
+  if (embedded) {
+    return (
+      <div className="glass-card !rounded-3xl overflow-hidden border border-border/60 shadow-xl animate-fade-in">
+        {notifPrompt}
+        <div className="grid md:grid-cols-[320px_1fr] h-[72vh] min-h-[520px]">
+          {/* Sidebar */}
+          <aside className={cn(
+            'flex-col border-r border-border/60 bg-muted/20 min-h-0',
+            activeConversationId ? 'hidden md:flex' : 'flex'
+          )}>
+            <div className="px-4 py-4 border-b border-border/60 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-sm">
+                <MessageCircle className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-sm">Inbox</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {unreadTotal > 0 ? `${unreadTotal} unread message${unreadTotal > 1 ? 's' : ''}` : 'All caught up'}
+                </p>
+              </div>
+              <Button size="icon" variant="ghost" onClick={startNewConversation} className="h-8 w-8 rounded-full hover:bg-primary/10" title="New conversation">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            {showRecipientPicker ? recipientPicker : conversationList}
+          </aside>
+
+          {/* Main */}
+          <section className={cn('flex-col min-h-0', activeConversationId ? 'flex' : 'hidden md:flex')}>
+            {activeConversationId ? (
+              <>
+                <div className="px-4 py-3 border-b border-border/60 flex items-center gap-3 bg-background/60 backdrop-blur">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => { setShowConversations(true); setActiveConversationId(null); }}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-primary to-secondary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                    {initials(activeConv?.other_name || 'Chat')}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{activeConv?.other_name || 'Conversation'}</p>
+                    <p className="text-[11px] text-muted-foreground capitalize">
+                      {otherTyping ? 'typing…' : activeConv?.other_role || 'Member'}
+                    </p>
+                  </div>
+                </div>
+                {messageThread}
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/15 to-secondary/15 flex items-center justify-center mb-4 animate-float-slow">
+                  <MessageCircle className="h-9 w-9 text-primary" />
+                </div>
+                <h4 className="text-lg font-bold">Your conversations</h4>
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Pick a conversation from the left, or start a new one to reach your teachers and admins.
+                </p>
+                <Button onClick={startNewConversation} className="mt-5 rounded-full bg-gradient-to-br from-primary to-secondary">
+                  <Plus className="h-4 w-4 mr-1.5" /> New message
+                </Button>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- Floating widget ---------------- */
 
   return (
     <>
-      {/* Floating Button */}
-      {!embedded && <button
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110',
@@ -558,17 +857,10 @@ export function ChatBubble({ embedded = false }: { embedded?: boolean } = {}) {
             {unreadTotal > 9 ? '9+' : unreadTotal}
           </span>
         )}
-      </button>}
+      </button>
 
-      {/* Chat Panel */}
-      {(embedded || isOpen) && (
-        <div className={cn(
-          'bg-background border flex flex-col overflow-hidden',
-          embedded
-            ? 'w-full h-[70vh] min-h-[460px] rounded-3xl shadow-xl'
-            : 'fixed bottom-24 right-6 z-50 w-[360px] max-h-[500px] rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-200'
-        )}>
-          {/* Header */}
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-h-[500px] rounded-2xl shadow-2xl bg-background border flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
           <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center gap-2">
             {!showConversations && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setShowConversations(true); setActiveConversationId(null); setShowRecipientPicker(false); }}>
@@ -586,238 +878,9 @@ export function ChatBubble({ embedded = false }: { embedded?: boolean } = {}) {
             )}
           </div>
 
-          {/* Notification Permission Prompt */}
-          {showNotifPrompt && (
-            <div className="px-4 py-3 border-b bg-accent/10 flex items-start gap-3">
-              <Bell className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs text-foreground font-medium">Enable notifications</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Get alerted when new messages arrive.</p>
-                <div className="flex gap-2 mt-2">
-                  <Button size="sm" variant="default" className="h-6 text-xs px-3" onClick={handleEnableNotifications}>
-                    Enable
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs px-3" onClick={handleDismissNotifPrompt}>
-                    Not now
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          {notifPrompt}
 
-          {/* Admin Recipient Picker */}
-          {showRecipientPicker ? (
-            <div className="flex flex-col flex-1 max-h-[400px]">
-              <div className="px-3 py-2 border-b">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input
-                    value={recipientSearch}
-                    onChange={(e) => setRecipientSearch(e.target.value)}
-                    placeholder="Search users..."
-                    className="text-sm h-8 pl-8"
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <ScrollArea className="flex-1">
-                {loadingRecipients ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">Loading...</p>
-                ) : recipientOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-6">No recipients found</p>
-                ) : (
-                  <div className="divide-y">
-                    {recipientOptions.map((r) => (
-                      <button
-                        key={r.user_id}
-                        onClick={() => selectRecipient(r)}
-                        className="w-full px-4 py-2.5 text-left hover:bg-muted/50 transition-colors flex items-center gap-3"
-                      >
-                        <div className={cn(
-                          'w-8 h-8 rounded-full flex items-center justify-center shrink-0',
-                          r.type === 'admin'
-                            ? 'bg-gradient-to-br from-destructive/20 to-primary/20'
-                            : r.type === 'teacher'
-                            ? 'bg-gradient-to-br from-secondary/30 to-accent/20'
-                            : r.type === 'parent'
-                            ? 'bg-gradient-to-br from-accent/20 to-secondary/20'
-                            : 'bg-gradient-to-br from-primary/20 to-secondary/20'
-                        )}>
-                          <User className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">{r.full_name}</p>
-                          {r.identifier && (
-                            <p className="text-xs text-muted-foreground truncate">{r.identifier}</p>
-                          )}
-                        </div>
-                        <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
-                          {r.type}
-                        </Badge>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-              <div className="px-3 py-2 border-t">
-                <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => setShowRecipientPicker(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : showConversations ? (
-            /* Conversation List */
-            <ScrollArea className="flex-1 max-h-[400px]">
-              {conversations.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No conversations yet</p>
-                  <Button size="sm" variant="outline" onClick={startNewConversation} className="mt-3">
-                    Start a conversation
-                  </Button>
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {conversations.map((conv) => (
-                    <button
-                      key={conv.conversation_id}
-                      onClick={() => openConversation(conv.conversation_id)}
-                      className="w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors flex items-start gap-3"
-                    >
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="h-4 w-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm truncate">{conv.other_name}</span>
-                          <span className="text-xs text-muted-foreground shrink-0 ml-2">{formatTime(conv.last_message_at)}</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-xs text-muted-foreground truncate">{conv.last_message}</p>
-                          {conv.unread_count > 0 && (
-                            <Badge className="ml-2 h-5 min-w-[20px] flex items-center justify-center text-[10px] shrink-0">
-                              {conv.unread_count}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
-          ) : (
-            /* Message Thread */
-            <>
-              <div ref={scrollRef} className="flex-1 overflow-y-auto max-h-[350px] p-3 space-y-2">
-                {/* Load older messages button */}
-                {hasMoreMessages && (
-                  <div className="text-center pb-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-xs h-7 gap-1.5 text-muted-foreground"
-                      onClick={loadOlderMessages}
-                      disabled={loadingMore}
-                    >
-                      {loadingMore ? (
-                        <><Loader2 className="h-3 w-3 animate-spin" /> Loading...</>
-                      ) : (
-                        'Load older messages'
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {messages.length === 0 && (
-                  <p className="text-center text-xs text-muted-foreground py-8">Send a message to start the conversation</p>
-                )}
-
-                {messages.map((msg, idx) => {
-                  const isMe = msg.sender_id === user.id;
-                  // Date separator
-                  const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                  const showDateSep = !prevMsg || getDateKey(msg.created_at) !== getDateKey(prevMsg.created_at);
-
-                  return (
-                    <div key={msg.id}>
-                      {showDateSep && (
-                        <div className="flex items-center gap-2 py-2">
-                          <div className="flex-1 h-px bg-border" />
-                          <span className="text-[10px] text-muted-foreground font-medium px-2">{formatDateSeparator(msg.created_at)}</span>
-                          <div className="flex-1 h-px bg-border" />
-                        </div>
-                      )}
-                      <div className={cn('flex items-end gap-1.5 group', isMe ? 'justify-end' : 'justify-start')}>
-                        {isMe && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
-                            title="Delete message"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <div
-                          className={cn(
-                            'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
-                            isMe
-                              ? 'bg-primary text-primary-foreground rounded-br-md'
-                              : 'bg-muted text-foreground rounded-bl-md'
-                          )}
-                        >
-                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                          <div className={cn('flex items-center gap-1 mt-1 justify-end', isMe ? 'text-primary-foreground/60' : 'text-muted-foreground')}>
-                            <span className="text-[10px]">{formatTime(msg.created_at)}</span>
-                            {isMe && (
-                              msg.is_read
-                                ? <CheckCheck className="h-3.5 w-3.5 text-sky-400" />
-                                : <Check className="h-3 w-3" />
-                            )}
-                          </div>
-                        </div>
-                        {!isMe && isAdmin && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive shrink-0"
-                            title="Delete message"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Typing indicator */}
-                {otherTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-muted text-foreground rounded-2xl rounded-bl-md px-4 py-2.5 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="p-3 border-t flex gap-2">
-                <Input
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  className="text-sm h-9"
-                  disabled={sending}
-                />
-                <Button size="icon" className="h-9 w-9 shrink-0" onClick={handleSend} disabled={sending || !newMessage.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </>
-          )}
+          {showRecipientPicker ? recipientPicker : showConversations ? conversationList : messageThread}
         </div>
       )}
     </>
