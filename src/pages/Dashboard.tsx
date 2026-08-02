@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,17 +69,34 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
+export const STUDENT_TABS = ['home', 'exams', 'browse', 'results', 'profile'] as const;
+export type StudentTab = (typeof STUDENT_TABS)[number];
+
+const PAGE_META: Record<StudentTab, { title: string; subtitle: string; icon: typeof BookOpen }> = {
+  home: { title: 'Overview', subtitle: 'Your learning snapshot', icon: LayoutDashboard },
+  exams: { title: 'My Exams', subtitle: 'Track your exam progress, resits and certificates', icon: BookOpen },
+  browse: { title: 'Browse Exams', subtitle: 'New challenges await — pick an exam to start', icon: Zap },
+  results: { title: 'My Results', subtitle: 'All your graded results at a glance', icon: Trophy },
+  profile: { title: 'My Profile', subtitle: 'Your details and parent/guardian access', icon: User },
+};
+
 const studentNavItems: BottomNavItem[] = [
-  { id: 'dashboard-top', label: 'Home', icon: LayoutDashboard },
-  { id: 'section-exams', label: 'Exams', icon: BookOpen },
-  { id: 'section-available', label: 'Browse', icon: Zap },
-  { id: 'section-results', label: 'Results', icon: Trophy },
-  { id: 'section-profile', label: 'Profile', icon: User },
+  { id: 'home', label: 'Home', icon: LayoutDashboard },
+  { id: 'exams', label: 'Exams', icon: BookOpen },
+  { id: 'browse', label: 'Browse', icon: Zap },
+  { id: 'results', label: 'Results', icon: Trophy },
+  { id: 'profile', label: 'Profile', icon: User },
 ];
 
 export default function Dashboard() {
   const { user, profile, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const params = useParams<{ tab?: string }>();
+  const tab: StudentTab = (STUDENT_TABS as readonly string[]).includes(params.tab || '')
+    ? (params.tab as StudentTab)
+    : 'home';
+  const pageMeta = PAGE_META[tab];
+  const PageMetaIcon = pageMeta.icon;
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
   const [availableExams, setAvailableExams] = useState<Exam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -473,25 +490,34 @@ export default function Dashboard() {
       <div className="container mx-auto flex gap-6 px-3 py-4 sm:px-4 sm:py-6">
         <StudentSidebar onSignOut={handleSignOut} />
 
-      <main id="dashboard-top" className="min-w-0 flex-1 space-y-4 pb-24 sm:space-y-6 sm:pb-8">
+      <main id="dashboard-top" className="min-w-0 flex-1 space-y-4 pb-28 sm:space-y-6 sm:pb-10">
         <NotificationPermissionBanner />
 
-        <StudentHeroBanner
-          name={profile?.full_name?.split(' ')[0] || ''}
-          subtitle={
-            unregisteredExams.length > 0
-              ? `You have ${unregisteredExams.length} new exam${unregisteredExams.length > 1 ? 's' : ''} waiting. Keep your streak going!`
-              : 'Track your exams, review results and level up every day.'
-          }
-          primaryLabel={unregisteredExams.length > 0 ? 'Browse exams' : 'View my results'}
-          onPrimary={() =>
-            document
-              .getElementById(unregisteredExams.length > 0 ? 'section-available' : 'section-results')
-              ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }
-        />
+        {tab === 'home' ? (
+          <StudentHeroBanner
+            name={profile?.full_name?.split(' ')[0] || ''}
+            subtitle={
+              unregisteredExams.length > 0
+                ? `You have ${unregisteredExams.length} new exam${unregisteredExams.length > 1 ? 's' : ''} waiting. Keep your streak going!`
+                : 'Track your exams, review results and level up every day.'
+            }
+            primaryLabel={unregisteredExams.length > 0 ? 'Browse exams' : 'View my results'}
+            onPrimary={() => navigate(unregisteredExams.length > 0 ? '/dashboard/browse' : '/dashboard/results')}
+          />
+        ) : (
+          <div className="glass-card animate-pop-in flex items-center gap-3 p-4 sm:p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand to-brand-muted shadow-primary sm:h-12 sm:w-12">
+              <PageMetaIcon className="h-5 w-5 text-primary-foreground sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-bold text-brand-darkest sm:text-2xl">{pageMeta.title}</h1>
+              <p className="truncate text-xs text-muted-foreground sm:text-sm">{pageMeta.subtitle}</p>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
+        {tab === 'home' && (
         <div id="tour-stats" className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-4">
           {[
             { icon: BookOpen, value: examAttempts.length, label: 'Exams Taken', tone: 'from-brand/25 to-brand/5', text: 'text-brand' },
@@ -512,19 +538,31 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+        )}
 
 
         {/* Gamification Section */}
-        <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
+        {tab === 'home' && (
+          <StudentGamification examAttempts={examAttempts} studentName={profile?.full_name || ''} />
+        )}
 
         {/* My Results Summary */}
-        <div id="section-results" />
-        {(() => {
+        {tab === 'results' && (() => {
           const gradedExams = examAttempts
             .filter(a => a.status === 'graded' && a.marks_obtained !== null)
             .sort((a, b) => new Date(a.attempted_at).getTime() - new Date(b.attempted_at).getTime());
-          
-          if (gradedExams.length === 0) return null;
+
+          if (gradedExams.length === 0) return (
+            <Card className="glass-card border-white/40">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <Trophy className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold">No results yet</h3>
+                <p className="text-sm text-muted-foreground">Your graded exam results will appear here.</p>
+              </CardContent>
+            </Card>
+          );
 
           const avgPercent = gradedExams.reduce((sum, a) => sum + ((a.marks_obtained! / a.exams.total_marks) * 100), 0) / gradedExams.length;
 
@@ -576,10 +614,10 @@ export default function Dashboard() {
         })()}
 
         {/* Profile & Parent Info Grid */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        {tab === 'profile' && (
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 items-start">
           {/* Profile Card */}
-          <div id="section-profile" />
-          <Card id="tour-profile" className="hover-lift overflow-hidden">
+          <Card id="tour-profile" className="glass-card border-white/40 hover-lift overflow-hidden">
             <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
             <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
               <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
@@ -741,19 +779,12 @@ export default function Dashboard() {
             )}
           </Card>
         </div>
+        )}
 
         {/* My Exams Section */}
-        <div id="section-exams" />
+        {tab === 'exams' && (
         <div id="tour-exams">
-          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
-              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold">My Exams</h2>
-              <p className="text-xs sm:text-base text-muted-foreground">Track your exam progress and achievements</p>
-            </div>
-          </div>
+
 
           {examAttempts.length === 0 ? (
             <Card className="glass-card border-white/40 hover-lift">
@@ -855,19 +886,12 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
         {/* Available Exams Section */}
-        <div id="section-available" />
+        {tab === 'browse' && (
         <div id="tour-available">
-          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
-              <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-secondary-foreground" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold">Available Exams</h2>
-              <p className="text-xs sm:text-base text-muted-foreground">New challenges await! Pick an exam to start</p>
-            </div>
-          </div>
+
 
           {unregisteredExams.length === 0 ? (
             <Card className="glass-card border-white/40 hover-lift">
@@ -933,8 +957,11 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
         {/* Resit Exams Section */}
+        {tab === 'exams' && (
+        <div>
         {(() => {
           // Show resit section if there are openings for this student's class
           // that the student has already completed/graded
@@ -1052,12 +1079,21 @@ export default function Dashboard() {
             </div>
           );
         })()}
+        </div>
+        )}
       </main>
       </div>
 
       <ChatBubble />
       <AIStudyAssistant />
-      <MobileBottomNav items={studentNavItems} />
+      <MobileBottomNav
+        items={studentNavItems}
+        activeId={tab}
+        onSelect={(id) => {
+          navigate(id === 'home' ? '/dashboard' : `/dashboard/${id}`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
     </div>
   );
 }
