@@ -69,17 +69,34 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
+export const STUDENT_TABS = ['home', 'exams', 'browse', 'results', 'profile'] as const;
+export type StudentTab = (typeof STUDENT_TABS)[number];
+
+const PAGE_META: Record<StudentTab, { title: string; subtitle: string; icon: typeof BookOpen }> = {
+  home: { title: 'Overview', subtitle: 'Your learning snapshot', icon: LayoutDashboard },
+  exams: { title: 'My Exams', subtitle: 'Track your exam progress, resits and certificates', icon: BookOpen },
+  browse: { title: 'Browse Exams', subtitle: 'New challenges await — pick an exam to start', icon: Zap },
+  results: { title: 'My Results', subtitle: 'All your graded results at a glance', icon: Trophy },
+  profile: { title: 'My Profile', subtitle: 'Your details and parent/guardian access', icon: User },
+};
+
 const studentNavItems: BottomNavItem[] = [
-  { id: 'dashboard-top', label: 'Home', icon: LayoutDashboard },
-  { id: 'section-exams', label: 'Exams', icon: BookOpen },
-  { id: 'section-available', label: 'Browse', icon: Zap },
-  { id: 'section-results', label: 'Results', icon: Trophy },
-  { id: 'section-profile', label: 'Profile', icon: User },
+  { id: 'home', label: 'Home', icon: LayoutDashboard },
+  { id: 'exams', label: 'Exams', icon: BookOpen },
+  { id: 'browse', label: 'Browse', icon: Zap },
+  { id: 'results', label: 'Results', icon: Trophy },
+  { id: 'profile', label: 'Profile', icon: User },
 ];
 
 export default function Dashboard() {
   const { user, profile, role, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const params = useParams<{ tab?: string }>();
+  const tab: StudentTab = (STUDENT_TABS as readonly string[]).includes(params.tab || '')
+    ? (params.tab as StudentTab)
+    : 'home';
+  const pageMeta = PAGE_META[tab];
+  const PageMetaIcon = pageMeta.icon;
   const [examAttempts, setExamAttempts] = useState<ExamAttempt[]>([]);
   const [availableExams, setAvailableExams] = useState<Exam[]>([]);
   const [loadingData, setLoadingData] = useState(true);
