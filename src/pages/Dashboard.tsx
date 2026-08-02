@@ -1099,8 +1099,6 @@ export default function Dashboard() {
       </main>
       </div>
 
-      {tab !== 'messages' && <ChatBubble />}
-      {tab !== 'tutor' && <AIStudyAssistant />}
       <MobileBottomNav
         items={studentNavItems}
         activeId={tab}
