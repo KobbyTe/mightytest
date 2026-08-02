@@ -933,8 +933,11 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
         {/* Resit Exams Section */}
+        {tab === 'exams' && (
+        <div>
         {(() => {
           // Show resit section if there are openings for this student's class
           // that the student has already completed/graded
