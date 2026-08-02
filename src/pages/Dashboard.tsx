@@ -576,10 +576,10 @@ export default function Dashboard() {
         })()}
 
         {/* Profile & Parent Info Grid */}
-        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
+        {tab === 'profile' && (
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6 items-start">
           {/* Profile Card */}
-          <div id="section-profile" />
-          <Card id="tour-profile" className="hover-lift overflow-hidden">
+          <Card id="tour-profile" className="glass-card border-white/40 hover-lift overflow-hidden">
             <div className="h-1.5 sm:h-2 bg-gradient-to-r from-primary via-secondary to-accent" />
             <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
               <CardTitle className="flex items-center gap-2 text-base sm:text-2xl">
