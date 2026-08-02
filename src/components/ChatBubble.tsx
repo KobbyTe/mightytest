@@ -63,9 +63,9 @@ const showBrowserNotification = (content: string) => {
   }
 };
 
-export function ChatBubble() {
+export function ChatBubble({ embedded = false }: { embedded?: boolean } = {}) {
   const { user, role } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(embedded);
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -544,7 +544,7 @@ export function ChatBubble() {
   return (
     <>
       {/* Floating Button */}
-      <button
+      {!embedded && <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110',
@@ -558,11 +558,16 @@ export function ChatBubble() {
             {unreadTotal > 9 ? '9+' : unreadTotal}
           </span>
         )}
-      </button>
+      </button>}
 
       {/* Chat Panel */}
-      {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-h-[500px] bg-background border rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
+      {(embedded || isOpen) && (
+        <div className={cn(
+          'bg-background border flex flex-col overflow-hidden',
+          embedded
+            ? 'w-full h-[70vh] min-h-[460px] rounded-3xl shadow-xl'
+            : 'fixed bottom-24 right-6 z-50 w-[360px] max-h-[500px] rounded-2xl shadow-2xl animate-in slide-in-from-bottom-4 fade-in duration-200'
+        )}>
           {/* Header */}
           <div className="px-4 py-3 border-b bg-gradient-to-r from-primary/10 to-secondary/10 flex items-center gap-2">
             {!showConversations && (

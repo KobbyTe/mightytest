@@ -124,8 +124,8 @@ function generateQuizPDF(content: string, weakSubjects: string[]) {
   doc.save('MightyTest-Practice-Quiz.pdf');
 }
 
-export function AIStudyAssistant() {
-  const [isOpen, setIsOpen] = useState(false);
+export function AIStudyAssistant({ embedded = false }: { embedded?: boolean } = {}) {
+  const [isOpen, setIsOpen] = useState(embedded);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -346,7 +346,7 @@ export function AIStudyAssistant() {
     setInput('');
   };
 
-  if (!isOpen) {
+  if (!isOpen && !embedded) {
     return (
       <button
         onClick={() => setIsOpen(true)}
@@ -361,7 +361,9 @@ export function AIStudyAssistant() {
   }
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col w-[min(400px,calc(100vw-3rem))] h-[min(560px,calc(100vh-6rem))] rounded-2xl border border-border bg-background shadow-2xl overflow-hidden">
+    <div className={embedded
+      ? 'flex flex-col w-full h-[70vh] min-h-[460px] rounded-3xl border border-border bg-background shadow-xl overflow-hidden'
+      : 'fixed bottom-6 left-6 z-50 flex flex-col w-[min(400px,calc(100vw-3rem))] h-[min(560px,calc(100vh-6rem))] rounded-2xl border border-border bg-background shadow-2xl overflow-hidden'}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white shrink-0">
         <div className="flex items-center gap-2">
@@ -373,9 +375,11 @@ export function AIStudyAssistant() {
           <button onClick={handleReset} className="p-1.5 rounded-full hover:bg-white/20 transition-colors" title="Reset chat">
             <RotateCcw className="h-4 w-4" />
           </button>
-          <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors" title="Close">
-            <X className="h-4 w-4" />
-          </button>
+          {!embedded && (
+            <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors" title="Close">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
