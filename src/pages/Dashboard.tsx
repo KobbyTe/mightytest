@@ -741,6 +741,7 @@ export default function Dashboard() {
             )}
           </Card>
         </div>
+        )}
 
         {/* My Exams Section */}
         {tab === 'exams' && (
