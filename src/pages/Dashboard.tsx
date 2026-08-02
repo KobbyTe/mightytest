@@ -855,9 +855,10 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
         {/* Available Exams Section */}
-        <div id="section-available" />
+        {tab === 'browse' && (
         <div id="tour-available">
           <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
