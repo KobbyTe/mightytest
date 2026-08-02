@@ -784,15 +784,7 @@ export default function Dashboard() {
         {/* My Exams Section */}
         {tab === 'exams' && (
         <div id="tour-exams">
-          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-primary">
-              <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold">My Exams</h2>
-              <p className="text-xs sm:text-base text-muted-foreground">Track your exam progress and achievements</p>
-            </div>
-          </div>
+
 
           {examAttempts.length === 0 ? (
             <Card className="glass-card border-white/40 hover-lift">
