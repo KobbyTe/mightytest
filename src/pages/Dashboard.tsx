@@ -899,15 +899,7 @@ export default function Dashboard() {
         {/* Available Exams Section */}
         {tab === 'browse' && (
         <div id="tour-available">
-          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-secondary to-[hsl(var(--fun-coral))] flex items-center justify-center shadow-lg">
-              <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-secondary-foreground" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold">Available Exams</h2>
-              <p className="text-xs sm:text-base text-muted-foreground">New challenges await! Pick an exam to start</p>
-            </div>
-          </div>
+
 
           {unregisteredExams.length === 0 ? (
             <Card className="glass-card border-white/40 hover-lift">
