@@ -891,6 +891,99 @@ export type Database = {
           },
         ]
       }
+      study_resource_class_assignments: {
+        Row: {
+          assigned_by: string | null
+          class_id: string
+          created_at: string
+          id: string
+          resource_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          class_id: string
+          created_at?: string
+          id?: string
+          resource_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          class_id?: string
+          created_at?: string
+          id?: string
+          resource_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_resource_class_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_resource_class_assignments_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "study_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_resources: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          duration_seconds: number | null
+          external_url: string | null
+          file_path: string | null
+          file_size: number | null
+          grade_level: string | null
+          id: string
+          is_published: boolean
+          resource_type: Database["public"]["Enums"]["study_resource_type"]
+          subject: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          grade_level?: string | null
+          id?: string
+          is_published?: boolean
+          resource_type: Database["public"]["Enums"]["study_resource_type"]
+          subject?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          grade_level?: string | null
+          id?: string
+          is_published?: boolean
+          resource_type?: Database["public"]["Enums"]["study_resource_type"]
+          subject?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teacher_class_assignments: {
         Row: {
           assigned_at: string | null
@@ -1053,6 +1146,7 @@ export type Database = {
         Returns: boolean
       }
       can_review_attempt: { Args: { _attempt_id: string }; Returns: boolean }
+      get_student_class_id: { Args: { _user_id: string }; Returns: string }
       get_student_parent_id: { Args: { _user_id: string }; Returns: string }
       get_teacher_class_ids: { Args: { _user_id: string }; Returns: string[] }
       has_role: {
@@ -1080,6 +1174,7 @@ export type Database = {
         | "true_false"
         | "short_answer"
         | "essay"
+      study_resource_type: "book" | "video" | "worksheet"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1214,6 +1309,7 @@ export const Constants = {
         "short_answer",
         "essay",
       ],
+      study_resource_type: ["book", "video", "worksheet"],
     },
   },
 } as const
