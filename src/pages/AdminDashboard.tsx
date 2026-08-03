@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StudyResourceManagement } from '@/components/admin/StudyResourceManagement';
 import { Trash2, Edit, Eye, FileQuestion, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import SchoolManagement from '@/components/admin/SchoolManagement';
@@ -517,7 +518,8 @@ export default function AdminDashboard() {
               <TabsTrigger value="attempts" id="teacher-tour-attempts" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Attempts</span><span className="sm:hidden">Atpt</span></TabsTrigger>
               <TabsTrigger value="students" id="teacher-tour-students" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5"><span className="hidden sm:inline">Students</span><span className="sm:hidden">Stud</span></TabsTrigger>
               <TabsTrigger value="keys" id="teacher-tour-keys" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Keys</TabsTrigger>
-              <TabsTrigger value="resits" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Resits</TabsTrigger>
+              <TabsTrigger value="library" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Library</TabsTrigger>
+             <TabsTrigger value="resits" className="text-xs sm:text-sm px-2 sm:px-3 py-1.5">Resits</TabsTrigger>
             </TabsList>
 
           <TabsContent value="exams" className="space-y-8">
@@ -944,6 +946,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="keys">
             <RegistrationKeyManagement />
+          </TabsContent>
+
+          <TabsContent value="library">
+            <StudyResourceManagement />
           </TabsContent>
 
           <TabsContent value="resits">
