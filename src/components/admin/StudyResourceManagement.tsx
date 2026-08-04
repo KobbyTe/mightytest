@@ -47,6 +47,8 @@ export function StudyResourceManagement() {
   const [gradeLevel, setGradeLevel] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [videoSource, setVideoSource] = useState<'link' | 'upload'>('link');
   const [file, setFile] = useState<File | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [published, setPublished] = useState(true);
