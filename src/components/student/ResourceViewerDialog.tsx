@@ -40,7 +40,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
     let cancelled = false;
     setSignedUrl(null);
 
-    if (!resource || resource.resource_type === 'video' || !resource.file_path) return;
+    if (!resource || !resource.file_path) return;
 
     setLoading(true);
     supabase.storage
@@ -79,7 +79,19 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
 
             <div className="h-[65vh] w-full bg-muted/40">
               {isVideo ? (
-                resource.external_url ? (
+                resource.file_path ? (
+                  loading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                    </div>
+                  ) : signedUrl ? (
+                    <video src={signedUrl} controls className="h-full w-full bg-black" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                      This video is unavailable right now.
+                    </div>
+                  )
+                ) : resource.external_url ? (
                   <iframe
                     src={toEmbedUrl(resource.external_url)}
                     title={resource.title}
@@ -92,6 +104,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
                     No video link provided.
                   </div>
                 )
+
               ) : loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-brand" />
@@ -123,7 +136,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
                   <span className="rounded-full bg-muted px-2.5 py-1 font-medium">{resource.grade_level}</span>
                 )}
               </div>
-              {!isVideo && signedUrl && (
+              {signedUrl && (
                 <Button asChild size="sm">
                   <a href={signedUrl} download target="_blank" rel="noreferrer">
                     <Download className="mr-2 h-4 w-4" /> Download

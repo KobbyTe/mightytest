@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, PlayCircle, FileText, Download, ArrowUpRight, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 export interface StudyResource {
@@ -75,6 +77,27 @@ export function StudyResourceCard({ resource, index = 0, onOpen }: Props) {
       ? formatDuration(resource.duration_seconds)
       : formatBytes(resource.file_size);
 
+  const rawCover = resource.cover_url;
+  const isRemoteCover = !!rawCover && /^(https?:|data:|blob:|\/)/.test(rawCover);
+  const [coverSrc, setCoverSrc] = useState<string | null>(isRemoteCover ? rawCover : null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!rawCover) return setCoverSrc(null);
+    if (isRemoteCover) return setCoverSrc(rawCover);
+
+    supabase.storage
+      .from('study-resources')
+      .createSignedUrl(rawCover, 60 * 60)
+      .then(({ data }) => {
+        if (!cancelled) setCoverSrc(data?.signedUrl ?? null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rawCover, isRemoteCover]);
+
   return (
     <motion.button
       type="button"
@@ -86,9 +109,10 @@ export function StudyResourceCard({ resource, index = 0, onOpen }: Props) {
       className="group relative flex w-full flex-col overflow-hidden rounded-3xl glass p-0 text-left transition-shadow duration-300 hover:shadow-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
     >
       <div className="relative h-36 w-full overflow-hidden">
-        {resource.cover_url ? (
+        {coverSrc ? (
           <img
-            src={resource.cover_url}
+            src={coverSrc}
+
             alt=""
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"

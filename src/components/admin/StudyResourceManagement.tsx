@@ -47,6 +47,8 @@ export function StudyResourceManagement() {
   const [gradeLevel, setGradeLevel] = useState('');
   const [externalUrl, setExternalUrl] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [videoSource, setVideoSource] = useState<'link' | 'upload'>('link');
   const [file, setFile] = useState<File | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [published, setPublished] = useState(true);
@@ -59,6 +61,8 @@ export function StudyResourceManagement() {
     setGradeLevel('');
     setExternalUrl('');
     setCoverUrl('');
+    setCoverFile(null);
+    setVideoSource('link');
     setFile(null);
     setSelectedClasses([]);
     setPublished(true);
@@ -96,25 +100,38 @@ export function StudyResourceManagement() {
   const toggleClass = (id: string) =>
     setSelectedClasses((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
 
+  const uploadTo = async (folder: string, f: File) => {
+    const safeName = f.name.replace(/[^\w.\-]/g, '_');
+    const path = `${folder}/${crypto.randomUUID()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from('study-resources')
+      .upload(path, f, { contentType: f.type || 'application/octet-stream' });
+    if (error) throw error;
+    return path;
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error('Give the resource a title');
-    if (type === 'video' && !externalUrl.trim()) return toast.error('Add a video link');
-    if (type !== 'video' && !file) return toast.error('Upload a PDF file');
+    if (type === 'video' && videoSource === 'link' && !externalUrl.trim())
+      return toast.error('Add a video link');
+    if (type === 'video' && videoSource === 'upload' && !file)
+      return toast.error('Choose a video file from your device');
+    if (type !== 'video' && !file) return toast.error('Choose a file from your device');
     if (selectedClasses.length === 0) return toast.error('Assign the resource to at least one class');
 
     setSaving(true);
     try {
       let filePath: string | null = null;
       let fileSize: number | null = null;
+      let cover: string | null = coverUrl.trim() || null;
 
       if (file) {
-        const safeName = file.name.replace(/[^\w.\-]/g, '_');
-        filePath = `${type}/${crypto.randomUUID()}-${safeName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('study-resources')
-          .upload(filePath, file, { contentType: file.type || 'application/pdf' });
-        if (uploadError) throw uploadError;
+        filePath = await uploadTo(type, file);
         fileSize = file.size;
+      }
+
+      if (coverFile) {
+        cover = await uploadTo('covers', coverFile);
       }
 
       const { data: inserted, error } = await supabase
@@ -126,8 +143,9 @@ export function StudyResourceManagement() {
           subject: subject.trim() || null,
           grade_level: gradeLevel.trim() || null,
           file_path: filePath,
-          external_url: externalUrl.trim() || null,
-          cover_url: coverUrl.trim() || null,
+          external_url: type === 'video' && videoSource === 'link' ? externalUrl.trim() || null : null,
+          cover_url: cover,
+
           file_size: fileSize,
           is_published: published,
           created_by: user?.id ?? null,
@@ -241,22 +259,69 @@ export function StudyResourceManagement() {
               </div>
 
               {type === 'video' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="sr-url">Video link (YouTube, Vimeo, ...)</Label>
-                  <Input id="sr-url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['link', 'upload'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => { setVideoSource(s); setFile(null); setExternalUrl(''); }}
+                        className={cn(
+                          'rounded-xl border p-2.5 text-xs font-medium transition-all',
+                          videoSource === s
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:border-primary/40'
+                        )}
+                      >
+                        {s === 'link' ? 'Paste a video link' : 'Upload from my device'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {videoSource === 'link' ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="sr-url">Video link (YouTube, Vimeo, ...)</Label>
+                      <Input id="sr-url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="sr-video-file">Video file</Label>
+                      <Input id="sr-video-file" type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                      {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="sr-file">PDF file</Label>
-                  <Input id="sr-file" type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                  {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
+                  <Label htmlFor="sr-file">File from your device</Label>
+                  <Input
+                    id="sr-file"
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.epub,.zip,image/*"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    PDF, Word, PowerPoint, Excel, text, ePub, images or a zip archive.
+                  </p>
+                  {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="sr-cover">Cover image URL (optional)</Label>
-                <Input id="sr-cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://..." />
+                <Label htmlFor="sr-cover-file">Cover image (optional)</Label>
+                <Input id="sr-cover-file" type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} />
+                {coverFile ? (
+                  <p className="text-xs text-muted-foreground">{coverFile.name}</p>
+                ) : (
+                  <Input
+                    id="sr-cover"
+                    value={coverUrl}
+                    onChange={(e) => setCoverUrl(e.target.value)}
+                    placeholder="...or paste an image URL"
+                  />
+                )}
               </div>
+
 
               <div className="space-y-2">
                 <Label>Assign to classes</Label>
