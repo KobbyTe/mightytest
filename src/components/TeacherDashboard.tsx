@@ -18,6 +18,7 @@ import ExamAssignment from '@/components/admin/ExamAssignment';
 import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import ResitManagement from '@/components/admin/ResitManagement';
+import StudyResourceManagement from '@/components/admin/StudyResourceManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
@@ -493,6 +494,7 @@ export default function TeacherDashboard() {
                     { value: 'students', label: 'Students', icon: Users },
                     { value: 'keys', label: 'Keys', icon: Key },
                     { value: 'resits', label: 'Resits', icon: Award },
+                    { value: 'library', label: 'Library', icon: BookOpen },
                   ].map(tab => (
                     <TabsTrigger
                       key={tab.value}
@@ -880,6 +882,7 @@ export default function TeacherDashboard() {
             <TabsContent value="students"><StudentManagement /></TabsContent>
             <TabsContent value="keys"><RegistrationKeyManagement /></TabsContent>
             <TabsContent value="resits"><ResitManagement /></TabsContent>
+            <TabsContent value="library"><StudyResourceManagement /></TabsContent>
           </Tabs>
         </motion.div>
       </main>
