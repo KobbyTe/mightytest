@@ -61,6 +61,8 @@ export function StudyResourceManagement() {
     setGradeLevel('');
     setExternalUrl('');
     setCoverUrl('');
+    setCoverFile(null);
+    setVideoSource('link');
     setFile(null);
     setSelectedClasses([]);
     setPublished(true);
