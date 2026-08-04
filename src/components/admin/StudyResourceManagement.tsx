@@ -100,25 +100,38 @@ export function StudyResourceManagement() {
   const toggleClass = (id: string) =>
     setSelectedClasses((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
 
+  const uploadTo = async (folder: string, f: File) => {
+    const safeName = f.name.replace(/[^\w.\-]/g, '_');
+    const path = `${folder}/${crypto.randomUUID()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from('study-resources')
+      .upload(path, f, { contentType: f.type || 'application/octet-stream' });
+    if (error) throw error;
+    return path;
+  };
+
   const handleSubmit = async () => {
     if (!title.trim()) return toast.error('Give the resource a title');
-    if (type === 'video' && !externalUrl.trim()) return toast.error('Add a video link');
-    if (type !== 'video' && !file) return toast.error('Upload a PDF file');
+    if (type === 'video' && videoSource === 'link' && !externalUrl.trim())
+      return toast.error('Add a video link');
+    if (type === 'video' && videoSource === 'upload' && !file)
+      return toast.error('Choose a video file from your device');
+    if (type !== 'video' && !file) return toast.error('Choose a file from your device');
     if (selectedClasses.length === 0) return toast.error('Assign the resource to at least one class');
 
     setSaving(true);
     try {
       let filePath: string | null = null;
       let fileSize: number | null = null;
+      let cover: string | null = coverUrl.trim() || null;
 
       if (file) {
-        const safeName = file.name.replace(/[^\w.\-]/g, '_');
-        filePath = `${type}/${crypto.randomUUID()}-${safeName}`;
-        const { error: uploadError } = await supabase.storage
-          .from('study-resources')
-          .upload(filePath, file, { contentType: file.type || 'application/pdf' });
-        if (uploadError) throw uploadError;
+        filePath = await uploadTo(type, file);
         fileSize = file.size;
+      }
+
+      if (coverFile) {
+        cover = await uploadTo('covers', coverFile);
       }
 
       const { data: inserted, error } = await supabase
@@ -130,8 +143,9 @@ export function StudyResourceManagement() {
           subject: subject.trim() || null,
           grade_level: gradeLevel.trim() || null,
           file_path: filePath,
-          external_url: externalUrl.trim() || null,
-          cover_url: coverUrl.trim() || null,
+          external_url: type === 'video' && videoSource === 'link' ? externalUrl.trim() || null : null,
+          cover_url: cover,
+
           file_size: fileSize,
           is_published: published,
           created_by: user?.id ?? null,
