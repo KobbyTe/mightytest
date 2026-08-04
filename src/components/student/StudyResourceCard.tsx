@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, PlayCircle, FileText, Download, ArrowUpRight, Clock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 export interface StudyResource {
