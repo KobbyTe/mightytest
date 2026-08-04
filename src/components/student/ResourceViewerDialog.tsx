@@ -40,7 +40,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
     let cancelled = false;
     setSignedUrl(null);
 
-    if (!resource || resource.resource_type === 'video' || !resource.file_path) return;
+    if (!resource || !resource.file_path) return;
 
     setLoading(true);
     supabase.storage
