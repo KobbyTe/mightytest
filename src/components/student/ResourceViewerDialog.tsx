@@ -79,7 +79,19 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
 
             <div className="h-[65vh] w-full bg-muted/40">
               {isVideo ? (
-                resource.external_url ? (
+                resource.file_path ? (
+                  loading ? (
+                    <div className="flex h-full items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                    </div>
+                  ) : signedUrl ? (
+                    <video src={signedUrl} controls className="h-full w-full bg-black" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                      This video is unavailable right now.
+                    </div>
+                  )
+                ) : resource.external_url ? (
                   <iframe
                     src={toEmbedUrl(resource.external_url)}
                     title={resource.title}
@@ -92,6 +104,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
                     No video link provided.
                   </div>
                 )
+
               ) : loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Loader2 className="h-6 w-6 animate-spin text-brand" />
