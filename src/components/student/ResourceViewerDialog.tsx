@@ -136,7 +136,7 @@ export function ResourceViewerDialog({ resource, onClose }: Props) {
                   <span className="rounded-full bg-muted px-2.5 py-1 font-medium">{resource.grade_level}</span>
                 )}
               </div>
-              {!isVideo && signedUrl && (
+              {signedUrl && (
                 <Button asChild size="sm">
                   <a href={signedUrl} download target="_blank" rel="noreferrer">
                     <Download className="mr-2 h-4 w-4" /> Download
