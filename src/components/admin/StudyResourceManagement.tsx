@@ -259,22 +259,69 @@ export function StudyResourceManagement() {
               </div>
 
               {type === 'video' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="sr-url">Video link (YouTube, Vimeo, ...)</Label>
-                  <Input id="sr-url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['link', 'upload'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => { setVideoSource(s); setFile(null); setExternalUrl(''); }}
+                        className={cn(
+                          'rounded-xl border p-2.5 text-xs font-medium transition-all',
+                          videoSource === s
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-muted-foreground hover:border-primary/40'
+                        )}
+                      >
+                        {s === 'link' ? 'Paste a video link' : 'Upload from my device'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {videoSource === 'link' ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="sr-url">Video link (YouTube, Vimeo, ...)</Label>
+                      <Input id="sr-url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="sr-video-file">Video file</Label>
+                      <Input id="sr-video-file" type="file" accept="video/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                      {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="sr-file">PDF file</Label>
-                  <Input id="sr-file" type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                  {file && <p className="text-xs text-muted-foreground">{file.name}</p>}
+                  <Label htmlFor="sr-file">File from your device</Label>
+                  <Input
+                    id="sr-file"
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.epub,.zip,image/*"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    PDF, Word, PowerPoint, Excel, text, ePub, images or a zip archive.
+                  </p>
+                  {file && <p className="text-xs text-muted-foreground">{file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB</p>}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="sr-cover">Cover image URL (optional)</Label>
-                <Input id="sr-cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://..." />
+                <Label htmlFor="sr-cover-file">Cover image (optional)</Label>
+                <Input id="sr-cover-file" type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} />
+                {coverFile ? (
+                  <p className="text-xs text-muted-foreground">{coverFile.name}</p>
+                ) : (
+                  <Input
+                    id="sr-cover"
+                    value={coverUrl}
+                    onChange={(e) => setCoverUrl(e.target.value)}
+                    placeholder="...or paste an image URL"
+                  />
+                )}
               </div>
+
 
               <div className="space-y-2">
                 <Label>Assign to classes</Label>
