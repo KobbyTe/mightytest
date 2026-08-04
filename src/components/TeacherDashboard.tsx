@@ -18,7 +18,7 @@ import ExamAssignment from '@/components/admin/ExamAssignment';
 import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import ResitManagement from '@/components/admin/ResitManagement';
-import StudyResourceManagement from '@/components/admin/StudyResourceManagement';
+import { StudyResourceManagement } from '@/components/admin/StudyResourceManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
