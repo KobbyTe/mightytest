@@ -1,10 +1,10 @@
-# Mighty Test — STEM Assessment Platform
+# Mighty Test — STEM Assessment & Learning Platform
 
-## Full System Documentation
+## Complete System Documentation
 
-**Version:** 1.0  
-**Last Updated:** March 2026  
-**Platform URL:** https://lovable.dev/projects/775411e5-063f-42c8-9c84-56270b568eee
+**Version:** 2.0
+**Last Updated:** August 2026
+**Type:** Multi-tenant (school-scoped) web application + PWA
 
 ---
 
@@ -12,951 +12,787 @@
 
 1. [Overview](#1-overview)
 2. [Technology Stack](#2-technology-stack)
-3. [Architecture](#3-architecture)
-4. [User Roles & Access Control](#4-user-roles--access-control)
-5. [Authentication System](#5-authentication-system)
+3. [System Architecture](#3-system-architecture)
+4. [Roles & Access Control (RBAC)](#4-roles--access-control-rbac)
+5. [Authentication](#5-authentication)
 6. [Registration Flows](#6-registration-flows)
-7. [Role-Based Dashboards](#7-role-based-dashboards)
-8. [Examination Engine](#8-examination-engine)
-9. [AI-Powered Features](#9-ai-powered-features)
-10. [School & Class Management](#10-school--class-management)
-11. [Teacher Management](#11-teacher-management)
-12. [Parent Portal](#12-parent-portal)
-13. [Notification System](#13-notification-system)
-14. [Analytics & Reporting](#14-analytics--reporting)
-15. [Gamification](#15-gamification)
-16. [Offline Support](#16-offline-support)
-17. [Database Schema](#17-database-schema)
-18. [Edge Functions (Backend)](#18-edge-functions-backend)
-19. [Security Architecture](#19-security-architecture)
-20. [File Structure](#20-file-structure)
-21. [Configuration & Environment](#21-configuration--environment)
+7. [Routing Map](#7-routing-map)
+8. [Student Dashboard](#8-student-dashboard)
+9. [Teacher Dashboard](#9-teacher-dashboard)
+10. [Admin Dashboard](#10-admin-dashboard)
+11. [Parent Portal](#11-parent-portal)
+12. [Examination Engine](#12-examination-engine)
+13. [Grading & Results](#13-grading--results)
+14. [Review / Resit Integrity Model](#14-review--resit-integrity-model)
+15. [Study Resources Library](#15-study-resources-library)
+16. [AI Features](#16-ai-features)
+17. [Messaging & Notifications](#17-messaging--notifications)
+18. [Analytics & Reporting](#18-analytics--reporting)
+19. [Gamification & Onboarding](#19-gamification--onboarding)
+20. [Offline Resilience & PWA](#20-offline-resilience--pwa)
+21. [Database Schema](#21-database-schema)
+22. [Database Functions & Triggers](#22-database-functions--triggers)
+23. [Edge Functions (Backend API)](#23-edge-functions-backend-api)
+24. [Storage](#24-storage)
+25. [Security Architecture](#25-security-architecture)
+26. [Design System](#26-design-system)
+27. [Performance Strategy](#27-performance-strategy)
+28. [SEO](#28-seo)
+29. [File Structure](#29-file-structure)
+30. [Configuration & Environment](#30-configuration--environment)
+31. [Operational Runbook](#31-operational-runbook)
+32. [Known Constraints & Design Decisions](#32-known-constraints--design-decisions)
 
 ---
 
 ## 1. Overview
 
-**Mighty Test** is a comprehensive STEM (Science, Technology, Engineering, Mathematics, Robotics, AI) education and assessment platform designed for schools. It provides:
+**Mighty Test** is a STEM (Science, Technology, Engineering, Mathematics, Robotics, AI) education and assessment platform built for schools. It serves four distinct stakeholder groups — **Students, Parents, Teachers, Administrators** — each with a dedicated dashboard, dedicated data scope, and dedicated permissions.
 
-- **Intelligent exam creation** with AI-powered question generation
-- **Automated and manual grading** for objective and essay questions
-- **Multi-role access** for Students, Parents, Teachers, and Administrators
-- **Real-time analytics** for student performance tracking
-- **School-based class management** with teacher-subject assignments
-- **Gamification** to motivate student engagement
-- **Offline exam resilience** so students don't lose work during network issues
-- **Accessibility features** including text-to-speech reading assistant
+### Core capabilities
 
-The platform targets K-12 STEM education with a focus on exam integrity, performance analytics, and seamless multi-stakeholder communication.
+| Capability | Summary |
+|---|---|
+| Exam authoring | Manual authoring, AI generation from a topic, AI extraction from an uploaded PDF |
+| Exam delivery | Timed, question-by-question engine with autosave, anti-malpractice warnings, text-to-speech |
+| Grading | Auto-grading for objective questions, manual + AI-assisted grading for essays/short answers |
+| Integrity | Mutually exclusive review/resit lock, tab-switch strike system, server-timestamped timers |
+| Analytics | Class performance charts, student report cards, printable/exportable PDF reports |
+| Study Library | Books, video courses and worksheets, class-scoped, private-bucket delivery |
+| Communication | Internal real-time messaging, notification centre, email/SMS/web push |
+| Gamification | XP, streaks, achievement badges, certificates |
+| Offline | LocalStorage exam caching plus an auto-sync queue for network drops |
+
+### Domain hierarchy
+
+```text
+School
+ └── Class
+      ├── Students          (1 class per student)
+      ├── Teachers          (via teacher_class_assignments, per subject)
+      ├── Exams             (via exam_class_assignments)
+      └── Study Resources   (via study_resource_class_assignments)
+```
+
+Visibility everywhere in the product is derived from this hierarchy. A teacher sees only their assigned classes; a student sees only their own class's exams and resources; a parent sees only their linked children.
 
 ---
 
 ## 2. Technology Stack
 
 ### Frontend
+
 | Technology | Purpose |
 |---|---|
-| **React 18** | UI framework with hooks-based architecture |
-| **TypeScript** | Type safety across the entire codebase |
-| **Vite 5** | Build tool with SWC for fast compilation |
-| **Tailwind CSS 3** | Utility-first CSS with custom design tokens |
-| **shadcn/ui** | Accessible component library (Radix primitives) |
-| **React Router 6** | Client-side routing with protected routes |
-| **TanStack React Query 5** | Server state management with 5-minute stale time |
-| **Framer Motion** | Animations and transitions |
-| **Recharts** | Data visualization for analytics |
-| **jsPDF + html2canvas** | PDF report generation (certificates, report cards) |
+| React 18 | UI framework, hooks-based |
+| TypeScript 5 | End-to-end type safety, generated DB types |
+| Vite 5 | Dev server + production bundler |
+| Tailwind CSS v3 | Utility styling, HSL design tokens |
+| shadcn/ui + Radix UI | Accessible primitives (dialog, tabs, select, toast…) |
+| Framer Motion | Page/section animation, onboarding tours, glassmorphic motion |
+| React Router v6 | Client routing, lazy-loaded route chunks |
+| TanStack Query | Server-state caching, background refetch |
+| Recharts | Analytics charts (bars, lines, radials, pies) |
+| react-hook-form + zod | Form state and schema validation |
+| jsPDF + html2canvas | Client-side PDF export (report cards, certificates, keys) |
+| react-helmet-async | Per-route SEO meta and JSON-LD |
+| lucide-react | Icon set |
 
-### Backend (Lovable Cloud / Supabase)
+### Backend (Lovable Cloud)
+
 | Technology | Purpose |
 |---|---|
-| **Supabase PostgreSQL** | Primary database with Row-Level Security |
-| **Supabase Auth** | Authentication with email/password |
-| **Supabase Edge Functions (Deno)** | Serverless backend logic |
-| **Supabase Realtime** | Live data subscriptions |
-| **Lovable AI** | AI question generation and essay grading |
-
-### External Integrations
-| Service | Purpose |
-|---|---|
-| **Resend** | Email delivery (parent credentials, notifications) |
-| **Arkesel** | SMS notifications (via `fetch`) |
+| PostgreSQL | Primary datastore with Row Level Security on every table |
+| Auth | Email/password + synthetic-email Student ID login |
+| Deno Edge Functions | Server-side logic, privileged operations, AI calls |
+| Storage | Private `study-resources` bucket with signed URLs |
+| Realtime | Live message and notification streams |
+| Lovable AI Gateway | Gemini models for generation, grading, tutoring |
+| Resend | Transactional email |
+| Arkesel | SMS delivery (Ghana) |
 
 ---
 
-## 3. Architecture
+## 3. System Architecture
 
-### High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    React SPA (Vite)                      │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│  │ Student   │ │ Parent   │ │ Teacher  │ │  Admin   │   │
-│  │ Dashboard │ │ Dashboard│ │ Dashboard│ │ Dashboard│   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
-│        │              │            │            │        │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │          AuthContext (Session Management)         │   │
-│  │          ProtectedRoute (Role Gating)             │   │
-│  └──────────────────────────────────────────────────┘   │
-└───────────────────────────┬─────────────────────────────┘
-                            │ Supabase JS Client
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│                 Lovable Cloud (Supabase)                  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────────────────┐ │
-│  │PostgreSQL│ │  Auth    │ │   Edge Functions (Deno)   │ │
-│  │  + RLS   │ │  System  │ │  • register              │ │
-│  │          │ │          │ │  • register-with-key      │ │
-│  │ 20 tables│ │ JWT Auth │ │  • generate-questions     │ │
-│  │          │ │          │ │  • auto-grade-essay       │ │
-│  └──────────┘ └──────────┘ │  • send-grade-notification│ │
-│                             │  • approve-teacher        │ │
-│                             │  • create-parent-account  │ │
-│                             │  • + 10 more              │ │
-│                             └──────────────────────────┘ │
-└─────────────────────────────────────────────────────────┘
+```text
+┌────────────────────────────────────────────────────────────┐
+│                        Browser (PWA)                       │
+│  React SPA · Service Worker · LocalStorage exam cache      │
+│  AuthContext ── ProtectedRoute ── Role dashboards          │
+└───────────────┬────────────────────────┬───────────────────┘
+                │ supabase-js            │ functions.invoke()
+                ▼                        ▼
+     ┌────────────────────┐   ┌─────────────────────────────┐
+     │  PostgREST + RLS   │   │   Deno Edge Functions       │
+     │  (direct queries)  │   │  service-role privileged    │
+     └─────────┬──────────┘   └──────────┬──────────────────┘
+               │                         │
+               ▼                         ▼
+     ┌──────────────────────────────────────────────────────┐
+     │  PostgreSQL · RLS policies · SECURITY DEFINER RPCs   │
+     │  triggers · enums · storage metadata                 │
+     └──────────────────────────────────────────────────────┘
+                             │
+        ┌────────────────────┼──────────────────────┐
+        ▼                    ▼                      ▼
+  Lovable AI Gateway     Resend (email)       Arkesel (SMS)
 ```
 
-### Route Map
+### Two access paths
 
-| Route | Component | Access |
+1. **Direct client → PostgREST.** Used for all normal reads/writes. Safety comes entirely from RLS policies plus `SECURITY DEFINER` helper functions (`has_role`, `get_teacher_class_ids`, `get_student_class_id`).
+2. **Client → Edge Function → service role.** Used only where RLS must be bypassed: account creation, admin password resets, cross-user notifications, AI calls that must hide `LOVABLE_API_KEY`.
+
+Edge functions run with `verify_jwt = false` and therefore **must** perform their own authorization: read the `Authorization` header, call `auth.getClaims(token)`, then verify role membership in `user_roles`. This is a project-wide standard.
+
+---
+
+## 4. Roles & Access Control (RBAC)
+
+Roles live in a dedicated `public.user_roles` table — never on a profile table — to prevent privilege escalation.
+
+```sql
+create type app_role as enum ('student', 'parent', 'admin', 'teacher');
+```
+
+| Role | Scope | Landing route |
 |---|---|---|
-| `/` | `Index` | Public — Landing page |
-| `/auth` | `Auth` | Public — Login/Register |
-| `/dashboard` | `Dashboard` | Student only |
-| `/admin` | `NewAdminDashboard` | Admin only |
-| `/admin-setup` | `AdminSetup` | Admin only |
-| `/admin/exam/:examId/questions` | `ExamQuestions` | Admin + Teacher |
-| `/admin/exam/grade/:attemptId` | `ExamGrading` | Admin + Teacher |
-| `/admin/analytics` | `ExamAnalytics` | Admin + Teacher |
-| `/teacher` | `AdminDashboard` (Teacher mode) | Teacher only |
-| `/exam/take` | `ExamTaking` | Student only |
-| `/exam/review/:attemptId` | `ExamReview` | Student only |
-| `/parent` | `ParentDashboard` | Parent only |
-| `/about`, `/contact`, `/faq`, `/terms`, `/privacy` | Static pages | Public |
+| `student` | Own attempts, own class exams/resources, own messages | `/dashboard` |
+| `parent` | Linked children's results, messages with teachers | `/parent` |
+| `teacher` | Only classes in `teacher_class_assignments` | `/teacher` |
+| `admin` | Global: schools, classes, teachers, students, keys | `/admin` |
 
-### Code Organization
+### Enforcement layers
 
-- **Lazy Loading**: All routes except `/` and `/auth` are lazy-loaded via `React.lazy()` for faster initial paint.
-- **Error Boundary**: `ErrorBoundary` component wraps the entire app for graceful error recovery.
-- **Query Caching**: React Query configured with 5-minute stale time and 30-minute garbage collection.
+1. **Database:** RLS policies calling `has_role(auth.uid(), 'admin')`, `is_admin_or_teacher()`, `get_teacher_class_ids()`.
+2. **Edge functions:** explicit claim + role checks before any service-role write.
+3. **Routing:** `ProtectedRoute` gates every private route by `allowedRoles`, and redirects wrong-role users to their own dashboard.
+4. **UI:** conditional tabs/actions — cosmetic only, never the security boundary.
+
+Teachers additionally have a `status` field (`pending` / `approved` / `rejected`). `ProtectedRoute` renders an "Account Pending Approval" screen instead of the dashboard for non-approved teachers.
 
 ---
 
-## 4. User Roles & Access Control
+## 5. Authentication
 
-### Role Hierarchy
+### `AuthContext` (`src/contexts/AuthContext.tsx`)
 
-```
-Super-Admin (admin)
-    ├── Platform-wide analytics and teacher management
-    ├── Full CRUD on all tables
-    └── Teacher approval/rejection
+Single source of truth for `user`, `session`, `role`, `profile`, `preferences`, `loading`, `signOut`.
 
-Teacher (teacher)
-    ├── Scoped to assigned classes + subjects
-    ├── Exam creation and grading
-    └── Student and key management (within scope)
+Key behaviours:
 
-Parent (parent)
-    ├── View-only access to linked children's data
-    └── Exam results and performance metrics
+- Subscribes to `onAuthStateChange` **before** calling `getSession()`, and uses an `initialSessionPending` flag so the first resolved session — whichever arrives first — wins. This prevents the classic "flash logout" race.
+- `loadUserData()` fetches role, student/parent/teacher profile and preferences in a single `Promise.all`, then selects the profile matching the resolved role.
+- An in-memory `userDataCache` (5-minute TTL, keyed by user id) avoids refetching on every tab focus; it is invalidated on `signOut`.
+- A `loadingUserIdRef` guard discards responses from a superseded user id (fast account switching).
 
-Student (student)
-    ├── Take assigned exams
-    ├── View own results and certificates
-    └── Request exam resits
-```
+### Login modes
 
-### Role Storage
+| Mode | Identifier | Notes |
+|---|---|---|
+| Email | Real email + password | Standard Supabase auth |
+| Student ID | `SCHOOLCODE-CLASSCODE-XXXX` | Resolved to an internal synthetic email before `signInWithPassword` |
+| Parent access code | Issued at child registration | Parents receive credentials by email/SMS |
 
-Roles are stored in a dedicated `user_roles` table (never on the user/profile tables to prevent privilege escalation):
+### Password reset
 
-```sql
-CREATE TABLE public.user_roles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    role app_role NOT NULL,  -- ENUM: 'student' | 'parent' | 'admin' | 'teacher'
-    created_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (user_id, role)
-);
-```
+- Email-backed accounts: standard recovery email flow.
+- Student-ID (synthetic email) accounts: no inbox exists, so reset is **staff-initiated** via the `reset-student-password` edge function (service role, admin/teacher only). The UI tells such students to contact their teacher.
+- Parents: `reset-parent-password`.
 
-### Role Verification Function
-
-A `SECURITY DEFINER` function prevents recursive RLS issues:
-
-```sql
-CREATE FUNCTION public.has_role(_user_id UUID, _role app_role) RETURNS BOOLEAN
-LANGUAGE SQL STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT EXISTS (SELECT 1 FROM public.user_roles WHERE user_id = _user_id AND role = _role)
-$$;
-```
-
-A helper `is_admin_or_teacher()` function checks for either elevated role in a single call.
-
-### Route Protection
-
-The `ProtectedRoute` component:
-1. Shows a loading spinner while authentication state resolves
-2. Redirects unauthenticated users to `/auth`
-3. Blocks pending/rejected teachers with a status screen + sign-out button
-4. Redirects users who access a route not matching their role to their correct dashboard
-
----
-
-## 5. Authentication System
-
-### Session Management (`AuthContext.tsx`)
-
-The `AuthProvider` is the central authentication state manager. It handles:
-
-#### Initial Session Restoration (Page Refresh Fix)
-```
-1. Set up onAuthStateChange listener (handles INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED)
-2. Call supabase.auth.getSession() as fallback
-3. Use initialSessionPending flag to prevent race conditions
-4. First responder wins — prevents double-loading
-```
-
-**Key Design Decisions:**
-- `initialSessionPending` flag ensures only one source (listener OR getSession) processes the initial state
-- `loadingUserIdRef` prevents stale profile data from overwriting state during rapid login/logout
-- `loading` state is only set to `true` during initial load — background token refreshes do NOT trigger the loading spinner
-- 5-minute user data cache (`userDataCache` Map) prevents redundant DB queries
-
-#### Login Flow (`Auth.tsx`)
-1. User selects role tab (Student / Parent / Teacher)
-2. Enters email + password (or Student ID format: `SCHOOL-CLASS-XXXX`)
-3. `loginInProgressRef` prevents the auth redirect effect from firing during manual login
-4. After `signInWithPassword`, the system verifies the role in `user_roles` (with 3 retry attempts for consistency)
-5. If role doesn't match the selected tab, login is rejected and session is signed out
-6. On success, user is redirected to their role-specific dashboard
-
-#### Student ID Login
-Students can log in using their assigned Student ID (format: `STU-SCHOOLCODE-XXXX`) instead of email:
-- The system detects IDs by checking for dashes and no `@` symbol
-- Internally converts to `{id}@studentid.internal` email format
-
-#### Password Reset
-- **Students/Teachers**: Standard Supabase `resetPasswordForEmail` flow with redirect to `/auth`
-- **Parents**: Custom `reset-parent-password` edge function that generates and emails new credentials
-- Password recovery is detected via `PASSWORD_RECOVERY` auth event, showing an inline reset form
-
-#### Session Persistence Across Refreshes
-The system explicitly handles page refreshes without logging users out:
-- `INITIAL_SESSION` event rehydrates the session from Supabase's internal storage
-- `getSession()` serves as a fallback if the listener fires first
-- Token refreshes are handled silently without showing loading states
+Leaked-password protection (HIBP) is enabled on the auth provider.
 
 ---
 
 ## 6. Registration Flows
 
-### Flow 1: Standard Email Registration (Students)
+### A. Standard email registration (`register`)
 
-Handled by `StudentRegistration` component:
-1. Student fills out a comprehensive form (name, DOB, gender, school, class, grade, STEM interests, programming experience)
-2. Parent information is collected (name, email, phone, relationship)
-3. Calls the `register` edge function which:
-   - Creates auth user via `supabase.auth.admin.createUser()`
-   - Inserts into `students` table
-   - Inserts into `user_roles` table
-   - Creates parent account (if email provided) via `create-parent-account`
-4. Attempts auto-login; falls back to login page with success message
+Creates the auth user, the `students` row, the `user_roles` row, and (mandatorily) a linked parent account.
 
-### Flow 2: Student ID Registration (Two-Step)
+### B. Registration-key registration (`register-with-key`)
 
-For schools using pre-generated registration keys:
+The school-first flow:
 
-**Step 1 — Key Verification:**
-1. Student enters registration key (format: `SCHOOLCODE-CLASSNAME-XXXX`)
-2. System validates key exists and status is `available`
-3. Returns school name and class name for confirmation
+1. Admin generates keys in bulk (up to 500 at a time) for a specific school + class.
+2. Keys are exported to a branded PDF and handed out.
+3. Student enters the key; the client calls the `validate_registration_key` RPC, which returns only `key_code`, `school_name`, `class_name` for **available** keys — deliberately no ids, to block enumeration.
+4. On submit, the edge function claims the key atomically, creates the student with the correct `school_id` / `class_id` / `student_id_code`, and marks the key `claimed`.
 
-**Step 2 — Profile Completion:**
-1. Student fills out personal details + parent info
-2. Calls `register-with-key` edge function which:
-   - Validates the key is still available (race-condition safe)
-   - Creates auth user with internal email (`{studentId}@studentid.internal`)
-   - Creates student record linked to the correct school/class
-   - Generates permanent Student ID (`STU-SCHOOLCODE-XXXX`)
-   - Marks registration key as `claimed`
-   - Creates parent account if parent email provided
-3. Displays the official Student ID for the student to save
+### C. Teacher registration (`register-teacher`)
 
-### Flow 3: Teacher Registration
+Creates a `teachers` row with `status = 'pending'`. An admin approves or rejects via `approve-teacher`, which flips the status and drops a notification for the teacher.
 
-1. Teacher fills out form (name, email, password, phone, school, subject specialty)
-2. Calls `register-teacher` edge function which:
-   - Creates auth user
-   - Inserts into `teachers` table with `status: 'pending'`
-   - Inserts role into `user_roles`
-3. Teacher sees "Pending Approval" screen until admin approves
-4. Admin uses `approve-teacher` edge function to change status to `approved`
+### D. Parent accounts (`create-parent-account`)
 
-### Flow 4: Parent Account Creation
+Every student must have a parent. If the parent email already exists, the new student is linked to it; otherwise an account is created and credentials are delivered by email (Resend) and/or SMS (Arkesel). One-time credential display uses `sessionStorage` so a page refresh doesn't leak them permanently.
 
-Parents do NOT self-register. Accounts are created automatically:
-- When a student registers with parent details, the `create-parent-account` edge function:
-  - Creates auth user with a generated password
-  - Inserts into `parents` table with a generated access code
-  - Inserts into `user_roles`
-  - Sends credentials via email (Resend) and optionally SMS (Arkesel)
-- Admins can also manually create parent accounts and resend credentials
+All registration paths use retry loops around the auth-user creation step, because propagation between auth and the public schema is not instantaneous.
 
 ---
 
-## 7. Role-Based Dashboards
+## 7. Routing Map
 
-### Student Dashboard (`/dashboard`)
+Defined in `src/App.tsx`. `Index` and `Auth` are eagerly loaded; everything else is `React.lazy` + `Suspense`.
 
-**Features:**
-- **Stats Overview**: Total exams, completed, average score, pass rate
-- **Numbered Results List**: All graded exams listed chronologically (Test 1, Test 2, ...) with average at bottom
-- **Active Exams**: Cards for available exams with start/continue buttons
-- **Exam Results**: Detailed cards showing scores, pass/fail, certificates
-- **Certificates**: Downloadable PDF certificates for passed exams
-- **AI Study Assistant**: Chat-based AI tutor for STEM subjects
-- **Gamification**: XP system, badges, streaks, and achievements
-- **Resit Requests**: Submit requests to retake failed exams
-- **Notifications**: Bell icon with unread count
-- **Onboarding Tour**: First-time guided walkthrough
-- **Reading Assistant**: Text-to-speech with adjustable speed and voice selection
-- **Profile Management**: View/edit personal and parent information
-- **Mobile Bottom Nav**: Touch-friendly navigation for mobile users
-
-### Teacher Dashboard (`/teacher`)
-
-The teacher dashboard uses `AdminDashboard.tsx` but renders the `TeacherDashboard` component, providing:
-
-**Features:**
-- **Teaching Scope Summary**: Classes and subjects assigned (visible in My Profile dialog)
-- **Scoped Data**: All views filtered by `useTeacherScope` hook — teachers only see their assigned classes
-- **Exam Management**: Create, edit, delete exams; AI question generation
-- **Exam Assignment**: Assign exams to specific classes with due dates
-- **Grading Interface**: Manual grading for essay questions; view auto-graded objective answers
-- **Student Management**: View/manage students within assigned classes
-- **Registration Key Generation**: Bulk generate up to 500 keys for assigned classes
-- **Resit Management**: Open/close resit windows for specific exams and classes
-- **Performance Analytics**: Class performance metrics and trends
-- **Chat**: Message system for communication with admin and students
-- **Teacher Onboarding Tour**: Role-specific guided walkthrough
-- **My Profile Dialog**: View personal details and teaching scope
-
-### Admin Dashboard (`/admin`)
-
-The admin uses `NewAdminDashboard.tsx` with full platform control:
-
-**Features:**
-- **School Management**: Create/edit schools with codes, addresses, contact info
-- **Class Management**: Create classes within schools; set grade levels
-- **Teacher Management**: Approve/reject pending teachers; assign teachers to classes with subjects
-- **Student Management**: View all students; bulk operations; link parents; view report cards
-- **Exam Management**: Full CRUD on exams; assign to classes; view submissions
-- **Registration Key Management**: Generate and export keys as branded PDFs
-- **Website Analytics**: Page views, visitor demographics, device breakdowns
-- **Announcements**: Create role-targeted announcements with priorities and expiry
-- **Resit Management**: Manage resit openings and student requests
-- **Notifications**: Send notifications to specific users or roles
-- **Performance Portal**: Class-wide metrics with PDF landscape report exports
-
-### Parent Dashboard (`/parent`)
-
-**Features:**
-- **Children Overview**: Cards for each linked child with school and class info
-- **Performance Stats**: Total attempts, passed exams, average score, pass rate per child
-- **Numbered Results List**: All graded exams per child, chronologically ordered with average
-- **Chat**: Message system to communicate with teachers and admin
-- **Mobile Bottom Nav**: Touch-friendly navigation
-
----
-
-## 8. Examination Engine
-
-### Exam Lifecycle
-
-```
-Create Exam → Add Questions → Assign to Classes → Students Take → Auto/Manual Grade → Results & Analytics
-```
-
-### Question Types
-
-| Type | Auto-Graded | Description |
+| Path | Guard | Component |
 |---|---|---|
-| `multiple_choice` | ✅ Yes | 4 options (A-D), single correct answer |
-| `true_false` | ✅ Yes | Binary choice, auto-compared |
-| `essay` | ❌ No | Free-text response, requires manual or AI grading |
-| `short_answer` | ❌ No | Brief text response |
+| `/` | public | `Index` (marketing homepage) |
+| `/auth` | public | `Auth` |
+| `/about`, `/contact`, `/faq`, `/terms`, `/privacy` | public | static pages |
+| `/dashboard`, `/dashboard/:tab` | student | `Dashboard` |
+| `/exam/take` | student | `ExamTaking` |
+| `/exam/review/:attemptId` | student | `ExamReview` |
+| `/parent` | parent | `ParentDashboard` |
+| `/teacher` | teacher | `AdminDashboard` → renders `TeacherDashboard` |
+| `/admin` | admin | `NewAdminDashboard` |
+| `/admin/exam/:examId/questions` | admin, teacher | `ExamQuestions` |
+| `/admin/exam/grade/:attemptId` | admin, teacher | `ExamGrading` |
+| `/admin/analytics` | admin, teacher | `ExamAnalytics` |
+| `*` | public | `NotFound` |
 
-### AI Question Generation
-
-The `generate-questions` edge function uses Lovable AI to create exam questions:
-- Input: topic description, subject, grade level, question types, number, difficulty
-- Output: Structured questions with correct answers and options
-- Uses tool calling for reliable structured output
-
-### Exam Taking (`ExamTaking.tsx`)
-
-**Integrity Controls:**
-- **Timer**: Calculates remaining time from `started_at` timestamp (prevents reset exploits via refresh)
-- **Auto-Submit on Tab Switch**: `visibilitychange` event triggers immediate submission
-- **Auto-Submit on Page Exit**: `beforeunload` event attempts submission
-- **Progress Persistence**: Answers cached in localStorage via `examOfflineCache.ts`
-- **Question Navigation**: Sequential with ability to navigate back; progress bar shows completion
-- **Empty Exam Guard**: Requires explicit confirmation before submitting with unanswered questions
-
-**Auto-Grading Logic (`useExamAutoSubmit.ts`):**
-1. MCQ and True/False: Case-insensitive string comparison against `correct_answer`
-2. Essay questions: Marked as `completed` (not `graded`); awaits manual review
-3. If all questions are objective → status set to `graded` immediately
-4. If any essay exists → status set to `completed`; `marks_obtained` left null
-5. Grade notification sent via `send-grade-notification` edge function
-
-### Results & Certificates
-
-After submission, students see a celebratory results overlay:
-- Bold score display with motivational icons
-- Pass/fail indicator with percentage
-- "Pending Final Score" notice if essays need grading
-- Downloadable PDF certificate for passed exams (generated via `ExamCertificate` component using jsPDF)
-
-### Resit System
-
-1. Admin/Teacher opens a resit window for a specific exam + class (`resit_openings` table)
-2. Students who failed can submit resit requests (`resit_requests` table)
-3. Admin/Teacher reviews and approves/rejects requests
-4. Approved students can retake the exam
+`usePageTracking` runs inside the router and writes `page_views` rows for analytics.
 
 ---
 
-## 9. AI-Powered Features
+## 8. Student Dashboard
 
-### AI Question Generation (`generate-questions` Edge Function)
-- Takes topic, subject, grade level, question types, count, and difficulty
-- Returns structured questions using Lovable AI tool calling
-- Supports MCQ, True/False, Essay, and Short Answer types
+`/dashboard/:tab` is a **routed** dashboard — each sidebar entry is a real URL, so it is linkable, back-button friendly and independently code-split.
 
-### AI Essay Grading (`auto-grade-essay` Edge Function)
-- Analyzes student essay responses against rubric criteria
-- Provides marks and written feedback
-- Teacher/Admin can override AI grades
+| Tab | Content |
+|---|---|
+| `home` | Hero banner, XP/streak, upcoming exams, recent results |
+| `exams` | Assigned exams, due dates, start/resume, resit portal |
+| `results` | Attempt history, scores, review entry point |
+| `library` | Study Resources Library |
+| `messages` | Full-page internal chat |
+| `tutor` | Full-page AI Study Buddy with insight rail |
+| `profile` | Details, preferences, notification settings |
 
-### AI Study Assistant (`AIStudyAssistant.tsx`)
-- Chat-based AI tutor integrated into student dashboard
-- Supports STEM subject tutoring
-- Uses `study-assistant` edge function
+### UI direction
 
-### AI Exam Reviews (`generate-exam-reviews` Edge Function)
-- Generates personalized review content for completed exams
-- Helps students understand mistakes and learn from them
+Glassmorphic: `backdrop-blur-xl` panels over an animated aurora gradient, 3D floating assets in `StudentHeroBanner`, spring-based Framer Motion transitions, and a mobile bottom nav (`MobileBottomNav`) with 8 ms haptic feedback.
+
+Messaging and the AI tutor exist **only** as pages — the earlier floating bubbles were removed to avoid redundancy.
 
 ---
 
-## 10. School & Class Management
+## 9. Teacher Dashboard
 
-### Schools (`SchoolManagement.tsx`)
+`TeacherDashboard.tsx`, scoped by `useTeacherScope()`.
 
-Schools are the top-level organizational unit:
+`useTeacherScope` resolves the teacher row, reads `teacher_class_assignments`, and returns `scopedClassIds`. It returns `null` for admins, meaning "no restriction", and `[]` for a teacher with no assignments (who therefore sees nothing until an admin assigns classes).
 
-| Field | Description |
+| Tab | Purpose |
 |---|---|
-| `name` | School name (e.g., "Labone SDA Church School") |
-| `code` | Unique short code (e.g., "LABONE") — used in key generation |
-| `address`, `city`, `country` | Location details |
-| `phone`, `email` | Contact information |
-| `status` | `active` or `inactive` |
+| Exams | Create exams, author questions, AI generation, publish |
+| Performance | Class analytics with Recharts (`ClassPerformanceAnalytics`) |
+| Schools | Read-only view of the teacher's school |
+| Assignments | Assign exams to assigned classes with due dates |
+| Attempts | Live/completed attempts, entry point to grading |
+| Students | Roster for assigned classes, report cards, password reset |
+| Keys | Registration keys for the teacher's classes |
+| Resits | Approve/deny resit requests, open resit windows |
+| Library | Upload and class-scope study resources |
 
-### Classes
-
-Classes belong to schools and organize students:
-
-| Field | Description |
-|---|---|
-| `name` | Class name (e.g., "5 Rose") |
-| `school_id` | FK to schools table |
-| `grade_level` | Grade identifier |
-| `status` | `active` or `inactive` |
-
-### Teacher-Class Assignments (`teacher_class_assignments`)
-
-The pivotal linking table that controls teacher scope:
-
-| Field | Description |
-|---|---|
-| `teacher_id` | FK to teachers |
-| `class_id` | FK to classes |
-| `subject` | The subject the teacher teaches in this class |
-| `assigned_by` | Admin who made the assignment |
-
-**Important**: A teacher can be assigned to multiple classes, and multiple teachers can be assigned to the same class for different subjects.
+`ClassPerformancePortal` deliberately separates the **graphical analytics** view from the **printable report** view (`ClassAssessmentReport`), which were previously duplicated.
 
 ---
 
-## 11. Teacher Management
+## 10. Admin Dashboard
 
-### Teacher Lifecycle
+`NewAdminDashboard.tsx` — superset of the teacher dashboard with no class scoping.
 
-```
-Registration → Pending Approval → Admin Reviews → Approved/Rejected
+- **Schools & Classes** (`SchoolManagement`): CRUD, school codes, grade levels, statuses.
+- **Teachers** (`TeacherManagement`): approve/reject, assign classes and subjects.
+- **Students** (`StudentManagement`): search, paginate, edit, reset password, delete (`delete-student` cascades auth user + rows).
+- **Registration Keys** (`RegistrationKeyManagement`): bulk generate, filter, export branded PDF.
+- **Exams & Assignment** (`ExamAssignment`): global exam bank, class assignment, due dates.
+- **Resits** (`ResitManagement`).
+- **Library** (`StudyResourceManagement`).
+- **Website Analytics** (`WebsiteAnalytics`): traffic from `page_views`.
+- **Announcements**: role-targeted, priority-tagged, optionally expiring.
+
+Admin promotion is a manual SQL operation — there is intentionally no self-service admin-creation endpoint (the old `create-admin` function was deleted as a hardcoded-credential risk).
+
+---
+
+## 11. Parent Portal
+
+`/parent` shows, per linked child: exam results and trends, attendance of assessments, teacher feedback, downloadable report cards, and a direct message thread with the child's teachers. Access is enforced by RLS through `get_student_parent_id()`, so a parent physically cannot read another family's rows.
+
+---
+
+## 12. Examination Engine
+
+`src/pages/ExamTaking.tsx` is the most safety-critical component in the product.
+
+### Lifecycle
+
+```text
+assigned → attempt created (started_at, server timestamp)
+        → question-by-question navigation, autosave per answer
+        → submit (manual, timer expiry, or 3-strike malpractice)
+        → status: completed → graded
 ```
 
-- **Pending State**: Teacher sees a blocking screen with ⏳ icon and "Account Pending Approval" message
-- **Rejected State**: Teacher sees ❌ icon and "Account Not Approved" message
-- **Both states include a Sign Out button** to prevent session trapping
+### Question types
 
-### Teacher Approval (`approve-teacher` Edge Function)
-- Admin calls with teacher ID and decision (approve/reject)
-- Updates teacher `status`, sets `approved_by` and `approved_at`
+`question_type_enum`: `multiple_choice`, `true_false`, `short_answer`, `essay`.
 
-### Teacher Scope (`useTeacherScope` Hook)
+- MCQ / true-false: radio selection, auto-gradable.
+- **Short answer:** free-text `Textarea`, saved to `exam_answers.answer_text`, flagged for manual review.
+- **Essay:** long-form `Textarea`, always manual/AI-assisted grading.
 
-Returns:
-- `scopedClassIds`: Array of class UUIDs the teacher is assigned to (null for admins = no restriction)
-- `assignments`: Enriched array with class names and school names
-- `isScoped`: Boolean indicating whether filtering is active
+Short-answer and essay responses are included in the submit payload's upsert and set the attempt's `hasEssay` path so it lands in the grading queue rather than being auto-finalized.
 
-All teacher-facing components use this hook to filter data to only their assigned classes.
+### Timing
 
----
+The countdown derives from the **server** `started_at` timestamp plus `duration_minutes`, not from client clock deltas, so refreshing or clock tampering cannot extend the window.
 
-## 12. Parent Portal
+### Integrity: 3-strike system
 
-### Account Creation
-Parents don't self-register. Accounts are created:
-1. **Automatically** when a student registers with parent email
-2. **Manually** by admin via "Create Parent Account" or "Link Parent" features
+Tab switches / visibility changes no longer force an instant submit (which produced false positives). Instead:
 
-### Credentials Delivery
-- **Email**: Via Resend API with login credentials
-- **SMS**: Via Arkesel API (optional, if phone number provided)
-- **Resend**: Admin can resend credentials via `resend-parent-credentials` edge function
+1. Strike 1 and 2 raise an explicit on-screen warning.
+2. Strike 3 auto-submits.
+3. A 1.5 s grace period absorbs transient blur events (notification popups, IME, screen rotation).
 
-### Parent-Student Linking
-- Students have a `parent_id` field in the `students` table
-- The `get_student_parent_id()` database function enables RLS for parent data access
-- "Missing Parent" alerts highlight students without linked parents
+### Autosave & resume
 
-### Forgot Credentials
-Parents use "Forgot Credentials" which triggers `reset-parent-password` edge function:
-- Generates a new password
-- Emails the new credentials
+`current_question_index` and `last_activity_at` are persisted, so a dropped session resumes exactly where the student left off. Answers are upserted atomically per question — never batched only at the end.
+
+### Reading assistant
+
+`useReadingAssistant` wraps the Web Speech API: read the question aloud, choose a voice and rate, and persist that preference per user (`VoiceSelectionDialog`).
 
 ---
 
-## 13. Notification System
+## 13. Grading & Results
 
-### In-App Notifications (`notifications` table)
+### Auto-grading
 
-| Field | Description |
-|---|---|
-| `user_id` | Target user |
-| `title` | Notification title |
-| `message` | Notification body |
-| `type` | `info`, `success`, `warning`, `error` |
-| `link` | Optional deep link |
-| `is_read` | Read status |
+Objective questions are compared against `correct_answer` and awarded `marks` on match.
 
-### Notification Bell (`NotificationBell.tsx`)
-- Displays unread count badge
-- Dropdown with recent notifications
-- Mark as read functionality
+### Manual grading
 
-### Announcements (`announcements` table)
-- Platform-wide or role-targeted messages
-- Priority levels: `normal`, `high`
-- Optional expiry dates
-- Visible to matching roles via RLS policy
+`ExamGrading.tsx` presents each free-text answer with the question, the rubric marks, and an input for `marks_awarded` plus per-answer `review_text`.
 
-### External Notifications
-- **Grade Notifications**: `send-grade-notification` edge function sends email/SMS when exams are graded
-- **Exam Assignment Notifications**: `notify-exam-assigned` edge function alerts students of new assignments
+### AI-assisted grading
+
+`auto-grade-essay` sends the question, the expected answer and the student response to the AI gateway and returns a suggested mark and justification, which a human confirms.
+
+### Score normalization (critical rule)
+
+`marks_obtained` is always **normalized to the exam's `total_marks`**. A previous bug summed raw per-question marks and produced impossible scores such as `39/48` on a 40-mark exam. Both `ExamTaking.tsx` (auto path) and `ExamGrading.tsx` (manual path) now clamp and scale to `total_marks`.
+
+### Presentation
+
+Results tables use pills: **emerald** (pass/strong), **amber** (borderline), **red** (fail). Where a total is available it overrides any computed average. Report cards and certificates (`ExamCertificate`, `StudentReportCard`) export as PDF; class-level PDFs are generated server-side by `generate-pdf-report` (landscape, centre-aligned tables, embedded logo, AI-written summary).
 
 ---
 
-## 14. Analytics & Reporting
+## 14. Review / Resit Integrity Model
 
-### Website Analytics (`WebsiteAnalytics.tsx` + `page_views` table)
+**Problem:** a student could open the full answer review of an attempt and *then* apply for a resit of the same exam — memorising the answer key first.
 
-Tracked automatically via `usePageTracking` hook:
-- Page views and session duration
-- Browser, OS, device type detection
-- Geographic data (country, city)
-- Referrer tracking
-- Custom event tracking
+**Policy: mutually exclusive review and resit.**
 
-### Student Performance Analytics
+- Opening a review stamps `exam_attempts.review_opened_at` (via the `mark_review_opened` RPC, which verifies ownership and the lock state).
+- `can_request_resit(student, exam)` returns `false` once any attempt for that exam has `review_opened_at` set.
+- `can_review_attempt(attempt)` returns `false` while a `pending` or `approved` resit request exists — and re-opens once the resit attempt has actually been submitted.
 
-**Per-Student Metrics:**
-- Total exams attempted
-- Pass count and pass rate
-- Average score (percentage-based, normalized across different exam totals)
-- Individual test scores (numbered chronologically)
-
-**Class-Level Metrics (ClassPerformancePortal):**
-- Class average scores
-- Score distribution
-- Subject-wise breakdown
-- Exportable as landscape PDF reports
-
-### Exam Analytics (`ExamAnalytics.tsx`)
-- Submission tracker with real-time statuses
-- Completion rates per class
-- Score distributions via charts (Recharts)
-
-### Report Cards (`StudentReportCard.tsx`)
-- Comprehensive student profiles
-- Numbered exam history with pass/fail indicators
-- Average score summary
-- Exportable as PDF
-
-### Export Utilities (`exportUtils.ts`)
-- CSV export for data tables
-- PDF generation with branded headers (jsPDF)
-- Registration key PDF with professional formatting
+Both are `SECURITY DEFINER` and consulted by the UI (to show accurate, explained states and a confirmation prompt before the irreversible review) *and* enforced server-side. Resit windows themselves are opened per class via `resit_openings` with an optional deadline; each approved request grants exactly one additional attempt.
 
 ---
 
-## 15. Gamification
+## 15. Study Resources Library
 
-### Student Gamification (`StudentGamification.tsx`)
+### Data model
 
-**XP System:**
-- Earn XP for completing exams, passing, and streaks
-- Level progression with milestones
+`study_resources` (`book` | `video` | `worksheet`) + `study_resource_class_assignments` for class scoping. Storage lives in the **private** `study-resources` bucket.
 
-**Badges:**
-- Achievement-based rewards (first exam, perfect score, etc.)
-- Visual badge display on dashboard
+### Staff side — `StudyResourceManagement`
 
-**Streaks:**
-- Consecutive day activity tracking
-- Streak counter with motivational messaging
+- Upload documents from the local device: PDF, Word, PowerPoint, Excel, text, ePub, images, zip.
+- Video: either paste an external link **or** upload a local video file, toggled in the UI.
+- Optional cover-image upload.
+- Assign to one or more classes, set subject/grade, publish or keep as draft.
+- Teachers only see and assign their own classes; admins see all.
 
----
+### Student side
 
-## 16. Offline Support
-
-### Exam Offline Cache (`examOfflineCache.ts`)
-
-The system uses localStorage to protect against network drops during exams:
-
-| Function | Purpose |
-|---|---|
-| `cacheExamData()` | Stores exam questions and metadata (24-hour TTL) |
-| `cacheAnswers()` | Stores current answers and question index |
-| `queuePendingSync()` | Queues failed answer saves for later sync |
-| `getPendingSync()` | Retrieves queued saves |
-| `onNetworkRestore()` | Registers callback for when connectivity returns |
-| `isOnline()` | Checks `navigator.onLine` status |
-
-### Behavior During Network Loss
-1. Answers continue to be cached in localStorage
-2. When network returns, pending syncs are flushed to the server
-3. Exam timer continues based on `started_at` timestamp (server-authoritative)
+`StudyLibrary` (glassmorphic filter/search grid) → `StudyResourceCard` → `ResourceViewerDialog`. Because the bucket is private, both the card cover and the viewer resolve **signed URLs** on demand; PDFs render inline, uploaded videos play in-app, external links open embedded or in a new tab.
 
 ---
 
-## 17. Database Schema
+## 16. AI Features
 
-### Entity Relationship Overview
+All AI runs server-side through the Lovable AI Gateway; `LOVABLE_API_KEY` never reaches the browser.
 
-```
-schools ──< classes ──< students ──< exam_attempts ──< exam_answers
-                │              │
-                │              └──> parents
-                │
-                └──< teacher_class_assignments ──> teachers
-                │
-                └──< registration_keys
-                │
-                └──< exam_class_assignments ──> exams ──< exam_questions
-                │
-                └──< resit_openings
-                └──< resit_requests
-```
-
-### Table Summary (20 Tables)
-
-| Table | Rows Purpose | RLS |
+| Function | Model use | Purpose |
 |---|---|---|
-| `schools` | School entities with codes | Admins: ALL; Teachers: ALL; Public: SELECT active |
-| `classes` | Classes within schools | Admins: ALL; Teachers: ALL; Public: SELECT active |
-| `students` | Student profiles | Admins/Teachers: ALL; Students: own; Parents: linked children |
-| `parents` | Parent profiles | Admins/Teachers: ALL; Parents: own; Students: linked parent |
-| `teachers` | Teacher profiles | Admins: ALL; Teachers: own |
-| `user_roles` | Role assignments (ENUM) | Admins: ALL+SELECT; Teachers: SELECT; Users: own SELECT |
-| `user_preferences` | Theme, language, notifications | Users: own INSERT/UPDATE/SELECT |
-| `exams` | Exam definitions | Admins/Teachers: ALL; Students/Parents: SELECT active |
-| `exam_questions` | Questions per exam | Admins/Teachers: ALL; Students: SELECT (active exams) |
-| `exam_attempts` | Student exam sessions | Admins/Teachers: ALL; Students: own; Parents: children's |
-| `exam_answers` | Individual question responses | Admins/Teachers: SELECT+UPDATE; Students: own CRUD |
-| `exam_class_assignments` | Exam→Class links with due dates | Admins/Teachers: ALL; Students/Parents: own class SELECT |
-| `registration_keys` | Temporary signup keys | Admins/Teachers: ALL; Public: SELECT available |
-| `teacher_class_assignments` | Teacher→Class→Subject links | Admins: ALL; Teachers: own SELECT |
-| `resit_openings` | Resit windows | Admins/Teachers: ALL; Students: own class SELECT |
-| `resit_requests` | Student resit applications | Admins/Teachers: ALL; Students: own |
-| `notifications` | In-app notifications | Admins/Teachers: ALL; Users: own SELECT+UPDATE |
-| `announcements` | Platform announcements | Admins/Teachers: ALL; Users: SELECT matching role |
-| `messages` | Chat messages | Admins/Teachers: ALL; Users: own SELECT+INSERT |
-| `contact_submissions` | Public contact form | Admins: SELECT+DELETE; Public: INSERT |
-| `newsletter_subscribers` | Newsletter signups | Admins: ALL; Public: INSERT |
-| `page_views` | Website analytics | Admins: SELECT+DELETE; Public: INSERT |
-| `password_reset_tokens` | Reset token storage | Admins only |
+| `generate-questions` | Gemini (Pro for PDF grounding) | Generate questions from a topic **or** from an uploaded reference PDF; teacher specifies how many MCQ / true-false / essay questions |
+| `process-exam-pdf` | Gemini | Extract an existing exam paper into structured questions |
+| `auto-grade-essay` | Gemini | Suggested marks + justification for free-text answers |
+| `generate-exam-reviews` | Gemini Flash | Per-question explanations for the student review screen, including stub rows for unanswered questions |
+| `study-assistant` | Gemini | Context-aware tutor that reads the student's recent performance before answering |
+| `generate-pdf-report` | Gemini | Narrative summary embedded in class PDF reports |
 
-### Database Functions
+**PDF ingestion notes:** input is capped around a 128K-token budget, responses use `json_object` mode, extracted questions are de-duplicated, and long papers use a continuation strategy across calls.
 
-| Function | Purpose |
-|---|---|
-| `has_role(user_id, role)` | Check if user has specific role (SECURITY DEFINER) |
-| `is_admin_or_teacher(user_id)` | Check for either elevated role |
-| `get_student_parent_id(user_id)` | Get parent_id for a student |
-| `get_teacher_class_ids(user_id)` | Get all class IDs assigned to a teacher |
-| `handle_new_user()` | Trigger: auto-create user_preferences on signup |
-| `update_updated_at_column()` | Trigger: auto-update timestamps |
+Gateway failures are surfaced, never hidden: `429` → "try again shortly", `402` → credits exhausted with a billing prompt, validation errors → explicit message with the teacher's input preserved.
 
 ---
 
-## 18. Edge Functions (Backend)
+## 17. Messaging & Notifications
 
-All edge functions run on Deno with `verify_jwt = false` for flexible token handling.
+### Internal messaging
 
-| Function | Purpose | Trigger |
-|---|---|---|
-| `register` | Standard student registration | Auth form submission |
-| `register-with-key` | Student ID-based registration | Student ID signup form |
-| `register-teacher` | Teacher registration (pending) | Teacher signup form |
-| `login` | Custom login with role validation | Login form |
-| `approve-teacher` | Admin approves/rejects teacher | Admin dashboard action |
-| `create-admin` | Bootstrap admin account | Admin setup page |
-| `create-parent-account` | Auto-create parent during registration | Student registration |
-| `resend-parent-credentials` | Re-email parent login details | Admin action |
-| `reset-parent-password` | Generate new parent password | Forgot credentials form |
-| `delete-student` | Remove student and cleanup | Admin action |
-| `generate-questions` | AI exam question creation | Exam builder |
-| `auto-grade-essay` | AI essay grading | Grading interface |
-| `generate-exam-reviews` | AI review content | Post-exam review |
-| `study-assistant` | AI tutor chat | Student dashboard |
-| `send-grade-notification` | Email/SMS grade alerts | Post-grading |
-| `notify-exam-assigned` | Alert students of new exams | Exam assignment |
-| `generate-pdf-report` | Server-side PDF generation | Report exports |
-| `process-exam-pdf` | Parse uploaded exam PDFs | Exam import |
+`messages` rows carry `conversation_id`, `sender_id`/`sender_role`, `recipient_id`/`recipient_role`, `content`, `is_read`. The UI is a two-pane glassmorphic chat with read receipts, subscribed to Realtime for instant delivery.
 
-### Edge Function Secrets
+### Notification pipeline
 
-| Secret | Service |
-|---|---|
-| `SUPABASE_URL` | Backend URL |
-| `SUPABASE_ANON_KEY` | Public API key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin API key |
-| `SUPABASE_DB_URL` | Direct DB connection |
-| `RESEND_API_KEY` | Email delivery |
-| `ARKESEL_API_KEY` | SMS delivery |
-| `LOVABLE_API_KEY` | AI model access |
-
----
-
-## 19. Security Architecture
-
-### Row-Level Security (RLS)
-
-Every table has RLS enabled with granular policies:
-
-- **Admin**: Full access to all tables via `has_role(auth.uid(), 'admin')`
-- **Teacher**: Full access to most tables via `has_role(auth.uid(), 'teacher')` (application-level scoping via `useTeacherScope` further restricts to assigned classes)
-- **Student**: Read/write own data only, verified via `user_id = auth.uid()` or subqueries
-- **Parent**: Read-only access to linked children's data via `parent_id` join
-
-### Authentication Security
-
-- **No anonymous signups** — all registration goes through edge functions
-- **Email verification** required (unless explicitly disabled)
-- **Password minimum**: 6 characters
-- **Role validation on login**: After authentication, the system verifies the user has the correct role in `user_roles` before granting access
-- **Session tokens**: Managed by Supabase Auth with automatic refresh
-- **Stale token cleanup**: Invalid refresh tokens are detected and localStorage is cleared
-
-### Exam Integrity
-
-- **Tab switching = immediate auto-submit**: Prevents cheating via switching tabs
-- **Page close/refresh = auto-submit attempt**: Uses `beforeunload` event
-- **Server-authoritative timer**: Time remaining calculated from `started_at` (prevents client-side manipulation)
-- **Atomic answer persistence**: Upsert pattern prevents data loss
-
-### Data Access Patterns
-
-- **SECURITY DEFINER functions** bypass RLS to prevent recursive policy evaluation
-- **Service role key** used only in edge functions (never exposed to client)
-- **Anon key** used in client-side Supabase client (safe to expose)
-
----
-
-## 20. File Structure
-
+```text
+DB trigger  →  notifications row  →  Realtime  →  NotificationBell badge
+                                            └────→  Service Worker push
 ```
+
+- `trg_notify_on_new_message` notifies the recipient of any direct message.
+- `trg_notify_on_resit_request` notifies every teacher assigned to the class **and** all admins (de-duplicated so an admin who also teaches the class isn't notified twice).
+
+### Outbound channels
+
+- **Email** via Resend: `send-grade-notification`, credential delivery, `notify-exam-assigned`.
+- **SMS** via Arkesel: parent credentials and urgent alerts.
+- **Web Push** via the service worker + `usePushNotifications`; `NotificationPermissionBanner` requests permission at a sensible moment, `send-test-notification` verifies the pipeline.
+
+Announcements are a separate broadcast channel: role-targeted, priority-tagged, optionally expiring.
+
+---
+
+## 18. Analytics & Reporting
+
+| Surface | Source | Output |
+|---|---|---|
+| `ExamAnalytics` | attempts + answers | Per-exam difficulty, score distribution, per-question success rate |
+| `ClassPerformanceAnalytics` | attempts per class | Recharts bar/line/radial trends over time and subject |
+| `StudentPerformanceTable` | attempts per student | Sortable table with pass/borderline/fail pills |
+| `StudentReportCard` | attempts + feedback | Printable per-student card, jsPDF export |
+| `ClassAssessmentReport` | class aggregate | Printable landscape report |
+| `WebsiteAnalytics` | `page_views` | Sessions, devices, browsers, referrers, top pages |
+
+Teacher performance awards use a 0–100 rating that maps to Diamond / Gold / Silver / Bronze tiers.
+
+**Pagination is mandatory.** PostgREST returns at most 1000 rows, so every list surface implements server-side search + range pagination rather than fetching everything.
+
+---
+
+## 19. Gamification & Onboarding
+
+- **XP** awarded for completing exams, hitting score thresholds and reading resources.
+- **Streaks** for consecutive active study days.
+- **Badges** for milestones, surfaced in `StudentGamification`.
+- **Certificates** (`ExamCertificate`) generated for qualifying results and exportable as PDF.
+- **Tours:** `OnboardingTour` (students) and `TeacherOnboardingTour` (teachers) are Framer Motion guided walkthroughs, gated by `user_preferences.onboarding_completed`.
+
+---
+
+## 20. Offline Resilience & PWA
+
+`src/lib/examOfflineCache.ts`:
+
+- Exam content and in-progress answers are mirrored to `localStorage`.
+- Failed writes enter a sync queue and are replayed when connectivity returns.
+- On reload the engine restores from cache first, then reconciles with the server.
+
+PWA: `public/manifest.json` (installable, themed), `public/sw.js` (asset caching + push handling), `vercel.json` SPA rewrite so deep links resolve.
+
+---
+
+## 21. Database Schema
+
+All tables are in `public` with RLS enabled and explicit `GRANT`s.
+
+### Identity & organisation
+
+| Table | Purpose |
+|---|---|
+| `user_roles` | `(user_id, role)` — the only source of role truth |
+| `user_preferences` | Theme, language, notification toggles, onboarding flag |
+| `schools` | Name, unique code, address, contact, status |
+| `classes` | `school_id`, name, grade level, status |
+| `students` | Profile, `school_id`, `class_id`, `parent_id`, `student_id_code`, STEM interests, skill levels |
+| `teachers` | Profile, `school_id`, subject specialty, `status`, approval metadata |
+| `parents` | Profile, `access_code`, relationship to student |
+| `teacher_class_assignments` | `(teacher_id, class_id, subject)` — the scoping table |
+| `registration_keys` | `key_code`, `school_id`, `class_id`, `status`, `claimed_by` |
+
+### Assessment
+
+| Table | Purpose |
+|---|---|
+| `exams` | Title, subject, grade, `duration_minutes`, `total_marks`, `passing_marks`, status |
+| `exam_questions` | `question_text`, `question_type` (enum), `options` jsonb, `correct_answer`, `marks`, `order_number` |
+| `exam_class_assignments` | Exam ↔ class, `due_date`, `is_active` |
+| `exam_attempts` | `student_id`, `exam_id`, status, `marks_obtained`, timers, grading metadata, `review_opened_at` |
+| `exam_answers` | `attempt_id`, `question_id`, `answer_text`, `is_correct`, `marks_awarded`, `review_text` |
+| `resit_openings` | Per class+exam window with `is_open` and `deadline` |
+| `resit_requests` | Student request with `status`, reviewer and `admin_note` |
+
+### Content & communication
+
+| Table | Purpose |
+|---|---|
+| `study_resources` | Title, `resource_type` enum, `file_path`, `external_url`, `cover_url`, `is_published` |
+| `study_resource_class_assignments` | Resource ↔ class |
+| `messages` | Conversation threads with read state |
+| `notifications` | Per-user in-app notification feed |
+| `announcements` | Role-targeted broadcasts with priority and expiry |
+
+### Site & support
+
+`page_views` (analytics events, INSERT-only), `contact_submissions` (INSERT-only, staff-read), `newsletter_subscribers`, `password_reset_tokens` (no client policies at all — service role only).
+
+### Enums
+
+```text
+app_role            : student | parent | admin | teacher
+question_type_enum  : multiple_choice | true_false | short_answer | essay
+study_resource_type : book | video | worksheet
+```
+
+---
+
+## 22. Database Functions & Triggers
+
+### `SECURITY DEFINER` helpers
+
+| Function | Returns | Use |
+|---|---|---|
+| `has_role(user, role)` | boolean | Base RBAC predicate for policies |
+| `is_admin_or_teacher(user)` | boolean | Combined staff check |
+| `get_teacher_class_ids(user)` | setof uuid | Class scoping in policies |
+| `get_student_class_id(user)` | uuid | Student's own class |
+| `get_student_parent_id(user)` | uuid | Parent linkage |
+| `can_review_attempt(attempt)` | boolean | Review/resit lock, review side |
+| `can_request_resit(student, exam)` | boolean | Review/resit lock, resit side |
+| `mark_review_opened(attempt)` | void | Ownership-checked review stamp |
+| `validate_registration_key(code)` | table | Non-enumerable key lookup |
+
+All are `SET search_path = public` and used inside policies specifically to avoid recursive RLS evaluation.
+
+### Triggers
+
+| Trigger | Table | Effect |
+|---|---|---|
+| `on_auth_user_created` | `auth.users` | Seeds `user_preferences` |
+| `update_*_updated_at` | many | Maintains `updated_at` |
+| `trg_notify_on_new_message` | `messages` | Notifies recipient |
+| `trg_notify_on_resit_request` | `resit_requests` | Notifies class teachers + admins |
+
+Time-dependent validation (deadlines, expiry) uses triggers rather than `CHECK` constraints, since checks must be immutable.
+
+---
+
+## 23. Edge Functions (Backend API)
+
+All live in `supabase/functions/<name>/index.ts`, all declare `verify_jwt = false` in `supabase/config.toml`, all handle CORS preflight, and all privileged ones authenticate via `auth.getClaims(token)` then verify role.
+
+| Function | Auth required | Purpose |
+|---|---|---|
+| `register` | public | Standard student registration |
+| `register-with-key` | public | Registration-key student registration |
+| `register-teacher` | public | Teacher signup as `pending` |
+| `approve-teacher` | admin | Approve/reject teacher + notify |
+| `create-parent-account` | staff | Create/link parent, deliver credentials |
+| `resend-parent-credentials` | staff | Re-deliver parent credentials |
+| `reset-student-password` | admin/teacher | Service-role password reset |
+| `reset-parent-password` | admin/teacher | Service-role password reset |
+| `delete-student` | admin | Cascade delete auth user + rows |
+| `generate-questions` | staff | AI question generation (topic or PDF, per-type counts) |
+| `process-exam-pdf` | staff | Extract questions from an exam PDF |
+| `auto-grade-essay` | staff | AI-suggested essay marks |
+| `generate-exam-reviews` | student/staff | AI per-question explanations |
+| `study-assistant` | student | Performance-aware AI tutor |
+| `generate-pdf-report` | staff | Server-side class PDF with AI summary |
+| `notify-exam-assigned` | staff | Email students/parents on assignment |
+| `send-grade-notification` | staff | Email results |
+| `send-test-notification` | any user | Verify the push pipeline |
+
+Third-party calls (Resend, Arkesel) use native `fetch` rather than SDKs, for Deno compatibility and cold-start speed. Errors are returned as structured JSON so the client can surface the specific validation message instead of a generic failure.
+
+---
+
+## 24. Storage
+
+| Bucket | Public | Contents |
+|---|---|---|
+| `study-resources` | No | Documents, uploaded videos, cover images |
+
+Because the bucket is private, every read path (`StudyResourceCard` covers, `ResourceViewerDialog` documents and videos, downloads) creates a short-lived **signed URL** at access time. Uploads are namespaced per resource and written by staff only, enforced by both storage policies and the resource RLS policies.
+
+---
+
+## 25. Security Architecture
+
+1. **RLS on every table.** No table in `public` is readable without a matching policy; grants are issued per role (`authenticated`, `service_role`, and `anon` only where a public read is genuinely intended).
+2. **Roles in a separate table.** Never on `students`/`teachers`/`profiles`.
+3. **`SECURITY DEFINER` predicates** to break RLS recursion, all with a pinned `search_path`.
+4. **Edge-function authorization** via `auth.getClaims(token)` — never trusting a client-supplied user id.
+5. **No client-side admin checks.** No localStorage flags, no hardcoded credentials. `AdminSetup.tsx` and the `create-admin` function were deleted precisely for this reason.
+6. **Enumeration resistance.** `validate_registration_key` returns display data only; `registration_keys` itself is staff-scoped.
+7. **Insert-only public tables.** `page_views` and `contact_submissions` accept anonymous inserts with size validation, but never allow public reads or updates.
+8. **Secrets stay server-side.** `LOVABLE_API_KEY`, `RESEND_API_KEY`, `ARKESEL_API_KEY`, service-role key — never exposed to the client, never prefixed `VITE_`.
+9. **HIBP leaked-password protection** enabled.
+10. **Dependency hygiene:** `jspdf` upgraded to `^4.2.1` to clear critical/high advisories.
+11. **Exam integrity:** server-timestamped timers, strike-based malpractice handling, review/resit mutual exclusion.
+
+---
+
+## 26. Design System
+
+Palette (the "EduLe" direction), defined as HSL CSS variables in `src/index.css` and mapped in `tailwind.config.ts`:
+
+| Token | Hex | Role |
+|---|---|---|
+| Darkest | `#021024` | Deep background, dark surfaces |
+| Primary | `#052659` | Brand primary |
+| Secondary | `#5483B3` | Muted accent |
+| Soft accent | `#7DA0CA` | Highlights, borders |
+| Light | `#C1E8FF` | Light background, foreground on dark |
+
+Rules:
+
+- **Always** use semantic tokens (`hsl(var(--primary))`, `bg-primary`). Never hardcode `text-white`, `bg-black`, or arbitrary hex in components — it breaks theming.
+- Glassmorphism (`backdrop-blur-xl`, translucent borders, layered gradients) is the signature treatment on dashboards.
+- Mobile-first: layouts stack, with a blurred bottom nav and 8 ms haptic feedback on tap.
+- Portals and modals toggle CSS `visibility` (`hidden`/`block`) rather than conditionally unmounting, which previously destroyed form state.
+- Forms use stable `key`s to prevent remount-on-render input loss.
+- Branding: "Mighty Test — STEM Excellence", golden shield logo, kid-friendly but professional.
+
+---
+
+## 27. Performance Strategy
+
+- Route-level `React.lazy` + `Suspense`, with only `Index` and `Auth` eager.
+- TanStack Query defaults: `staleTime` 5 min, `gcTime` 30 min, `refetchOnWindowFocus: false`, one retry.
+- 5-minute in-memory auth/profile cache to avoid refetch storms on tab focus.
+- Parallel `Promise.all` fetches instead of waterfalls in the auth bootstrap.
+- Server-side pagination and search on all large lists (1000-row PostgREST ceiling).
+- Signed URLs generated lazily, only for resources actually opened.
+
+---
+
+## 28. SEO
+
+`react-helmet-async` + a shared `SEO.tsx` component apply per-route `<title>` (<60 chars), meta description (<160), canonical, Open Graph and Twitter card tags, plus JSON-LD (`EducationalOrganization`, `Course`, `FAQPage`) where applicable. `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt` are maintained for crawlers and AI search. Semantic HTML, a single `<h1>` per page, alt text on all imagery, and lazy-loaded images round it out.
+
+---
+
+## 29. File Structure
+
+```text
 src/
-├── App.tsx                          # Main router with lazy loading
-├── main.tsx                         # Entry point
-├── index.css                        # Design system tokens (HSL variables)
-├── contexts/
-│   └── AuthContext.tsx               # Central authentication state
+├── App.tsx                       # Routes, providers, lazy loading
+├── main.tsx
+├── index.css                     # Design tokens (HSL)
+├── contexts/AuthContext.tsx      # Session, role, profile, cache
 ├── components/
-│   ├── ProtectedRoute.tsx            # Role-based route gating
-│   ├── Navbar.tsx                    # Navigation bar
-│   ├── Footer.tsx                    # Site footer
-│   ├── AIStudyAssistant.tsx          # AI tutor chat
-│   ├── ChatBubble.tsx                # Messaging interface
-│   ├── ExamCertificate.tsx           # PDF certificate generator
-│   ├── MobileBottomNav.tsx           # Mobile navigation
-│   ├── NotificationBell.tsx          # Notification dropdown
-│   ├── OnboardingTour.tsx            # Student onboarding
-│   ├── TeacherOnboardingTour.tsx     # Teacher onboarding
-│   ├── StudentGamification.tsx       # XP, badges, streaks
-│   ├── TeacherDashboard.tsx          # Teacher-specific dashboard
-│   ├── VoiceSelectionDialog.tsx      # TTS voice picker
-│   ├── ErrorBoundary.tsx             # Error recovery wrapper
-│   ├── auth/
-│   │   └── StudentRegistration.tsx   # Standard registration form
-│   ├── admin/
-│   │   ├── SchoolManagement.tsx      # CRUD for schools
-│   │   ├── StudentManagement.tsx     # Student roster + operations
-│   │   ├── TeacherManagement.tsx     # Teacher approval + assignments
-│   │   ├── ExamAssignment.tsx        # Assign exams to classes
-│   │   ├── RegistrationKeyManagement.tsx  # Bulk key generation
-│   │   ├── ClassPerformancePortal.tsx     # Class metrics + reports
-│   │   ├── ClassAssessmentReport.tsx      # Assessment analytics
-│   │   ├── StudentReportCard.tsx     # Individual report cards
-│   │   ├── StudentPerformanceTable.tsx    # Performance data table
-│   │   ├── ResitManagement.tsx       # Resit windows + requests
-│   │   └── WebsiteAnalytics.tsx      # Page view analytics
-│   └── ui/                           # shadcn/ui components (40+ files)
-├── pages/
-│   ├── Index.tsx                     # Landing page
-│   ├── Auth.tsx                      # Login/Register (all roles)
-│   ├── Dashboard.tsx                 # Student dashboard
-│   ├── AdminDashboard.tsx            # Teacher dashboard wrapper
-│   ├── NewAdminDashboard.tsx         # Admin dashboard
-│   ├── ParentDashboard.tsx           # Parent dashboard
-│   ├── ExamTaking.tsx                # Exam interface
-│   ├── ExamQuestions.tsx             # Question management
-│   ├── ExamGrading.tsx               # Manual grading interface
-│   ├── ExamAnalytics.tsx             # Submission analytics
-│   └── ExamReview.tsx                # Post-exam review
-├── hooks/
-│   ├── useTeacherScope.ts            # Teacher class scoping
-│   ├── useExamAutoSubmit.ts          # Auto-submit on tab switch
-│   ├── usePageTracking.ts            # Analytics tracking
-│   ├── useReadingAssistant.ts        # Text-to-speech
-│   └── use-mobile.tsx                # Mobile detection
-├── lib/
-│   ├── examUtils.ts                  # Shared exam types & functions
-│   ├── examOfflineCache.ts           # Offline answer persistence
-│   ├── exportUtils.ts                # CSV/PDF export helpers
-│   └── utils.ts                      # Tailwind merge utility
-└── integrations/supabase/
-    ├── client.ts                     # Supabase client (auto-generated)
-    └── types.ts                      # Database types (auto-generated)
+│   ├── ProtectedRoute.tsx        # Central route guard
+│   ├── Navbar.tsx / Footer.tsx / Hero.tsx / CoursesSection.tsx / CTABanner.tsx
+│   ├── TeacherDashboard.tsx
+│   ├── ChatBubble.tsx            # Messaging (page mode)
+│   ├── AIStudyAssistant.tsx      # Study Buddy (page mode)
+│   ├── NotificationBell.tsx / NotificationPermissionBanner.tsx
+│   ├── OnboardingTour.tsx / TeacherOnboardingTour.tsx
+│   ├── StudentGamification.tsx / ExamCertificate.tsx
+│   ├── SEO.tsx / ErrorBoundary.tsx / MobileBottomNav.tsx
+│   ├── admin/                    # School, Teacher, Student, Keys, Resits,
+│   │                             # Assignment, Analytics, Reports, Library
+│   ├── student/                  # HeroBanner, Sidebar, StudyLibrary,
+│   │                             # ResourceCard, ResourceViewerDialog
+│   ├── auth/StudentRegistration.tsx
+│   └── ui/                       # shadcn primitives
+├── pages/                        # Index, Auth, Dashboard, ParentDashboard,
+│                                 # AdminDashboard, NewAdminDashboard,
+│                                 # ExamTaking/Questions/Grading/Review/Analytics,
+│                                 # About, Contact, FAQ, Terms, Privacy, NotFound
+├── hooks/                        # useTeacherScope, usePageTracking,
+│                                 # usePushNotifications, useReadingAssistant,
+│                                 # use-mobile, use-toast
+├── lib/                          # examOfflineCache, examUtils, exportUtils, utils
+└── integrations/supabase/        # client.ts, types.ts  (auto-generated)
 
 supabase/
-├── config.toml                       # Supabase configuration
-└── functions/
-    ├── register/                     # Student registration
-    ├── register-with-key/            # Student ID registration
-    ├── register-teacher/             # Teacher registration
-    ├── login/                        # Custom login
-    ├── approve-teacher/              # Teacher approval
-    ├── create-admin/                 # Admin bootstrap
-    ├── create-parent-account/        # Parent creation
-    ├── delete-student/               # Student deletion
-    ├── resend-parent-credentials/    # Re-email parent creds
-    ├── reset-parent-password/        # Parent password reset
-    ├── generate-questions/           # AI question generation
-    ├── auto-grade-essay/             # AI essay grading
-    ├── generate-exam-reviews/        # AI exam reviews
-    ├── study-assistant/              # AI tutor
-    ├── send-grade-notification/      # Grade email/SMS
-    ├── notify-exam-assigned/         # Assignment alerts
-    ├── generate-pdf-report/          # Server PDF generation
-    └── process-exam-pdf/             # PDF exam import
+├── config.toml                   # Per-function verify_jwt settings
+└── functions/                    # 18 Deno edge functions
+
+public/                           # manifest.json, sw.js, robots.txt,
+                                  # sitemap.xml, llms.txt
 ```
 
 ---
 
-## 21. Configuration & Environment
+## 30. Configuration & Environment
 
-### Environment Variables (`.env` — auto-managed)
+### Client env (auto-generated, do not edit)
 
-| Variable | Description |
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+VITE_SUPABASE_PROJECT_ID
+```
+
+### Server secrets (edge functions only)
+
+```text
+LOVABLE_API_KEY            # AI Gateway
+RESEND_API_KEY             # Email
+ARKESEL_API_KEY            # SMS
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_DB_URL
+```
+
+### Files that must never be hand-edited
+
+`src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`, `.env`, and project-level settings in `supabase/config.toml` — all are regenerated.
+
+### Deployment
+
+Vite build → static hosting; `vercel.json` provides the SPA rewrite. Edge functions deploy alongside the project.
+
+---
+
+## 31. Operational Runbook
+
+| Task | How |
 |---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
-| `VITE_SUPABASE_PROJECT_ID` | Project identifier |
-
-### Tailwind Configuration (`tailwind.config.ts`)
-
-Custom design system with:
-- STEM subject colors (`--stem-science`, `--stem-technology`, etc.)
-- Semantic tokens (`--primary`, `--secondary`, `--accent`, etc.)
-- Dark/light mode support via CSS variables
-- Custom animations (fade-in, slide-up, etc.)
-
-### Build Configuration (`vite.config.ts`)
-
-- SWC-based React plugin for fast builds
-- Path aliases (`@/` → `src/`)
-- Development server on port 8080
-
-### Query Client Configuration
-
-```typescript
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,    // 5 minutes
-      gcTime: 1000 * 60 * 30,       // 30 minutes
-      refetchOnWindowFocus: false,   // Prevent unnecessary refetches
-      retry: 1,                      // Single retry on failure
-    },
-  },
-});
-```
+| Promote an admin | Insert `('admin')` into `user_roles` for that user id via SQL |
+| Onboard a school | Create school → create classes → create/approve teachers → assign classes |
+| Enrol a cohort | Generate registration keys for the class → export PDF → distribute |
+| Approve a teacher | Admin dashboard → Teachers → Approve (fires `approve-teacher`) |
+| Assign an exam | Exams → publish → Assignment → pick class + due date |
+| Reset a student password | Students → Reset password (staff-only edge function) |
+| Open a resit window | Resits → open for exam + class, optionally set a deadline |
+| Publish a resource | Library → upload → assign classes → publish |
+| Diagnose an AI failure | Check edge function logs; `429` = rate limit, `402` = credits |
 
 ---
 
-## Appendix A: Common Operations
+## 32. Known Constraints & Design Decisions
 
-### Adding a New School
-1. Admin → Schools tab → "Add School"
-2. Enter name, code, address, contact info
-3. School appears in all dropdowns system-wide
-
-### Enrolling Students via Keys
-1. Admin/Teacher → Registration Keys tab
-2. Select school + class
-3. Generate keys (up to 500 at once)
-4. Export as PDF
-5. Distribute keys to students
-6. Students sign up at `/auth` → "Sign Up with Student ID"
-
-### Creating and Assigning an Exam
-1. Admin/Teacher → Exams tab → "Create Exam"
-2. Fill exam details (title, subject, grade, duration, marks)
-3. Add questions manually or via AI generation
-4. Go to Exam Assignment tab
-5. Select exam → Select class → Set due date → Assign
-6. Students see the exam on their dashboard
-
-### Grading an Essay Exam
-1. Admin/Teacher → Submissions tab
-2. Find "Completed" attempts (pending grading)
-3. Click grade icon → Opens grading interface
-4. Review each essay answer
-5. Optionally use AI grading as suggestion
-6. Enter marks and feedback
-7. Submit grades → Student notified via email/SMS
+- **No payment or billing integrations.** Deliberate and permanent — the platform is school-funded, not consumer-billed.
+- **No in-browser coding system.** CodeMirror and the Piston execution API were removed and will not return.
+- **One class per student.** The hierarchy assumes a single class membership; multi-class students would require a join table.
+- **1000-row API ceiling.** Any new list surface must ship with pagination from day one.
+- **Edge functions self-authorize.** Because `verify_jwt = false` is project-wide, forgetting the `getClaims` + role check in a new function is the single most likely way to introduce a hole.
+- **Review is irreversible.** Opening an exam review permanently forfeits the resit option for that exam; the UI warns explicitly before committing.
+- **Synthetic-email accounts cannot self-recover.** Student-ID logins have no inbox, so password recovery is necessarily staff-mediated.
 
 ---
 
-*This documentation is auto-generated and maintained alongside the codebase. For the latest updates, refer to the source code and Lovable project settings.*
+*End of documentation.*
