@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   LogOut, GraduationCap, Users, FileText, BarChart3, TrendingUp, Target, Award,
   UserCheck, Building2, Activity, BookOpen, Shield, ChevronUp, ChevronDown, Zap,
-  Eye, Clock, Sparkles, ArrowUpRight, LayoutDashboard, School, UserCog, Globe
+  Eye, Clock, Sparkles, ArrowUpRight, LayoutDashboard, School, UserCog, Globe, Code2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -23,6 +23,7 @@ import SchoolManagement from '@/components/admin/SchoolManagement';
 import TeacherManagement from '@/components/admin/TeacherManagement';
 import StudentManagement from '@/components/admin/StudentManagement';
 import WebsiteAnalytics from '@/components/admin/WebsiteAnalytics';
+import CodingAssignmentManagement from '@/components/admin/CodingAssignmentManagement';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 
@@ -114,6 +115,7 @@ const tabItems = [
   { value: 'teachers', label: 'Teachers', icon: UserCog },
   { value: 'exams', label: 'Exam Analytics', icon: BarChart3 },
   { value: 'schools', label: 'Schools', icon: School },
+  { value: 'coding', label: 'Coding', icon: Code2 },
   { value: 'traffic', label: 'Site Traffic', icon: Globe },
 ];
 
@@ -659,6 +661,13 @@ export default function NewAdminDashboard() {
             <TabsContent value="schools" className="mt-6">
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                 <SchoolManagement />
+              </motion.div>
+            </TabsContent>
+
+            {/* ====== CODING ASSIGNMENTS TAB ====== */}
+            <TabsContent value="coding" className="mt-6">
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                <CodingAssignmentManagement />
               </motion.div>
             </TabsContent>
 

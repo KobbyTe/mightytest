@@ -10,7 +10,7 @@ import {
   BookOpen, Calendar, Clock, User, LogOut, GraduationCap, Download, 
   Users, Mail, Key, Copy, Check, Trophy, Star, Zap, Target, 
   Sparkles, Award, TrendingUp, Play, Brain, RefreshCw, Send, HelpCircle, RotateCcw,
-  XCircle, CheckCircle, LayoutDashboard, MessageCircle, Library
+  XCircle, CheckCircle, LayoutDashboard, MessageCircle, Library, Code2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -28,6 +28,7 @@ import { MobileBottomNav, type BottomNavItem } from '@/components/MobileBottomNa
 import { StudentSidebar } from '@/components/student/StudentSidebar';
 import { StudentHeroBanner } from '@/components/student/StudentHeroBanner';
 import { StudyLibrary } from '@/components/student/StudyLibrary';
+import { CodingAssignmentsList } from '@/components/student/CodingAssignmentsList';
 
 
 interface Exam {
@@ -70,13 +71,14 @@ interface ParentInfo {
   password?: string;
   name: string;
 }
-export const STUDENT_TABS = ['home', 'exams', 'browse', 'results', 'library', 'tutor', 'messages', 'profile'] as const;
+export const STUDENT_TABS = ['home', 'exams', 'browse', 'coding', 'results', 'library', 'tutor', 'messages', 'profile'] as const;
 export type StudentTab = (typeof STUDENT_TABS)[number];
 
 const PAGE_META: Record<StudentTab, { title: string; subtitle: string; icon: typeof BookOpen }> = {
   home: { title: 'Overview', subtitle: 'Your learning snapshot', icon: LayoutDashboard },
   exams: { title: 'My Exams', subtitle: 'Track your exam progress, resits and certificates', icon: BookOpen },
   browse: { title: 'Browse Exams', subtitle: 'New challenges await — pick an exam to start', icon: Zap },
+  coding: { title: 'Coding Assignments', subtitle: 'Write, run, and submit code for your teacher to grade', icon: Code2 },
   results: { title: 'My Results', subtitle: 'All your graded results at a glance', icon: Trophy },
   library: { title: 'Study Library', subtitle: 'Books, video courses and worksheets for your class', icon: Library },
   tutor: { title: 'Study Buddy', subtitle: 'Your personal AI tutor — ask anything, anytime', icon: Brain },
@@ -88,6 +90,7 @@ const studentNavItems: BottomNavItem[] = [
   { id: 'home', label: 'Home', icon: LayoutDashboard },
   { id: 'exams', label: 'Exams', icon: BookOpen },
   { id: 'browse', label: 'Browse', icon: Zap },
+  { id: 'coding', label: 'Coding', icon: Code2 },
   { id: 'results', label: 'Results', icon: Trophy },
   { id: 'library', label: 'Library', icon: Library },
   { id: 'tutor', label: 'Buddy', icon: Brain },
@@ -1089,6 +1092,11 @@ export default function Dashboard() {
         </div>
         )}
         {tab === 'library' && <StudyLibrary />}
+        {tab === 'coding' && (
+          <div className="animate-fade-in">
+            <CodingAssignmentsList />
+          </div>
+        )}
 
         {tab === 'tutor' && (
           <div className="animate-fade-in">

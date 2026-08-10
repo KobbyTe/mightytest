@@ -19,6 +19,7 @@ import StudentManagement from '@/components/admin/StudentManagement';
 import RegistrationKeyManagement from '@/components/admin/RegistrationKeyManagement';
 import ResitManagement from '@/components/admin/ResitManagement';
 import { StudyResourceManagement } from '@/components/admin/StudyResourceManagement';
+import CodingAssignmentManagement from '@/components/admin/CodingAssignmentManagement';
 import { ChatBubble } from '@/components/ChatBubble';
 import { NotificationBell } from '@/components/NotificationBell';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
@@ -31,7 +32,7 @@ import {
   LogOut, GraduationCap, Plus, Calendar, Users, FileText, Building2,
   HelpCircle, FileQuestion, Edit, Trash2, Eye, CheckCircle, Clock,
   ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase,
-  Trophy, Diamond, Star, TrendingUp, Target, Zap, Bell, Send
+  Trophy, Diamond, Star, TrendingUp, Target, Zap, Bell, Send, Code2
 } from 'lucide-react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
@@ -495,6 +496,7 @@ export default function TeacherDashboard() {
                     { value: 'keys', label: 'Keys', icon: Key },
                     { value: 'resits', label: 'Resits', icon: Award },
                     { value: 'library', label: 'Library', icon: BookOpen },
+                    { value: 'coding', label: 'Coding', icon: Code2 },
                   ].map(tab => (
                     <TabsTrigger
                       key={tab.value}
@@ -883,6 +885,7 @@ export default function TeacherDashboard() {
             <TabsContent value="keys"><RegistrationKeyManagement /></TabsContent>
             <TabsContent value="resits"><ResitManagement /></TabsContent>
             <TabsContent value="library"><StudyResourceManagement /></TabsContent>
+            <TabsContent value="coding"><CodingAssignmentManagement /></TabsContent>
           </Tabs>
         </motion.div>
       </main>

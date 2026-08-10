@@ -88,6 +88,171 @@ export type Database = {
           },
         ]
       }
+      coding_assignment_class_assignments: {
+        Row: {
+          assigned_by: string | null
+          assignment_id: string
+          class_id: string
+          created_at: string
+          due_date_override: string | null
+          id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assignment_id: string
+          class_id: string
+          created_at?: string
+          due_date_override?: string | null
+          id?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assignment_id?: string
+          class_id?: string
+          created_at?: string
+          due_date_override?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coding_assignment_class_assignments_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "coding_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coding_assignment_class_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coding_assignments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          instructions: string | null
+          is_published: boolean
+          language: string
+          max_score: number
+          rubric: string | null
+          starter_code: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean
+          language: string
+          max_score?: number
+          rubric?: string | null
+          starter_code?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          instructions?: string | null
+          is_published?: boolean
+          language?: string
+          max_score?: number
+          rubric?: string | null
+          starter_code?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      coding_submissions: {
+        Row: {
+          ai_feedback: string | null
+          ai_graded_at: string | null
+          ai_suggested_score: number | null
+          assignment_id: string
+          code: string
+          created_at: string
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          last_run_at: string | null
+          last_run_output: string | null
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+          teacher_feedback: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          ai_graded_at?: string | null
+          ai_suggested_score?: number | null
+          assignment_id: string
+          code?: string
+          created_at?: string
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          last_run_at?: string | null
+          last_run_output?: string | null
+          score?: number | null
+          status?: string
+          student_id: string
+          submitted_at?: string | null
+          teacher_feedback?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          ai_graded_at?: string | null
+          ai_suggested_score?: number | null
+          assignment_id?: string
+          code?: string
+          created_at?: string
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          last_run_at?: string | null
+          last_run_output?: string | null
+          score?: number | null
+          status?: string
+          student_id?: string
+          submitted_at?: string | null
+          teacher_feedback?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coding_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "coding_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coding_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_submissions: {
         Row: {
           created_at: string
