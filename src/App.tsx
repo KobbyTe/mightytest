@@ -20,6 +20,7 @@ const NewAdminDashboard = lazy(() => import("./pages/NewAdminDashboard"));
 
 const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
 const ExamTaking = lazy(() => import("./pages/ExamTaking"));
+const CodingWorkspace = lazy(() => import("./pages/CodingWorkspace"));
 const ExamQuestions = lazy(() => import("./pages/ExamQuestions"));
 const ExamGrading = lazy(() => import("./pages/ExamGrading"));
 const ExamAnalytics = lazy(() => import("./pages/ExamAnalytics"));
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/admin/analytics" element={<ProtectedRoute allowedRoles={['admin', 'teacher']}><ExamAnalytics /></ProtectedRoute>} />
         <Route path="/teacher" element={<ProtectedRoute allowedRoles={['teacher']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/exam/take" element={<ProtectedRoute allowedRoles={['student']}><ExamTaking /></ProtectedRoute>} />
+        <Route path="/coding/:assignmentId" element={<ProtectedRoute allowedRoles={['student']}><CodingWorkspace /></ProtectedRoute>} />
         <Route path="/exam/review/:attemptId" element={<ProtectedRoute allowedRoles={['student']}><ExamReview /></ProtectedRoute>} />
         <Route path="/parent" element={<ProtectedRoute allowedRoles={['parent']}><ParentDashboard /></ProtectedRoute>} />
         <Route path="/about" element={<About />} />

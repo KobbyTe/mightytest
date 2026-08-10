@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { LayoutDashboard, BookOpen, Zap, Trophy, User, Brain, LogOut, MessageCircle, Library } from "lucide-react";
+import { LayoutDashboard, BookOpen, Zap, Trophy, User, Brain, LogOut, MessageCircle, Library, Code2 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import logo from "@/assets/mighty-test-logo.png";
 import trophy3d from "@/assets/dashboard-trophy-3d.png";
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/dashboard", label: "Home", icon: LayoutDashboard, end: true },
   { to: "/dashboard/exams", label: "My Exams", icon: BookOpen },
   { to: "/dashboard/browse", label: "Browse", icon: Zap },
+  { to: "/dashboard/coding", label: "Coding", icon: Code2 },
   { to: "/dashboard/results", label: "Results", icon: Trophy },
   { to: "/dashboard/library", label: "Library", icon: Library },
   { to: "/dashboard/tutor", label: "Study Buddy", icon: Brain },

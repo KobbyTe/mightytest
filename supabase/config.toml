@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.reset-student-password]
 verify_jwt = false
+
+[functions.grade-coding-assignment]
+verify_jwt = false
