@@ -1,3 +1,5 @@
+import { parseCodingLanguage, assertCodingLanguage, toEditorLanguage, codingLanguageLabel, DEFAULT_CODING_LANGUAGE, type CodingLanguage } from '@/lib/codingLanguage';
+import { buildGradeUpdate, isValidScore, parseSubmissionStatus, type CodingSubmissionStatus } from '@/lib/codingGrading';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,7 +27,7 @@ interface Assignment {
   title: string;
   description: string | null;
   instructions: string | null;
-  language: 'html_css_js' | 'python';
+  language: CodingLanguage;
   starter_code: string;
   rubric: string | null;
   max_score: number;
@@ -39,7 +41,7 @@ interface Submission {
   id: string;
   student_id: string;
   code: string;
-  status: 'draft' | 'submitted' | 'graded';
+  status: CodingSubmissionStatus;
   last_run_output: string | null;
   ai_suggested_score: number | null;
   ai_feedback: string | null;
@@ -49,7 +51,7 @@ interface Submission {
   student: { full_name: string } | null;
 }
 
-const STARTER_TEMPLATES: Record<'html_css_js' | 'python', string> = {
+const STARTER_TEMPLATES: Record<CodingLanguage, string> = {
   html_css_js: '<!DOCTYPE html>\n<html>\n  <head>\n    <style>\n      /* your CSS here */\n    </style>\n  </head>\n  <body>\n    <h1>Hello!</h1>\n    <script>\n      // your JavaScript here\n    </script>\n  </body>\n</html>\n',
   python: '# Write your Python code here\nprint("Hello, world!")\n',
 };
@@ -68,7 +70,7 @@ export default function CodingAssignmentManagement() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [language, setLanguage] = useState<'html_css_js' | 'python'>('html_css_js');
+  const [language, setLanguage] = useState<CodingLanguage>(DEFAULT_CODING_LANGUAGE);
   const [starterCode, setStarterCode] = useState(STARTER_TEMPLATES.html_css_js);
   const [rubric, setRubric] = useState('');
   const [maxScore, setMaxScore] = useState(100);
@@ -116,6 +118,7 @@ export default function CodingAssignmentManagement() {
       setAssignments(
         (assignmentData || []).map((a: any) => ({
           ...a,
+          language: parseCodingLanguage(a.language),
           classAssignments: linksByAssignment.get(a.id) || [],
         }))
       );
@@ -169,7 +172,7 @@ export default function CodingAssignmentManagement() {
         title: title.trim(),
         description: description.trim() || null,
         instructions: instructions.trim() || null,
-        language,
+        language: assertCodingLanguage(language),
         starter_code: starterCode,
         rubric: rubric.trim() || null,
         max_score: maxScore,
@@ -229,7 +232,9 @@ export default function CodingAssignmentManagement() {
         .eq('assignment_id', a.id)
         .order('submitted_at', { ascending: false, nullsFirst: false });
       if (error) throw error;
-      setSubmissions((data as any) || []);
+      setSubmissions(
+        ((data as any[]) || []).map((s) => ({ ...s, status: parseSubmissionStatus(s.status) }))
+      );
     } catch (e) {
       console.error(e);
       toast.error('Failed to load submissions');
@@ -277,21 +282,22 @@ export default function CodingAssignmentManagement() {
 
   const finalizeGrade = async () => {
     if (!activeSubmission) return;
-    const score = Number(scoreDraft);
-    if (!Number.isFinite(score) || score < 0 || (gradingAssignment && score > gradingAssignment.max_score)) {
-      return toast.error(`Score must be between 0 and ${gradingAssignment?.max_score ?? 100}`);
+    const maxScore = gradingAssignment?.max_score ?? 100;
+    if (!isValidScore(scoreDraft, maxScore)) {
+      return toast.error(`Score must be between 0 and ${maxScore}`);
     }
     setFinalizing(true);
     try {
       const { error } = await supabase
         .from('coding_submissions')
-        .update({
-          score,
-          teacher_feedback: feedbackDraft.trim() || null,
-          status: 'graded',
-          graded_by: user?.id ?? null,
-          graded_at: new Date().toISOString(),
-        })
+        .update(
+          buildGradeUpdate({
+            score: scoreDraft,
+            maxScore,
+            feedback: feedbackDraft,
+            gradedBy: user?.id ?? null,
+          })
+        )
         .eq('id', activeSubmission.id);
       if (error) throw error;
 
@@ -380,7 +386,7 @@ export default function CodingAssignmentManagement() {
                   <CodeEditor
                     value={activeSubmission.code}
                     onChange={() => {}}
-                    language={gradingAssignment.language === 'python' ? 'python' : 'html'}
+                    language={toEditorLanguage(gradingAssignment.language)}
                     readOnly
                   />
                 </div>
@@ -473,9 +479,10 @@ export default function CodingAssignmentManagement() {
                   <Label>Language</Label>
                   <Select
                     value={language}
-                    onValueChange={(v: 'html_css_js' | 'python') => {
-                      setLanguage(v);
-                      if (!editingId) setStarterCode(STARTER_TEMPLATES[v]);
+                    onValueChange={(v: string) => {
+                      const next = parseCodingLanguage(v);
+                      setLanguage(next);
+                      if (!editingId) setStarterCode(STARTER_TEMPLATES[next]);
                     }}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -493,7 +500,7 @@ export default function CodingAssignmentManagement() {
               <div>
                 <Label>Starter code</Label>
                 <div className="h-48 rounded-lg overflow-hidden border border-border/50 mt-1">
-                  <CodeEditor value={starterCode} onChange={setStarterCode} language={language === 'python' ? 'python' : 'html'} />
+                  <CodeEditor value={starterCode} onChange={setStarterCode} language={toEditorLanguage(language)} />
                 </div>
               </div>
               <div>
@@ -554,7 +561,7 @@ export default function CodingAssignmentManagement() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium truncate">{a.title}</p>
-                    <Badge variant="outline" className="text-[10px]">{a.language === 'python' ? 'Python' : 'HTML/CSS/JS'}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{codingLanguageLabel(a.language)}</Badge>
                     {!a.is_published && <Badge variant="secondary" className="text-[10px]">Draft</Badge>}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
