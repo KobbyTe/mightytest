@@ -1,3 +1,4 @@
+import { parseCodingLanguage, toEditorLanguage, type CodingLanguage } from '@/lib/codingLanguage';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,7 +18,7 @@ interface Assignment {
   title: string;
   description: string | null;
   instructions: string | null;
-  language: 'html_css_js' | 'python';
+  language: CodingLanguage;
   starter_code: string;
   max_score: number;
   due_date: string | null;
@@ -72,7 +73,7 @@ export default function CodingWorkspace() {
         navigate('/dashboard/coding');
         return;
       }
-      setAssignment(assignmentData as Assignment);
+      setAssignment({ ...(assignmentData as Assignment), language: parseCodingLanguage(assignmentData.language) });
 
       const { data: existing } = await supabase
         .from('coding_submissions')
@@ -278,7 +279,7 @@ export default function CodingWorkspace() {
             <CodeEditor
               value={code}
               onChange={handleCodeChange}
-              language={assignment.language === 'python' ? 'python' : 'html'}
+              language={toEditorLanguage(assignment.language)}
               readOnly={isReadOnly}
             />
           </div>

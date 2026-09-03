@@ -1,3 +1,5 @@
+import { parseCodingLanguage, codingLanguageLabel, type CodingLanguage } from '@/lib/codingLanguage';
+import { parseSubmissionStatus } from '@/lib/codingGrading';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +13,7 @@ interface AssignmentWithSubmission {
   id: string;
   title: string;
   description: string | null;
-  language: 'html_css_js' | 'python';
+  language: CodingLanguage;
   max_score: number;
   due_date: string | null;
   submission: {
@@ -52,9 +54,9 @@ export function CodingAssignmentsList() {
       setAssignments(
         (assignmentData || []).map((a) => ({
           ...a,
-          language: a.language as 'html_css_js' | 'python',
+          language: parseCodingLanguage(a.language),
           submission: submissionMap.get(a.id)
-            ? { status: submissionMap.get(a.id)!.status as 'draft' | 'submitted' | 'graded', score: submissionMap.get(a.id)!.score }
+            ? { status: parseSubmissionStatus(submissionMap.get(a.id)!.status), score: submissionMap.get(a.id)!.score }
             : null,
         }))
       );
@@ -102,7 +104,7 @@ export function CodingAssignmentsList() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium truncate">{a.title}</p>
                   <Badge variant="outline" className="text-[10px] shrink-0">
-                    {a.language === 'python' ? 'Python' : 'HTML/CSS/JS'}
+                    {codingLanguageLabel(a.language)}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
