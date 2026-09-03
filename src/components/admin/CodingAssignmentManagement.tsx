@@ -480,8 +480,9 @@ export default function CodingAssignmentManagement() {
                   <Select
                     value={language}
                     onValueChange={(v: string) => {
-                      setLanguage(v);
-                      if (!editingId) setStarterCode(STARTER_TEMPLATES[v]);
+                      const next = parseCodingLanguage(v);
+                      setLanguage(next);
+                      if (!editingId) setStarterCode(STARTER_TEMPLATES[next]);
                     }}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
