@@ -479,7 +479,7 @@ export default function CodingAssignmentManagement() {
                   <Label>Language</Label>
                   <Select
                     value={language}
-                    onValueChange={(v: 'html_css_js' | 'python') => {
+                    onValueChange={(v: string) => {
                       setLanguage(v);
                       if (!editingId) setStarterCode(STARTER_TEMPLATES[v]);
                     }}
