@@ -52,6 +52,7 @@ export function CodingAssignmentsList() {
       setAssignments(
         (assignmentData || []).map((a) => ({
           ...a,
+          language: a.language as 'html_css_js' | 'python',
           submission: submissionMap.get(a.id)
             ? { status: submissionMap.get(a.id)!.status as 'draft' | 'submitted' | 'graded', score: submissionMap.get(a.id)!.score }
             : null,
