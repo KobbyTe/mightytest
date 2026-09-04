@@ -1,4 +1,5 @@
 import { parseCodingLanguage, assertCodingLanguage, toEditorLanguage, codingLanguageLabel, DEFAULT_CODING_LANGUAGE, type CodingLanguage } from '@/lib/codingLanguage';
+import { parseTestCases, newTestCase, type CodingTestCase } from '@/lib/codingTests';
 import { buildGradeUpdate, isValidScore, parseSubmissionStatus, type CodingSubmissionStatus } from '@/lib/codingGrading';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +19,7 @@ import { CodeEditor } from '@/components/coding/CodeEditor';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Plus, Code2, Loader2, Sparkles, Users, Trash2, Edit } from 'lucide-react';
+import { Plus, Code2, Loader2, Sparkles, Users, Trash2, Edit, FlaskConical } from 'lucide-react';
 
 interface ClassOption { id: string; name: string; }
 
@@ -33,6 +34,7 @@ interface Assignment {
   max_score: number;
   due_date: string | null;
   is_published: boolean;
+  test_cases: CodingTestCase[];
   created_by: string | null;
   classAssignments: string[];
 }
@@ -46,6 +48,7 @@ interface Submission {
   ai_suggested_score: number | null;
   ai_feedback: string | null;
   score: number | null;
+  auto_score: number | null;
   teacher_feedback: string | null;
   submitted_at: string | null;
   student: { full_name: string } | null;
@@ -77,6 +80,7 @@ export default function CodingAssignmentManagement() {
   const [dueDate, setDueDate] = useState('');
   const [published, setPublished] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [testCases, setTestCases] = useState<CodingTestCase[]>([]);
 
   const [gradingAssignment, setGradingAssignment] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -119,6 +123,7 @@ export default function CodingAssignmentManagement() {
         (assignmentData || []).map((a: any) => ({
           ...a,
           language: parseCodingLanguage(a.language),
+          test_cases: parseTestCases(a.test_cases),
           classAssignments: linksByAssignment.get(a.id) || [],
         }))
       );
@@ -142,6 +147,7 @@ export default function CodingAssignmentManagement() {
     setDueDate('');
     setPublished(false);
     setSelectedClasses([]);
+    setTestCases([]);
   };
 
   const openEdit = (a: Assignment) => {
@@ -156,6 +162,7 @@ export default function CodingAssignmentManagement() {
     setDueDate(a.due_date ? a.due_date.slice(0, 16) : '');
     setPublished(a.is_published);
     setSelectedClasses(a.classAssignments);
+    setTestCases(a.test_cases);
     setDialogOpen(true);
   };
 
@@ -178,6 +185,7 @@ export default function CodingAssignmentManagement() {
         max_score: maxScore,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         is_published: published,
+        test_cases: JSON.parse(JSON.stringify(language === 'python' ? testCases : [])),
       };
 
       let assignmentId = editingId;
