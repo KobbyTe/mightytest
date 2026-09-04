@@ -253,7 +253,12 @@ export default function CodingAssignmentManagement() {
 
   const openSubmission = (s: Submission) => {
     setActiveSubmission(s);
-    setScoreDraft(s.score != null ? String(s.score) : s.ai_suggested_score != null ? String(s.ai_suggested_score) : '');
+    setScoreDraft(
+      s.score != null ? String(s.score)
+        : s.auto_score != null ? String(s.auto_score)
+        : s.ai_suggested_score != null ? String(s.ai_suggested_score)
+        : ''
+    );
     setFeedbackDraft(s.teacher_feedback || s.ai_feedback || '');
   };
 
