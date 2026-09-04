@@ -59,6 +59,7 @@ export default function CodingWorkspace() {
 
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const isReadOnly = submission?.status === 'submitted' || submission?.status === 'graded';
+  const hasTests = assignment?.language === 'python' && (assignment?.test_cases.length ?? 0) > 0;
 
   useEffect(() => {
     if (authLoading || !profile?.id || !assignmentId) return;
