@@ -335,11 +335,89 @@ export default function CodingWorkspace() {
         </div>
 
         <div className="flex flex-col min-h-[400px] lg:min-h-0">
-          <Tabs defaultValue="output" className="flex-1 flex flex-col min-h-0">
+          <Tabs defaultValue={hasTests ? 'tests' : 'output'} className="flex-1 flex flex-col min-h-0">
             <TabsList className="w-fit mb-3">
               {assignment.language === 'html_css_js' && <TabsTrigger value="preview">Preview</TabsTrigger>}
               <TabsTrigger value="output">Output</TabsTrigger>
+              {hasTests && (
+                <TabsTrigger value="tests" className="gap-1.5">
+                  Tests
+                  {testSummary && (
+                    <span className={testSummary.passedCount === testSummary.totalCount ? 'text-emerald-600' : 'text-amber-600'}>
+                      {testSummary.passedCount}/{testSummary.totalCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
+
+            {hasTests && (
+              <TabsContent value="tests" className="flex-1 min-h-[250px]">
+                <Card className="h-full border-border/50">
+                  <CardContent className="p-3 h-full overflow-auto space-y-2">
+                    {testSummary && (
+                      <div className="rounded-lg border border-border/50 bg-muted/40 p-3">
+                        <p className="text-sm font-medium">
+                          {testSummary.passedCount}/{testSummary.totalCount} tests passed
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Auto score {testSummary.autoScore}/{assignment.max_score} — your teacher can still adjust it.
+                        </p>
+                      </div>
+                    )}
+                    {!testSummary && (
+                      <p className="text-xs text-muted-foreground">
+                        This problem is graded against {assignment.test_cases.length} automated test
+                        {assignment.test_cases.length === 1 ? '' : 's'}. Click “Run tests” to check your solution.
+                      </p>
+                    )}
+                    {(testSummary?.results ?? assignment.test_cases.map((c) => ({
+                      id: c.id, name: c.name, hidden: c.hidden, points: c.points,
+                      passed: false, actual_output: '', error: null,
+                    }))).map((r) => {
+                      const spec = assignment.test_cases.find((c) => c.id === r.id);
+                      return (
+                        <div key={r.id} className="rounded-lg border border-border/50 p-3">
+                          <div className="flex items-center gap-2">
+                            {testSummary ? (
+                              r.passed
+                                ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                                : <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                            ) : (
+                              <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <p className="text-sm font-medium truncate">{r.name}</p>
+                            {r.hidden && <Lock className="h-3 w-3 text-muted-foreground" />}
+                            <span className="ml-auto text-[11px] text-muted-foreground">{r.points} pt{r.points === 1 ? '' : 's'}</span>
+                          </div>
+                          {!r.hidden && spec && (
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2 text-[11px] font-mono">
+                              <div>
+                                <p className="text-muted-foreground font-sans mb-0.5">Input</p>
+                                <pre className="bg-muted/50 rounded p-2 whitespace-pre-wrap break-words">{spec.stdin || '(none)'}</pre>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground font-sans mb-0.5">Expected</p>
+                                <pre className="bg-muted/50 rounded p-2 whitespace-pre-wrap break-words">{spec.expected_output || '(empty)'}</pre>
+                              </div>
+                            </div>
+                          )}
+                          {testSummary && !r.passed && (
+                            <div className="mt-2 text-[11px] font-mono">
+                              <p className="text-muted-foreground font-sans mb-0.5">Your output</p>
+                              <pre className="bg-destructive/10 rounded p-2 whitespace-pre-wrap break-words">
+                                {r.error ? r.error : r.actual_output || '(no output)'}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
 
             {assignment.language === 'html_css_js' && (
               <TabsContent value="preview" className="flex-1 min-h-[250px]">
