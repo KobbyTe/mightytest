@@ -511,6 +511,69 @@ export default function CodingAssignmentManagement() {
                   <CodeEditor value={starterCode} onChange={setStarterCode} language={toEditorLanguage(language)} />
                 </div>
               </div>
+              {language === 'python' && (
+                <div className="rounded-xl border border-border p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <FlaskConical className="h-4 w-4 text-primary" /> Automated test cases
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        The student's program runs against each case (stdin → expected stdout) and is auto-scored.
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setTestCases((p) => [...p, newTestCase()])}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add case
+                    </Button>
+                  </div>
+                  {testCases.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No test cases — this assignment will be graded manually / by AI only.</p>
+                  )}
+                  {testCases.map((tc, i) => {
+                    const update = (patch: Partial<CodingTestCase>) =>
+                      setTestCases((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+                    return (
+                      <div key={tc.id} className="rounded-lg border border-border/60 p-3 space-y-2 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={tc.name}
+                            onChange={(e) => update({ name: e.target.value })}
+                            placeholder="Case name"
+                            className="h-8"
+                          />
+                          <Input
+                            type="number"
+                            min={1}
+                            value={tc.points}
+                            onChange={(e) => update({ points: Math.max(1, Number(e.target.value) || 1) })}
+                            className="h-8 w-20"
+                            title="Points"
+                          />
+                          <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0"
+                            onClick={() => setTestCases((prev) => prev.filter((_, idx) => idx !== i))}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <Label className="text-xs">Input (stdin)</Label>
+                            <Textarea rows={3} value={tc.stdin} onChange={(e) => update({ stdin: e.target.value })} className="font-mono text-xs" />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Expected output</Label>
+                            <Textarea rows={3} value={tc.expected_output} onChange={(e) => update({ expected_output: e.target.value })} className="font-mono text-xs" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">Hidden (students see pass/fail only)</p>
+                          <Switch checked={tc.hidden} onCheckedChange={(v) => update({ hidden: v })} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div>
                 <Label>Grading rubric / expected behaviour (used by AI grading — not shown to students)</Label>
                 <Textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={3} placeholder="e.g. Function must handle division by zero; UI must update without a page reload..." />
