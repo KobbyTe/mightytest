@@ -280,10 +280,17 @@ export default function CodingWorkspace() {
                 <Button variant="outline" size="sm" onClick={handleReset} className="hidden sm:inline-flex">
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
                 </Button>
-                <Button size="sm" onClick={handleRun} disabled={running}>
+                <Button size="sm" variant="outline" onClick={handleRun} disabled={running || testing}>
                   {running ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
                   Run
                 </Button>
+                {hasTests && (
+                  <Button size="sm" variant="secondary" onClick={handleRunTests} disabled={testing || running}>
+                    {testing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5 mr-1.5" />}
+                    {testing && testProgress ? `Testing ${testProgress.done}/${testProgress.total}` : 'Run tests'}
+                  </Button>
+                )}
+
                 <Button size="sm" onClick={handleSubmit} disabled={submitting} className="bg-primary">
                   {submitting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
                   Submit
