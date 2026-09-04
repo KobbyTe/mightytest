@@ -10,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CodeEditor } from '@/components/coding/CodeEditor';
 import { HtmlPreview } from '@/components/coding/HtmlPreview';
 import { runPython, type RunResult } from '@/lib/pyodideRunner';
+import { parseTestCases, type CodingTestCase, type TestRunSummary } from '@/lib/codingTests';
+import { runPythonTestCases } from '@/lib/codingTestRunner';
 import { toast } from 'sonner';
-import { ArrowLeft, Play, Send, Loader2, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Play, Send, Loader2, RotateCcw, CheckCircle2, FlaskConical, XCircle, Lock } from 'lucide-react';
 
 interface Assignment {
   id: string;
@@ -22,6 +24,7 @@ interface Assignment {
   starter_code: string;
   max_score: number;
   due_date: string | null;
+  test_cases: CodingTestCase[];
 }
 
 interface Submission {
@@ -50,9 +53,13 @@ export default function CodingWorkspace() {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [runToken, setRunToken] = useState(0);
+  const [testing, setTesting] = useState(false);
+  const [testProgress, setTestProgress] = useState<{ done: number; total: number } | null>(null);
+  const [testSummary, setTestSummary] = useState<TestRunSummary | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const isReadOnly = submission?.status === 'submitted' || submission?.status === 'graded';
+  const hasTests = assignment?.language === 'python' && (assignment?.test_cases.length ?? 0) > 0;
 
   useEffect(() => {
     if (authLoading || !profile?.id || !assignmentId) return;
@@ -64,7 +71,7 @@ export default function CodingWorkspace() {
     try {
       const { data: assignmentData, error: aErr } = await supabase
         .from('coding_assignments')
-        .select('id, title, description, instructions, language, starter_code, max_score, due_date')
+        .select('id, title, description, instructions, language, starter_code, max_score, due_date, test_cases')
         .eq('id', assignmentId)
         .single();
 
@@ -73,7 +80,11 @@ export default function CodingWorkspace() {
         navigate('/dashboard/coding');
         return;
       }
-      setAssignment({ ...(assignmentData as Assignment), language: parseCodingLanguage(assignmentData.language) });
+      setAssignment({
+        ...(assignmentData as unknown as Assignment),
+        language: parseCodingLanguage(assignmentData.language),
+        test_cases: parseTestCases((assignmentData as { test_cases?: unknown }).test_cases),
+      });
 
       const { data: existing } = await supabase
         .from('coding_submissions')
@@ -154,6 +165,28 @@ export default function CodingWorkspace() {
     }
   };
 
+  const handleRunTests = async () => {
+    if (!assignment || assignment.test_cases.length === 0) return;
+    setTesting(true);
+    setTestSummary(null);
+    setTestProgress({ done: 0, total: assignment.test_cases.length });
+    try {
+      const summary = await runPythonTestCases(
+        code,
+        assignment.test_cases,
+        assignment.max_score,
+        (done, total) => setTestProgress({ done, total }),
+      );
+      setTestSummary(summary);
+      toast.success(`${summary.passedCount}/${summary.totalCount} tests passed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not run the tests.');
+    } finally {
+      setTesting(false);
+      setTestProgress(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!assignmentId || !profile?.id) return;
     if (!code.trim()) {
@@ -163,6 +196,13 @@ export default function CodingWorkspace() {
     setSubmitting(true);
     try {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      // Always grade against the tests at submit time so the stored score
+      // reflects the exact code being submitted.
+      let finalSummary = testSummary;
+      if (hasTests) {
+        finalSummary = await runPythonTestCases(code, assignment!.test_cases, assignment!.max_score);
+        setTestSummary(finalSummary);
+      }
       const { data, error } = await supabase
         .from('coding_submissions')
         .upsert(
@@ -173,6 +213,8 @@ export default function CodingWorkspace() {
             status: 'submitted',
             submitted_at: new Date().toISOString(),
             last_run_output: runResult?.output || runResult?.error || null,
+            test_results: finalSummary ? JSON.parse(JSON.stringify(finalSummary.results)) : null,
+            auto_score: finalSummary ? finalSummary.autoScore : null,
           },
           { onConflict: 'assignment_id,student_id' }
         )
@@ -238,10 +280,17 @@ export default function CodingWorkspace() {
                 <Button variant="outline" size="sm" onClick={handleReset} className="hidden sm:inline-flex">
                   <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reset
                 </Button>
-                <Button size="sm" onClick={handleRun} disabled={running}>
+                <Button size="sm" variant="outline" onClick={handleRun} disabled={running || testing}>
                   {running ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
                   Run
                 </Button>
+                {hasTests && (
+                  <Button size="sm" variant="secondary" onClick={handleRunTests} disabled={testing || running}>
+                    {testing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5 mr-1.5" />}
+                    {testing && testProgress ? `Testing ${testProgress.done}/${testProgress.total}` : 'Run tests'}
+                  </Button>
+                )}
+
                 <Button size="sm" onClick={handleSubmit} disabled={submitting} className="bg-primary">
                   {submitting ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
                   Submit
@@ -286,11 +335,89 @@ export default function CodingWorkspace() {
         </div>
 
         <div className="flex flex-col min-h-[400px] lg:min-h-0">
-          <Tabs defaultValue="output" className="flex-1 flex flex-col min-h-0">
+          <Tabs defaultValue={hasTests ? 'tests' : 'output'} className="flex-1 flex flex-col min-h-0">
             <TabsList className="w-fit mb-3">
               {assignment.language === 'html_css_js' && <TabsTrigger value="preview">Preview</TabsTrigger>}
               <TabsTrigger value="output">Output</TabsTrigger>
+              {hasTests && (
+                <TabsTrigger value="tests" className="gap-1.5">
+                  Tests
+                  {testSummary && (
+                    <span className={testSummary.passedCount === testSummary.totalCount ? 'text-emerald-600' : 'text-amber-600'}>
+                      {testSummary.passedCount}/{testSummary.totalCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
+
+            {hasTests && (
+              <TabsContent value="tests" className="flex-1 min-h-[250px]">
+                <Card className="h-full border-border/50">
+                  <CardContent className="p-3 h-full overflow-auto space-y-2">
+                    {testSummary && (
+                      <div className="rounded-lg border border-border/50 bg-muted/40 p-3">
+                        <p className="text-sm font-medium">
+                          {testSummary.passedCount}/{testSummary.totalCount} tests passed
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Auto score {testSummary.autoScore}/{assignment.max_score} — your teacher can still adjust it.
+                        </p>
+                      </div>
+                    )}
+                    {!testSummary && (
+                      <p className="text-xs text-muted-foreground">
+                        This problem is graded against {assignment.test_cases.length} automated test
+                        {assignment.test_cases.length === 1 ? '' : 's'}. Click “Run tests” to check your solution.
+                      </p>
+                    )}
+                    {(testSummary?.results ?? assignment.test_cases.map((c) => ({
+                      id: c.id, name: c.name, hidden: c.hidden, points: c.points,
+                      passed: false, actual_output: '', error: null,
+                    }))).map((r) => {
+                      const spec = assignment.test_cases.find((c) => c.id === r.id);
+                      return (
+                        <div key={r.id} className="rounded-lg border border-border/50 p-3">
+                          <div className="flex items-center gap-2">
+                            {testSummary ? (
+                              r.passed
+                                ? <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                                : <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                            ) : (
+                              <FlaskConical className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <p className="text-sm font-medium truncate">{r.name}</p>
+                            {r.hidden && <Lock className="h-3 w-3 text-muted-foreground" />}
+                            <span className="ml-auto text-[11px] text-muted-foreground">{r.points} pt{r.points === 1 ? '' : 's'}</span>
+                          </div>
+                          {!r.hidden && spec && (
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2 text-[11px] font-mono">
+                              <div>
+                                <p className="text-muted-foreground font-sans mb-0.5">Input</p>
+                                <pre className="bg-muted/50 rounded p-2 whitespace-pre-wrap break-words">{spec.stdin || '(none)'}</pre>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground font-sans mb-0.5">Expected</p>
+                                <pre className="bg-muted/50 rounded p-2 whitespace-pre-wrap break-words">{spec.expected_output || '(empty)'}</pre>
+                              </div>
+                            </div>
+                          )}
+                          {testSummary && !r.passed && (
+                            <div className="mt-2 text-[11px] font-mono">
+                              <p className="text-muted-foreground font-sans mb-0.5">Your output</p>
+                              <pre className="bg-destructive/10 rounded p-2 whitespace-pre-wrap break-words">
+                                {r.error ? r.error : r.actual_output || '(no output)'}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
 
             {assignment.language === 'html_css_js' && (
               <TabsContent value="preview" className="flex-1 min-h-[250px]">

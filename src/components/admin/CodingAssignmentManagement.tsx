@@ -1,4 +1,5 @@
 import { parseCodingLanguage, assertCodingLanguage, toEditorLanguage, codingLanguageLabel, DEFAULT_CODING_LANGUAGE, type CodingLanguage } from '@/lib/codingLanguage';
+import { parseTestCases, newTestCase, type CodingTestCase } from '@/lib/codingTests';
 import { buildGradeUpdate, isValidScore, parseSubmissionStatus, type CodingSubmissionStatus } from '@/lib/codingGrading';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,7 +19,7 @@ import { CodeEditor } from '@/components/coding/CodeEditor';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Plus, Code2, Loader2, Sparkles, Users, Trash2, Edit } from 'lucide-react';
+import { Plus, Code2, Loader2, Sparkles, Users, Trash2, Edit, FlaskConical } from 'lucide-react';
 
 interface ClassOption { id: string; name: string; }
 
@@ -33,6 +34,7 @@ interface Assignment {
   max_score: number;
   due_date: string | null;
   is_published: boolean;
+  test_cases: CodingTestCase[];
   created_by: string | null;
   classAssignments: string[];
 }
@@ -46,6 +48,7 @@ interface Submission {
   ai_suggested_score: number | null;
   ai_feedback: string | null;
   score: number | null;
+  auto_score: number | null;
   teacher_feedback: string | null;
   submitted_at: string | null;
   student: { full_name: string } | null;
@@ -77,6 +80,7 @@ export default function CodingAssignmentManagement() {
   const [dueDate, setDueDate] = useState('');
   const [published, setPublished] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [testCases, setTestCases] = useState<CodingTestCase[]>([]);
 
   const [gradingAssignment, setGradingAssignment] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -119,6 +123,7 @@ export default function CodingAssignmentManagement() {
         (assignmentData || []).map((a: any) => ({
           ...a,
           language: parseCodingLanguage(a.language),
+          test_cases: parseTestCases(a.test_cases),
           classAssignments: linksByAssignment.get(a.id) || [],
         }))
       );
@@ -142,6 +147,7 @@ export default function CodingAssignmentManagement() {
     setDueDate('');
     setPublished(false);
     setSelectedClasses([]);
+    setTestCases([]);
   };
 
   const openEdit = (a: Assignment) => {
@@ -156,6 +162,7 @@ export default function CodingAssignmentManagement() {
     setDueDate(a.due_date ? a.due_date.slice(0, 16) : '');
     setPublished(a.is_published);
     setSelectedClasses(a.classAssignments);
+    setTestCases(a.test_cases);
     setDialogOpen(true);
   };
 
@@ -178,6 +185,7 @@ export default function CodingAssignmentManagement() {
         max_score: maxScore,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         is_published: published,
+        test_cases: JSON.parse(JSON.stringify(language === 'python' ? testCases : [])),
       };
 
       let assignmentId = editingId;
@@ -245,7 +253,12 @@ export default function CodingAssignmentManagement() {
 
   const openSubmission = (s: Submission) => {
     setActiveSubmission(s);
-    setScoreDraft(s.score != null ? String(s.score) : s.ai_suggested_score != null ? String(s.ai_suggested_score) : '');
+    setScoreDraft(
+      s.score != null ? String(s.score)
+        : s.auto_score != null ? String(s.auto_score)
+        : s.ai_suggested_score != null ? String(s.ai_suggested_score)
+        : ''
+    );
     setFeedbackDraft(s.teacher_feedback || s.ai_feedback || '');
   };
 
@@ -503,6 +516,69 @@ export default function CodingAssignmentManagement() {
                   <CodeEditor value={starterCode} onChange={setStarterCode} language={toEditorLanguage(language)} />
                 </div>
               </div>
+              {language === 'python' && (
+                <div className="rounded-xl border border-border p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium flex items-center gap-1.5">
+                        <FlaskConical className="h-4 w-4 text-primary" /> Automated test cases
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        The student's program runs against each case (stdin → expected stdout) and is auto-scored.
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setTestCases((p) => [...p, newTestCase()])}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add case
+                    </Button>
+                  </div>
+                  {testCases.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No test cases — this assignment will be graded manually / by AI only.</p>
+                  )}
+                  {testCases.map((tc, i) => {
+                    const update = (patch: Partial<CodingTestCase>) =>
+                      setTestCases((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
+                    return (
+                      <div key={tc.id} className="rounded-lg border border-border/60 p-3 space-y-2 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={tc.name}
+                            onChange={(e) => update({ name: e.target.value })}
+                            placeholder="Case name"
+                            className="h-8"
+                          />
+                          <Input
+                            type="number"
+                            min={1}
+                            value={tc.points}
+                            onChange={(e) => update({ points: Math.max(1, Number(e.target.value) || 1) })}
+                            className="h-8 w-20"
+                            title="Points"
+                          />
+                          <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0"
+                            onClick={() => setTestCases((prev) => prev.filter((_, idx) => idx !== i))}>
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <div>
+                            <Label className="text-xs">Input (stdin)</Label>
+                            <Textarea rows={3} value={tc.stdin} onChange={(e) => update({ stdin: e.target.value })} className="font-mono text-xs" />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Expected output</Label>
+                            <Textarea rows={3} value={tc.expected_output} onChange={(e) => update({ expected_output: e.target.value })} className="font-mono text-xs" />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground">Hidden (students see pass/fail only)</p>
+                          <Switch checked={tc.hidden} onCheckedChange={(v) => update({ hidden: v })} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div>
                 <Label>Grading rubric / expected behaviour (used by AI grading — not shown to students)</Label>
                 <Textarea value={rubric} onChange={(e) => setRubric(e.target.value)} rows={3} placeholder="e.g. Function must handle division by zero; UI must update without a page reload..." />
