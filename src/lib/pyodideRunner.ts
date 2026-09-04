@@ -34,10 +34,14 @@ const WORKER_SOURCE = `
   }
 
   self.onmessage = async (e) => {
-    const { code } = e.data;
+    const { code, stdin } = e.data;
     try {
       const pyodide = await ensurePyodide();
       self.__resetBuffer();
+      // Feed the test case's stdin to input() line by line.
+      const lines = typeof stdin === "string" && stdin.length ? stdin.replace(/\\r\\n/g, "\\n").split("\\n") : [];
+      let cursor = 0;
+      pyodide.setStdin({ stdin: () => (cursor < lines.length ? lines[cursor++] : null) });
       await pyodide.runPythonAsync(code);
       self.postMessage({ ok: true, output: self.__getBuffer() });
     } catch (err) {
@@ -67,8 +71,8 @@ export interface RunResult {
   timedOut: boolean;
 }
 
-/** Runs Python code in-browser via a Pyodide Web Worker and captures stdout/stderr. */
-export function runPython(code: string): Promise<RunResult> {
+/** Runs Python code in-browser via a Pyodide Web Worker, feeding `stdin` to input() and capturing stdout/stderr. */
+export function runPython(code: string, stdin = ""): Promise<RunResult> {
   return new Promise((resolve) => {
     const w = getWorker();
     let settled = false;
@@ -100,6 +104,6 @@ export function runPython(code: string): Promise<RunResult> {
       resolve({ output: "", error: e.message || "Python runtime failed to load.", timedOut: false });
     };
 
-    w.postMessage({ code });
+    w.postMessage({ code, stdin });
   });
 }
