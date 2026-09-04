@@ -143,6 +143,7 @@ export type Database = {
           max_score: number
           rubric: string | null
           starter_code: string
+          test_cases: Json
           title: string
           updated_at: string
         }
@@ -158,6 +159,7 @@ export type Database = {
           max_score?: number
           rubric?: string | null
           starter_code?: string
+          test_cases?: Json
           title: string
           updated_at?: string
         }
@@ -173,6 +175,7 @@ export type Database = {
           max_score?: number
           rubric?: string | null
           starter_code?: string
+          test_cases?: Json
           title?: string
           updated_at?: string
         }
@@ -184,6 +187,7 @@ export type Database = {
           ai_graded_at: string | null
           ai_suggested_score: number | null
           assignment_id: string
+          auto_score: number | null
           code: string
           created_at: string
           graded_at: string | null
@@ -196,6 +200,7 @@ export type Database = {
           student_id: string
           submitted_at: string | null
           teacher_feedback: string | null
+          test_results: Json | null
           updated_at: string
         }
         Insert: {
@@ -203,6 +208,7 @@ export type Database = {
           ai_graded_at?: string | null
           ai_suggested_score?: number | null
           assignment_id: string
+          auto_score?: number | null
           code?: string
           created_at?: string
           graded_at?: string | null
@@ -215,6 +221,7 @@ export type Database = {
           student_id: string
           submitted_at?: string | null
           teacher_feedback?: string | null
+          test_results?: Json | null
           updated_at?: string
         }
         Update: {
@@ -222,6 +229,7 @@ export type Database = {
           ai_graded_at?: string | null
           ai_suggested_score?: number | null
           assignment_id?: string
+          auto_score?: number | null
           code?: string
           created_at?: string
           graded_at?: string | null
@@ -234,6 +242,7 @@ export type Database = {
           student_id?: string
           submitted_at?: string | null
           teacher_feedback?: string | null
+          test_results?: Json | null
           updated_at?: string
         }
         Relationships: [
