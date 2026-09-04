@@ -10,8 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CodeEditor } from '@/components/coding/CodeEditor';
 import { HtmlPreview } from '@/components/coding/HtmlPreview';
 import { runPython, type RunResult } from '@/lib/pyodideRunner';
+import { parseTestCases, type CodingTestCase, type TestRunSummary } from '@/lib/codingTests';
+import { runPythonTestCases } from '@/lib/codingTestRunner';
 import { toast } from 'sonner';
-import { ArrowLeft, Play, Send, Loader2, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Play, Send, Loader2, RotateCcw, CheckCircle2, FlaskConical, XCircle, Lock } from 'lucide-react';
 
 interface Assignment {
   id: string;
@@ -22,6 +24,7 @@ interface Assignment {
   starter_code: string;
   max_score: number;
   due_date: string | null;
+  test_cases: CodingTestCase[];
 }
 
 interface Submission {
@@ -50,6 +53,9 @@ export default function CodingWorkspace() {
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [consoleLines, setConsoleLines] = useState<string[]>([]);
   const [runToken, setRunToken] = useState(0);
+  const [testing, setTesting] = useState(false);
+  const [testProgress, setTestProgress] = useState<{ done: number; total: number } | null>(null);
+  const [testSummary, setTestSummary] = useState<TestRunSummary | null>(null);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const isReadOnly = submission?.status === 'submitted' || submission?.status === 'graded';
@@ -64,7 +70,7 @@ export default function CodingWorkspace() {
     try {
       const { data: assignmentData, error: aErr } = await supabase
         .from('coding_assignments')
-        .select('id, title, description, instructions, language, starter_code, max_score, due_date')
+        .select('id, title, description, instructions, language, starter_code, max_score, due_date, test_cases')
         .eq('id', assignmentId)
         .single();
 
@@ -73,7 +79,11 @@ export default function CodingWorkspace() {
         navigate('/dashboard/coding');
         return;
       }
-      setAssignment({ ...(assignmentData as Assignment), language: parseCodingLanguage(assignmentData.language) });
+      setAssignment({
+        ...(assignmentData as unknown as Assignment),
+        language: parseCodingLanguage(assignmentData.language),
+        test_cases: parseTestCases((assignmentData as { test_cases?: unknown }).test_cases),
+      });
 
       const { data: existing } = await supabase
         .from('coding_submissions')
@@ -154,6 +164,28 @@ export default function CodingWorkspace() {
     }
   };
 
+  const handleRunTests = async () => {
+    if (!assignment || assignment.test_cases.length === 0) return;
+    setTesting(true);
+    setTestSummary(null);
+    setTestProgress({ done: 0, total: assignment.test_cases.length });
+    try {
+      const summary = await runPythonTestCases(
+        code,
+        assignment.test_cases,
+        assignment.max_score,
+        (done, total) => setTestProgress({ done, total }),
+      );
+      setTestSummary(summary);
+      toast.success(`${summary.passedCount}/${summary.totalCount} tests passed`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not run the tests.');
+    } finally {
+      setTesting(false);
+      setTestProgress(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!assignmentId || !profile?.id) return;
     if (!code.trim()) {
@@ -163,6 +195,13 @@ export default function CodingWorkspace() {
     setSubmitting(true);
     try {
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      // Always grade against the tests at submit time so the stored score
+      // reflects the exact code being submitted.
+      let finalSummary = testSummary;
+      if (hasTests) {
+        finalSummary = await runPythonTestCases(code, assignment!.test_cases, assignment!.max_score);
+        setTestSummary(finalSummary);
+      }
       const { data, error } = await supabase
         .from('coding_submissions')
         .upsert(
@@ -173,6 +212,8 @@ export default function CodingWorkspace() {
             status: 'submitted',
             submitted_at: new Date().toISOString(),
             last_run_output: runResult?.output || runResult?.error || null,
+            test_results: finalSummary ? JSON.parse(JSON.stringify(finalSummary.results)) : null,
+            auto_score: finalSummary ? finalSummary.autoScore : null,
           },
           { onConflict: 'assignment_id,student_id' }
         )
