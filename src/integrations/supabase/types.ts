@@ -543,6 +543,269 @@ export type Database = {
         }
         Relationships: []
       }
+      lab_project_assignments: {
+        Row: {
+          accepted_extension: string
+          allow_late_submission: boolean
+          allow_resubmission: boolean
+          allow_supporting_files: boolean
+          class_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          instructions: string | null
+          lab_type: string
+          max_file_size: number
+          max_score: number
+          require_description: boolean
+          rubric: Json
+          school_id: string
+          status: string
+          subject: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_extension: string
+          allow_late_submission?: boolean
+          allow_resubmission?: boolean
+          allow_supporting_files?: boolean
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          instructions?: string | null
+          lab_type: string
+          max_file_size?: number
+          max_score?: number
+          require_description?: boolean
+          rubric?: Json
+          school_id: string
+          status?: string
+          subject?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_extension?: string
+          allow_late_submission?: boolean
+          allow_resubmission?: boolean
+          allow_supporting_files?: boolean
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          instructions?: string | null
+          lab_type?: string
+          max_file_size?: number
+          max_score?: number
+          require_description?: boolean
+          rubric?: Json
+          school_id?: string
+          status?: string
+          subject?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_project_assignments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_project_assignments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_project_audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          assignment_id: string | null
+          created_at: string
+          event: string
+          id: string
+          metadata: Json
+          student_id: string | null
+          submission_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          assignment_id?: string | null
+          created_at?: string
+          event: string
+          id?: string
+          metadata?: Json
+          student_id?: string | null
+          submission_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          assignment_id?: string | null
+          created_at?: string
+          event?: string
+          id?: string
+          metadata?: Json
+          student_id?: string | null
+          submission_id?: string | null
+        }
+        Relationships: []
+      }
+      lab_project_submission_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          mime_type: string | null
+          storage_path: string
+          submission_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          mime_type?: string | null
+          storage_path: string
+          submission_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          mime_type?: string | null
+          storage_path?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_project_submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "lab_project_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lab_project_submissions: {
+        Row: {
+          assignment_id: string
+          attempt_number: number
+          created_at: string
+          description: string | null
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          is_late: boolean
+          learning_reflection: string | null
+          main_file_extension: string | null
+          main_file_name: string | null
+          main_file_path: string | null
+          main_file_size: number | null
+          max_score: number
+          project_title: string
+          review_started_at: string | null
+          rubric_scores: Json | null
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+          teacher_feedback: string | null
+          technologies_used: string[]
+          updated_at: string
+          what_it_does: string | null
+        }
+        Insert: {
+          assignment_id: string
+          attempt_number?: number
+          created_at?: string
+          description?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          is_late?: boolean
+          learning_reflection?: string | null
+          main_file_extension?: string | null
+          main_file_name?: string | null
+          main_file_path?: string | null
+          main_file_size?: number | null
+          max_score?: number
+          project_title?: string
+          review_started_at?: string | null
+          rubric_scores?: Json | null
+          score?: number | null
+          status?: string
+          student_id: string
+          submitted_at?: string | null
+          teacher_feedback?: string | null
+          technologies_used?: string[]
+          updated_at?: string
+          what_it_does?: string | null
+        }
+        Update: {
+          assignment_id?: string
+          attempt_number?: number
+          created_at?: string
+          description?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          id?: string
+          is_late?: boolean
+          learning_reflection?: string | null
+          main_file_extension?: string | null
+          main_file_name?: string | null
+          main_file_path?: string | null
+          main_file_size?: number | null
+          max_score?: number
+          project_title?: string
+          review_started_at?: string | null
+          rubric_scores?: Json | null
+          score?: number | null
+          status?: string
+          student_id?: string
+          submitted_at?: string | null
+          teacher_feedback?: string | null
+          technologies_used?: string[]
+          updated_at?: string
+          what_it_does?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_project_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "lab_project_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_project_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -1331,6 +1594,145 @@ export type Database = {
         Returns: boolean
       }
       is_admin_or_teacher: { Args: { _user_id: string }; Returns: boolean }
+      lab_attach_file: {
+        Args: {
+          _file_name: string
+          _file_type: string
+          _mime: string
+          _size: number
+          _storage_path: string
+          _submission_id: string
+        }
+        Returns: string
+      }
+      lab_audit: {
+        Args: {
+          _assignment: string
+          _event: string
+          _meta?: Json
+          _student: string
+          _submission: string
+        }
+        Returns: undefined
+      }
+      lab_can_read_path: { Args: { _name: string }; Returns: boolean }
+      lab_can_upload_path: { Args: { _name: string }; Returns: boolean }
+      lab_can_view_submission: {
+        Args: { _submission_id: string }
+        Returns: boolean
+      }
+      lab_current_role: { Args: never; Returns: string }
+      lab_delete_draft: { Args: { _submission_id: string }; Returns: string[] }
+      lab_grade_submission: {
+        Args: {
+          _feedback: string
+          _rubric_scores?: Json
+          _score: number
+          _submission_id: string
+        }
+        Returns: undefined
+      }
+      lab_is_staff_for_class: { Args: { _class_id: string }; Returns: boolean }
+      lab_log_download: { Args: { _file_id: string }; Returns: undefined }
+      lab_mark_under_review: {
+        Args: { _submission_id: string }
+        Returns: undefined
+      }
+      lab_own_draft: {
+        Args: { _submission_id: string }
+        Returns: {
+          assignment_id: string
+          attempt_number: number
+          created_at: string
+          description: string | null
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          is_late: boolean
+          learning_reflection: string | null
+          main_file_extension: string | null
+          main_file_name: string | null
+          main_file_path: string | null
+          main_file_size: number | null
+          max_score: number
+          project_title: string
+          review_started_at: string | null
+          rubric_scores: Json | null
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+          teacher_feedback: string | null
+          technologies_used: string[]
+          updated_at: string
+          what_it_does: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "lab_project_submissions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      lab_path_prefix_ok: { Args: { _name: string }; Returns: boolean }
+      lab_path_submission: { Args: { _name: string }; Returns: string }
+      lab_remove_file: { Args: { _file_id: string }; Returns: string }
+      lab_request_resubmission: {
+        Args: { _feedback: string; _submission_id: string }
+        Returns: undefined
+      }
+      lab_save_draft: {
+        Args: {
+          _description: string
+          _reflection: string
+          _submission_id: string
+          _technologies: string[]
+          _title: string
+          _what_it_does: string
+        }
+        Returns: undefined
+      }
+      lab_staff_submission: {
+        Args: { _submission_id: string }
+        Returns: {
+          assignment_id: string
+          attempt_number: number
+          created_at: string
+          description: string | null
+          graded_at: string | null
+          graded_by: string | null
+          id: string
+          is_late: boolean
+          learning_reflection: string | null
+          main_file_extension: string | null
+          main_file_name: string | null
+          main_file_path: string | null
+          main_file_size: number | null
+          max_score: number
+          project_title: string
+          review_started_at: string | null
+          rubric_scores: Json | null
+          score: number | null
+          status: string
+          student_id: string
+          submitted_at: string | null
+          teacher_feedback: string | null
+          technologies_used: string[]
+          updated_at: string
+          what_it_does: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "lab_project_submissions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      lab_start_submission: {
+        Args: { _assignment_id: string }
+        Returns: string
+      }
+      lab_submit: { Args: { _submission_id: string }; Returns: undefined }
       mark_review_opened: { Args: { _attempt_id: string }; Returns: undefined }
       validate_registration_key: {
         Args: { _key_code: string }
