@@ -1,3 +1,4 @@
+import LabProjectManagement from '@/components/admin/LabProjectManagement';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   LogOut, GraduationCap, Users, FileText, BarChart3, TrendingUp, Target, Award,
   UserCheck, Building2, Activity, BookOpen, Shield, ChevronUp, ChevronDown, Zap,
-  Eye, Clock, Sparkles, ArrowUpRight, LayoutDashboard, School, UserCog, Globe, Code2
+  Eye, Clock, Sparkles, ArrowUpRight, LayoutDashboard, School, UserCog, Globe, Code2, FlaskConical
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -116,6 +117,7 @@ const tabItems = [
   { value: 'exams', label: 'Exam Analytics', icon: BarChart3 },
   { value: 'schools', label: 'Schools', icon: School },
   { value: 'coding', label: 'Coding', icon: Code2 },
+  { value: 'labprojects', label: 'Lab Projects', icon: FlaskConical },
   { value: 'traffic', label: 'Site Traffic', icon: Globe },
 ];
 
@@ -670,6 +672,8 @@ export default function NewAdminDashboard() {
                 <CodingAssignmentManagement />
               </motion.div>
             </TabsContent>
+
+            <TabsContent value="labprojects" className="mt-6"><LabProjectManagement /></TabsContent>
 
             {/* ====== SITE TRAFFIC TAB ====== */}
             <TabsContent value="traffic" className="mt-6">

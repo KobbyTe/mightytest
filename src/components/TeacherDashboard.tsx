@@ -1,3 +1,4 @@
+import LabProjectManagement from '@/components/admin/LabProjectManagement';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +33,7 @@ import {
   LogOut, GraduationCap, Plus, Calendar, Users, FileText, Building2,
   HelpCircle, FileQuestion, Edit, Trash2, Eye, CheckCircle, Clock,
   ShieldCheck, Mail, Phone, BookOpen, Award, User, Copy, ClipboardList, Key, Briefcase,
-  Trophy, Diamond, Star, TrendingUp, Target, Zap, Bell, Send, Code2
+  Trophy, Diamond, Star, TrendingUp, Target, Zap, Bell, Send, Code2, FlaskConical
 } from 'lucide-react';
 import { RadialBarChart, RadialBar, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 
@@ -497,6 +498,7 @@ export default function TeacherDashboard() {
                     { value: 'resits', label: 'Resits', icon: Award },
                     { value: 'library', label: 'Library', icon: BookOpen },
                     { value: 'coding', label: 'Coding', icon: Code2 },
+                    { value: 'labprojects', label: 'Lab Projects', icon: FlaskConical },
                   ].map(tab => (
                     <TabsTrigger
                       key={tab.value}
@@ -886,6 +888,7 @@ export default function TeacherDashboard() {
             <TabsContent value="resits"><ResitManagement /></TabsContent>
             <TabsContent value="library"><StudyResourceManagement /></TabsContent>
             <TabsContent value="coding"><CodingAssignmentManagement /></TabsContent>
+            <TabsContent value="labprojects"><LabProjectManagement /></TabsContent>
           </Tabs>
         </motion.div>
       </main>
