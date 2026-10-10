@@ -1,3 +1,4 @@
+import { ParentLabProjects } from '@/components/parent/ParentLabProjects';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -209,6 +210,8 @@ export default function ParentDashboard() {
             </Card>
           </div>
         )}
+
+        <ParentLabProjects />
 
         {/* Children Overview */}
         <div id="parent-children" />
