@@ -1,0 +1,1 @@
+- Lab project submissions: students/teachers change state only via SECURITY DEFINER lab_* RPCs (no direct INSERT/UPDATE policies); files live in private bucket project-submissions under school/class/student/assignment/submission/ — keeps grading and ownership server-controlled.
